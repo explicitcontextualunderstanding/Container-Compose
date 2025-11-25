@@ -531,13 +531,20 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             runCommandArgs.append("-t")  // --tty
         }
 
-        // Add entrypoint override BEFORE image name (must be a flag to `container run`)
-        if let entrypointParts = service.entrypoint, let entrypointCmd = entrypointParts.first {
-            runCommandArgs.append("--entrypoint")
-            runCommandArgs.append(entrypointCmd)
+        // Configure DNS for container-to-container name resolution
+        if let dnsSearch = service.dns_search {
+            runCommandArgs.append("--dns-search")
+            runCommandArgs.append(dnsSearch)
         }
 
-        runCommandArgs.append(imageToRun)  // Image name separates `container run` flags from container arguments
+        // Add entrypoint override BEFORE image name (must be a flag to `container run`)
+        if let entrypointParts = service.entrypoint, let entrypointCmd = entrypointParts.first {
+            runCommandArgs.append(imageToRun)  // Add the image name as the final argument before command/entrypoint
+            runCommandArgs.append("--entrypoint")
+            runCommandArgs.append(entrypointCmd)
+        } else {
+            runCommandArgs.append(imageToRun)  // Image name separates `container run` flags from container arguments
+        }
 
         // Add entrypoint arguments or command AFTER image name (these become container process args)
         if let entrypointParts = service.entrypoint {
