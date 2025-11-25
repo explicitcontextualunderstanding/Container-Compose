@@ -97,14 +97,17 @@ public struct Service: Codable, Hashable {
 
     /// Allocate a pseudo-TTY (-t flag for `container run`)
     public let tty: Bool?
-    
+
+    /// DNS search domain for container-to-container name resolution
+    public let dns_search: String?
+
     /// Other services that depend on this service
     public var dependedBy: [String] = []
     
     // Defines custom coding keys to map YAML keys to Swift properties
     enum CodingKeys: String, CodingKey {
         case image, build, deploy, restart, healthcheck, volumes, environment, env_file, ports, command, depends_on, user,
-             container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform
+             container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, dns_search
     }
     
     /// Public memberwise initializer for testing
@@ -133,6 +136,7 @@ public struct Service: Codable, Hashable {
         secrets: [ServiceSecret]? = nil,
         stdin_open: Bool? = nil,
         tty: Bool? = nil,
+        dns_search: String? = nil,
         dependedBy: [String] = []
     ) {
         self.image = image
@@ -159,6 +163,7 @@ public struct Service: Codable, Hashable {
         self.secrets = secrets
         self.stdin_open = stdin_open
         self.tty = tty
+        self.dns_search = dns_search
         self.dependedBy = dependedBy
     }
 
@@ -218,6 +223,7 @@ public struct Service: Codable, Hashable {
         stdin_open = try container.decodeIfPresent(Bool.self, forKey: .stdin_open)
         tty = try container.decodeIfPresent(Bool.self, forKey: .tty)
         platform = try container.decodeIfPresent(String.self, forKey: .platform)
+        dns_search = try container.decodeIfPresent(String.self, forKey: .dns_search)
     }
     
     /// Returns the services in topological order based on `depends_on` relationships.
