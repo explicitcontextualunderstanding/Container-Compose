@@ -99,7 +99,32 @@ struct DockerComposeParsingTests {
         #expect(compose.services["db"]??.volumes?.count == 1)
         #expect(compose.services["db"]??.volumes?.first == "db-data:/var/lib/postgresql/data")
     }
-    
+
+    @Test("Parse compose with named volume - full destination path preserved")
+    func parseComposeWithNamedVolumeFullPath() throws {
+        // This tests the fix for: https://github.com/Mcrich23/Container-Compose/issues/32
+        // Named volumes with nested paths like /usr/share/elasticsearch/data were being truncated
+        let yaml = """
+        version: '3.8'
+        services:
+          elasticsearch:
+            image: elasticsearch:8.0
+            volumes:
+              - elasticsearch-data:/usr/share/elasticsearch/data
+        volumes:
+          elasticsearch-data:
+        """
+
+        let decoder = YAMLDecoder()
+        let compose = try decoder.decode(DockerCompose.self, from: yaml)
+
+        #expect(compose.volumes != nil)
+        #expect(compose.volumes?["elasticsearch-data"] != nil)
+        #expect(compose.services["elasticsearch"]??.volumes?.count == 1)
+        // Critical: the FULL destination path must be preserved
+        #expect(compose.services["elasticsearch"]??.volumes?.first == "elasticsearch-data:/usr/share/elasticsearch/data")
+    }
+
     @Test("Parse compose with networks")
     func parseComposeWithNetworks() throws {
         let yaml = """
