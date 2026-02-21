@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: false
+        type: string
+
+jobs:
+  build-release:
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Swift
+        uses: maartene/setup-swift@main
+        with:
+          swift-version: '6.2'
+
+      - name: Build Release
+        run: swift build -c release
+
+      - name: Create Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+          files: |
+            .build/release/container-compose
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          # Create release if it doesn't exist
+          VERSION="${{ github.inputs.version || 'latest' }}"
+          TAG="v${VERSION#v}"
+
+          # Create or get release ID
+          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases/tags/$TAG --jq '.id' 2>/dev/null || echo "")
+
+          if [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(gh api repos/${{ github.repository }}/releases -X POST \
+              --field tag_name="$TAG" \
+              --field name="$TAG" \
+              --field draft=false \
+              --jq '.id')
+          fi
+
+          # Upload asset
+          gh api repos/${{ github.repository }}/releases/$RELEASE_ID/assets \
+            -F "file=@.build/release/container-compose" \
+            -F "name=container-compose"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
