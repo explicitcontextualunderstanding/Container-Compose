@@ -195,12 +195,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     ///   - interval: How often to poll (in seconds).
     private func waitUntilContainerIsRunning(_ containerName: String, timeout: TimeInterval = 30, interval: TimeInterval = 0.5) async throws {
         let deadline = Date().addingTimeInterval(timeout)
-        var lastStatus: RuntimeStatus?
 
         while Date() < deadline {
             do {
                 let container = try await ClientContainer.get(id: containerName)
-                lastStatus = container.status
                 if container.status == .running {
                     print("Container '\(containerName)' is now running.")
                     return
@@ -212,11 +210,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
         }
 
-        let statusMessage = lastStatus.map { "Last status: \($0)" } ?? "Container was never found"
         throw NSError(
             domain: "ContainerWait", code: 1,
             userInfo: [
-                NSLocalizedDescriptionKey: "Timed out waiting for container '\(containerName)' to be running. \(statusMessage)"
+                NSLocalizedDescriptionKey: "Timed out waiting for container '\(containerName)' to be running."
             ])
     }
 
