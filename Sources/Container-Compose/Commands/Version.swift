@@ -28,7 +28,7 @@ public struct Version: ParsableCommand {
 
     public static let configuration: CommandConfiguration = .init(
         commandName: "version",
-        abstract: "Display the version information"
+        abstract: "Display container-compose version and fork capabilities (dnsSearch, multi-stage build target, improved volume and entrypoint handling)"
     )
 
     public func run() {
