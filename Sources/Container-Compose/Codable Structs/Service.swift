@@ -141,6 +141,9 @@ public struct Service: Codable, Hashable {
         read_only: Bool? = nil,
         working_dir: String? = nil,
         platform: String? = nil,
+        runtime: String? = nil,
+        `init`: Bool? = nil,
+        init_image: String? = nil,
         configs: [ServiceConfig]? = nil,
         secrets: [ServiceSecret]? = nil,
         stdin_open: Bool? = nil,
@@ -168,6 +171,9 @@ public struct Service: Codable, Hashable {
         self.read_only = read_only
         self.working_dir = working_dir
         self.platform = platform
+        self.runtime = runtime
+        self.`init` = `init`
+        self.init_image = init_image
         self.configs = configs
         self.secrets = secrets
         self.stdin_open = stdin_open
@@ -238,6 +244,7 @@ public struct Service: Codable, Hashable {
         init_image = try container.decodeIfPresent(String.self, forKey: .init_image)
 
         dns_search = try container.decodeIfPresent(String.self, forKey: .dns_search)
+        dependedBy = []
     }
     
     /// Returns the services in topological order based on `depends_on` relationships.
