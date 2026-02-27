@@ -86,9 +86,6 @@ public struct Service: Codable, Hashable {
     /// Platform architecture for the service
     public let platform: String?
 
-    /// Native init flag to request an init process (maps to container --init)
-    public let `init`: Bool?
-
     /// Service-specific config usage (primarily for Swarm)
     public let configs: [ServiceConfig]?
 
@@ -110,7 +107,7 @@ public struct Service: Codable, Hashable {
     // Defines custom coding keys to map YAML keys to Swift properties
     enum CodingKeys: String, CodingKey {
         case image, build, deploy, restart, healthcheck, volumes, environment, env_file, ports, command, depends_on, user,
-             container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, `init`, dns_search
+             container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, dns_search
     }
     
     /// Public memberwise initializer for testing
@@ -226,9 +223,6 @@ public struct Service: Codable, Hashable {
         stdin_open = try container.decodeIfPresent(Bool.self, forKey: .stdin_open)
         tty = try container.decodeIfPresent(Bool.self, forKey: .tty)
         platform = try container.decodeIfPresent(String.self, forKey: .platform)
-        // Decode optional init flag (YAML key: init)
-        `init` = try container.decodeIfPresent(Bool.self, forKey: .`init`)
-
         dns_search = try container.decodeIfPresent(String.self, forKey: .dns_search)
     }
     
