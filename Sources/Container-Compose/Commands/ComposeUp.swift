@@ -745,6 +745,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
 // MARK: CommandLine Functions
 
+extension ComposeUp {
+
     /// Helper for building the `container run` argument list for a service. Used by tests.
     public static func makeRunArgs(service: Service, serviceName: String, dockerCompose: DockerCompose, projectName: String, detach: Bool, cwd: String, environmentVariables: [String: String]) throws -> [String] {
         var runArgs: [String] = []
@@ -809,7 +811,6 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
         return runArgs
     }
-extension ComposeUp {
 
     /// Runs a command, streams stdout and stderr via closures, and completes when the process exits.
     ///
