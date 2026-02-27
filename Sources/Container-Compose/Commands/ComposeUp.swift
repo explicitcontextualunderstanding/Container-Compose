@@ -745,60 +745,6 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 }
 
 // MARK: CommandLine Functions
-
-    /// Helper for building the `container run` argument list for a service. Used by tests.
-    public static func makeRunArgs(service: Service, serviceName: String, dockerCompose: DockerCompose, projectName: String, detach: Bool, cwd: String, environmentVariables: [String: String]) throws -> [String] {
-        var runArgs: [String] = []
-
-        // Add detach flag if specified
-        if detach {
-            runArgs.append("-d")
-        }
-
-        // Determine container name
-        let containerName: String
-        if let explicit = service.container_name {
-            containerName = explicit
-        } else {
-            containerName = "\(projectName)-\(serviceName)"
-        }
-        runArgs.append("--name")
-        runArgs.append(containerName)
-
-        // Map restart policy if present
-        if let restart = service.restart {
-            runArgs.append("--restart")
-            runArgs.append(restart)
-        }
-
-        // Map init flag if present (support both explicit Bool and optional presence)
-        // Note: Service may not include an `init` field; this helper will check for a computed property on Service via KeyedDecoding.
-        if let mirrorInit = Mirror(reflecting: service).children.first(where: { $0.label == "init" }), let value = mirrorInit.value as? Bool, value {
-            runArgs.append("--init")
-        }
-
-        // Ensure entrypoint flag is placed before the image name when provided
-        let imageToRun = service.image ?? "\(serviceName):latest"
-        if let entrypointParts = service.entrypoint, let entrypointCmd = entrypointParts.first {
-            runArgs.append("--entrypoint")
-            runArgs.append(entrypointCmd)
-            // image follows flags
-            runArgs.append(imageToRun)
-            // append any remaining entrypoint args or command after image
-            if entrypointParts.count > 1 {
-                runArgs.append(contentsOf: entrypointParts.dropFirst())
-            } else if let commandParts = service.command {
-                runArgs.append(contentsOf: commandParts)
-            }
-        } else {
-            runArgs.append(imageToRun)
-            if let commandParts = service.command {
-                runArgs.append(contentsOf: commandParts)
-            }
-        }
-
-        return runArgs
-    }
 extension ComposeUp {
 
     /// Runs a command, streams stdout and stderr via closures, and completes when the process exits.
