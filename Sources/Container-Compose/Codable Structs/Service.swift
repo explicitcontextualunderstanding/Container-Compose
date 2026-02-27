@@ -86,8 +86,14 @@ public struct Service: Codable, Hashable {
     /// Platform architecture for the service
     public let platform: String?
 
+    /// Runtime to pass to the container engine (maps to `--runtime`)
+    public let runtime: String?
+
     /// Native init flag to request an init process (maps to container --init)
     public let `init`: Bool?
+
+    /// Init image to pass to the engine (maps to `--init-image`)
+    public let init_image: String?
 
     /// Service-specific config usage (primarily for Swarm)
     public let configs: [ServiceConfig]?
@@ -110,7 +116,7 @@ public struct Service: Codable, Hashable {
     // Defines custom coding keys to map YAML keys to Swift properties
     enum CodingKeys: String, CodingKey {
         case image, build, deploy, restart, healthcheck, volumes, environment, env_file, ports, command, depends_on, user,
-             container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, `init`, dns_search
+             container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, runtime, `init`, init_image, dns_search
     }
     
     /// Public memberwise initializer for testing
@@ -226,8 +232,10 @@ public struct Service: Codable, Hashable {
         stdin_open = try container.decodeIfPresent(Bool.self, forKey: .stdin_open)
         tty = try container.decodeIfPresent(Bool.self, forKey: .tty)
         platform = try container.decodeIfPresent(String.self, forKey: .platform)
+        runtime = try container.decodeIfPresent(String.self, forKey: .runtime)
         // Decode optional init flag (YAML key: init)
         `init` = try container.decodeIfPresent(Bool.self, forKey: .`init`)
+        init_image = try container.decodeIfPresent(String.self, forKey: .init_image)
 
         dns_search = try container.decodeIfPresent(String.self, forKey: .dns_search)
     }

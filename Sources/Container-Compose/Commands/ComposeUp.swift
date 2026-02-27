@@ -770,10 +770,21 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             runArgs.append(restart)
         }
 
+        // Map runtime flag if present
+        if let runtime = service.runtime {
+            runArgs.append("--runtime")
+            runArgs.append(runtime)
+        }
+
         // Map init flag if present (support both explicit Bool and optional presence)
-        // Note: Service may not include an `init` field; this helper will check for a computed property on Service via KeyedDecoding.
         if let mirrorInit = Mirror(reflecting: service).children.first(where: { $0.label == "init" }), let value = mirrorInit.value as? Bool, value {
             runArgs.append("--init")
+        }
+
+        // Map init-image if present (must be passed before image name)
+        if let initImage = service.init_image {
+            runArgs.append("--init-image")
+            runArgs.append(initImage)
         }
 
         // Ensure entrypoint flag is placed before the image name when provided
