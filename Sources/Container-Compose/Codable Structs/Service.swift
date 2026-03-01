@@ -104,13 +104,19 @@ public struct Service: Codable, Hashable {
     /// DNS search domain for container-to-container name resolution
     public let dns_search: String?
 
+    /// Native runtime to use for this service (maps to container --runtime)
+    public let runtime: String?
+
+    /// Native init-image to use for this service (maps to container --init-image)
+    public let init_image: String?
+
     /// Other services that depend on this service
     public var dependedBy: [String] = []
     
     // Defines custom coding keys to map YAML keys to Swift properties
     enum CodingKeys: String, CodingKey {
         case image, build, deploy, restart, healthcheck, volumes, environment, env_file, ports, command, depends_on, user,
-             container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, `init`, dns_search
+             container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, runtime, `init`, init_image, dns_search
     }
     
     /// Public memberwise initializer for testing
@@ -135,11 +141,14 @@ public struct Service: Codable, Hashable {
         read_only: Bool? = nil,
         working_dir: String? = nil,
         platform: String? = nil,
+        `init`: Bool? = nil,
         configs: [ServiceConfig]? = nil,
         secrets: [ServiceSecret]? = nil,
         stdin_open: Bool? = nil,
         tty: Bool? = nil,
         dns_search: String? = nil,
+        runtime: String? = nil,
+        init_image: String? = nil,
         dependedBy: [String] = []
     ) {
         self.image = image
@@ -162,11 +171,14 @@ public struct Service: Codable, Hashable {
         self.read_only = read_only
         self.working_dir = working_dir
         self.platform = platform
+        self.`init` = `init`
         self.configs = configs
         self.secrets = secrets
         self.stdin_open = stdin_open
         self.tty = tty
         self.dns_search = dns_search
+        self.runtime = runtime
+        self.init_image = init_image
         self.dependedBy = dependedBy
     }
 
@@ -228,6 +240,8 @@ public struct Service: Codable, Hashable {
         platform = try container.decodeIfPresent(String.self, forKey: .platform)
         // Decode optional init flag (YAML key: init)
         `init` = try container.decodeIfPresent(Bool.self, forKey: .`init`)
+        runtime = try container.decodeIfPresent(String.self, forKey: .runtime)
+        init_image = try container.decodeIfPresent(String.self, forKey: .init_image)
 
         dns_search = try container.decodeIfPresent(String.self, forKey: .dns_search)
     }

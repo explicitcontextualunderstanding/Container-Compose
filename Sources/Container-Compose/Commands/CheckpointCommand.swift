@@ -28,7 +28,7 @@ public struct CheckpointCommand: AsyncParsableCommand {
         let args = Self.makeCommitArgs(containerName: containerName, imageName: imageTag)
 
         print("Executing: container \(args.joined(separator: " "))")
-        _ = try await streamCommand("container", args: args, onStdout: { print($0) }, onStderr: { print($0) })
+        _ = try await streamCommand("container", args: args, cwd: FileManager.default.currentDirectoryPath, onStdout: { print($0) }, onStderr: { print($0) })
         print("Checkpointed \(containerName) -> \(imageTag)")
     }
 
