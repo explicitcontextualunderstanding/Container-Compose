@@ -65,6 +65,20 @@ struct BuildConfigurationTests {
         #expect(build.args?["NODE_VERSION"] == "18")
         #expect(build.args?["ENV"] == "production")
     }
+
+    @Test("Parse build with target stage")
+    func parseBuildWithTarget() throws {
+        let yaml = """
+        context: .
+        target: builder
+        """
+
+        let decoder = YAMLDecoder()
+        let build = try decoder.decode(Build.self, from: yaml)
+
+        #expect(build.context == ".")
+        #expect(build.target == "builder")
+    }
     
     
     @Test("Service with build configuration")
