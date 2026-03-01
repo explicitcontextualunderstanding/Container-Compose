@@ -19,17 +19,18 @@ import ArgumentParser
 
 public struct Main: AsyncParsableCommand {
     private static let commandName: String = "container-compose"
-    private static let version: String = "0.9.1"
+    private static let version: String = "0.10.0"
     public static var versionString: String {
         "\(commandName) version \(version)"
     }
     public static let configuration: CommandConfiguration = .init(
         commandName: Self.commandName,
-        abstract: "A tool to manage Docker Compose files using Apple Container. This fork adds dnsSearch support, multi-stage build target support, improved volume handling, and better entrypoint/command debugging.",
+        abstract: "A tool to manage Docker Compose files using Apple Container. Features: checkpointing, network sync, volume management, dnsSearch, and multi-stage builds.",
         version: Self.versionString,
         subcommands: [
             ComposeUp.self,
             ComposeDown.self,
+            CheckpointCommand.self,
             Version.self
         ])
     
