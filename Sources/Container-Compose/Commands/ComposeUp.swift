@@ -156,8 +156,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         if let volumes = dockerCompose.volumes {
             print("\n--- Processing Volumes ---")
             for (volumeName, volumeConfig) in volumes {
-                guard let volumeConfig else { continue }
-                await createVolumeHardLink(name: volumeName, config: volumeConfig)
+                try await setupVolume(name: volumeName, config: volumeConfig)
             }
             print("--- Volumes Processed ---\n")
         }
@@ -251,78 +250,89 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
     }
 
-    private func createVolumeHardLink(name volumeName: String, config volumeConfig: Volume) async {
+    private func setupVolume(name volumeName: String, config volumeConfig: Volume?) async throws {
         guard let projectName else { return }
-        let actualVolumeName = volumeConfig.name ?? volumeName  // Use explicit name or key as name
+        let actualVolumeName = volumeConfig?.name ?? volumeName
+
+        let volumeCreateArgs = Self.makeVolumeCreateArgs(name: actualVolumeName, config: volumeConfig)
+
+        print("Ensuring volume: \(actualVolumeName)")
+        print("Executing container volume create: container volume create \(volumeCreateArgs.joined(separator: " "))")
+        
+        // Use streamCommand to ensure volume via engine
+        let _ = try await ContainerComposeCore.streamCommand("container", args: ["volume", "create"] + volumeCreateArgs, cwd: self.cwd, onStdout: { print($0) }, onStderr: { print($0) })
 
         let volumeUrl = URL.homeDirectory.appending(path: ".containers/Volumes/\(projectName)/\(actualVolumeName)")
         let volumePath = volumeUrl.path(percentEncoded: false)
 
-        print(
-            "Warning: Volume source '\(actualVolumeName)' appears to be a named volume reference. The 'container' tool does not support named volume references in 'container run -v' command. Linking to \(volumePath) instead."
-        )
         try? fileManager.createDirectory(atPath: volumePath, withIntermediateDirectories: true)
     }
 
     private func setupNetwork(name networkName: String, config networkConfig: Network?) async throws {
-        let actualNetworkName = networkConfig?.name ?? networkName  // Use explicit name or key as name
+        let actualNetworkName = networkConfig?.name ?? networkName
 
         if let externalNetwork = networkConfig?.external, externalNetwork.isExternal {
             print("Info: Network '\(networkName)' is declared as external.")
             print("This tool assumes external network '\(externalNetwork.name ?? actualNetworkName)' already exists and will not attempt to create it.")
         } else {
-            var networkCreateArgs: [String] = ["network", "create"]
-
-            #warning("Docker Compose Network Options Not Supported")
-            // Add driver and driver options
-            if let driver = networkConfig?.driver, !driver.isEmpty {
-                //                    networkCreateArgs.append("--driver")
-                //                    networkCreateArgs.append(driver)
-                print("Network Driver Detected, But Not Supported")
-            }
-            if let driverOpts = networkConfig?.driver_opts, !driverOpts.isEmpty {
-                //                    for (optKey, optValue) in driverOpts {
-                //                        networkCreateArgs.append("--opt")
-                //                        networkCreateArgs.append("\(optKey)=\(optValue)")
-                //                    }
-                print("Network Options Detected, But Not Supported")
-            }
-            // Add various network flags
-            if networkConfig?.attachable == true {
-                //                    networkCreateArgs.append("--attachable")
-                print("Network Attachable Flag Detected, But Not Supported")
-            }
-            if networkConfig?.enable_ipv6 == true {
-                //                    networkCreateArgs.append("--ipv6")
-                print("Network IPv6 Flag Detected, But Not Supported")
-            }
-            if networkConfig?.isInternal == true {
-                //                    networkCreateArgs.append("--internal")
-                print("Network Internal Flag Detected, But Not Supported")
-            }  // CORRECTED: Use isInternal
-
-            // Add labels
-            if let labels = networkConfig?.labels, !labels.isEmpty {
-                print("Network Labels Detected, But Not Supported")
-                //                    for (labelKey, labelValue) in labels {
-                //                        networkCreateArgs.append("--label")
-                //                        networkCreateArgs.append("\(labelKey)=\(labelValue)")
-                //                    }
-            }
+            let commands = Self.makeNetworkCreateArgs(name: actualNetworkName, config: networkConfig)
 
             print("Creating network: \(networkName) (Actual name: \(actualNetworkName))")
-            print("Executing container network create: container \(networkCreateArgs.joined(separator: " "))")
+            print("Executing container network create: container network create \(commands.joined(separator: " "))")
             guard (try? await ClientNetwork.get(id: actualNetworkName)) == nil else {
                 print("Network '\(networkName)' already exists")
                 return
             }
-            let commands = [actualNetworkName]
-            
+
             let networkCreate = try Application.NetworkCreate.parse(commands + logging.passThroughCommands())
 
             try await networkCreate.run()
             print("Network '\(networkName)' created")
         }
+    }
+
+    // MARK: Static Helpers for Testing
+    
+    public static func makeNetworkCreateArgs(name: String, config: Network?) -> [String] {
+        var commands = [name]
+
+        if config?.isInternal == true {
+            commands.insert("--internal", at: 0)
+        }
+
+        if let labels = config?.labels {
+            for (key, value) in labels {
+                commands.insert(contentsOf: ["--label", "\(key)=\(value)"], at: 0)
+            }
+        }
+
+        if let ipamConfigs = config?.ipam?.config {
+            for config in ipamConfigs {
+                if let subnet = config.subnet {
+                    commands.insert(contentsOf: ["--subnet", subnet], at: 0)
+                }
+            }
+        }
+        
+        return commands
+    }
+    
+    public static func makeVolumeCreateArgs(name: String, config: Volume?) -> [String] {
+        var volumeCreateArgs = [name]
+
+        if let labels = config?.labels {
+            for (key, value) in labels {
+                volumeCreateArgs.insert(contentsOf: ["--label", "\(key)=\(value)"], at: 0)
+            }
+        }
+
+        if let opts = config?.driver_opts {
+            for (key, value) in opts {
+                volumeCreateArgs.insert(contentsOf: ["--opt", "\(key)=\(value)"], at: 0)
+            }
+        }
+        
+        return volumeCreateArgs
     }
 
     // MARK: Compose Service Level Functions
@@ -331,8 +341,6 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
         var imageToRun: String
         
-        var runCommandArgs: [String] = []
-
         // Handle 'build' configuration
         if let buildConfig = service.build {
             imageToRun = try await buildService(buildConfig, for: service, serviceName: serviceName)
@@ -344,57 +352,6 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         } else {
             // Should not happen due to Service init validation, but as a fallback
             throw ComposeError.imageNotFound(serviceName)
-        }
-        
-        // Set Run Platform
-        if let platform = service.platform {
-            runCommandArgs.append(contentsOf: ["--platform", "\(platform)"])
-        }
-
-        // Handle 'deploy' configuration (note that this tool doesn't fully support it)
-        if service.deploy != nil {
-            print("Note: The 'deploy' configuration for service '\(serviceName)' was parsed successfully.")
-            print(
-                "However, this 'container-compose' tool does not currently support 'deploy' functionality (e.g., replicas, resources, update strategies) as it is primarily for orchestration platforms like Docker Swarm or Kubernetes, not direct 'container run' commands."
-            )
-            print("The service will be run as a single container based on other configurations.")
-        }
-
-        // Add detach flag if specified on the CLI
-        if detach {
-            runCommandArgs.append("-d")
-        }
-
-        // Determine container name
-        let containerName: String
-        if let explicitContainerName = service.container_name {
-            containerName = explicitContainerName
-            print("Info: Using explicit container_name: \(containerName)")
-        } else {
-            // Default container name based on project and service name
-            containerName = "\(projectName)-\(serviceName)"
-        }
-        runCommandArgs.append("--name")
-        runCommandArgs.append(containerName)
-
-        // REMOVED: Restart policy is not supported by `container run`
-        // if let restart = service.restart {
-        //     runCommandArgs.append("--restart")
-        //     runCommandArgs.append(restart)
-        // }
-
-        // Add user
-        if let user = service.user {
-            runCommandArgs.append("--user")
-            runCommandArgs.append(user)
-        }
-
-        // Add volume mounts
-        if let volumes = service.volumes {
-            for volume in volumes {
-                let args = try await configVolume(volume)
-                runCommandArgs.append(contentsOf: args)
-            }
         }
 
         // Combine environment variables from .env files and service environment
@@ -429,128 +386,20 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             containerIps[value] ?? value
         })
 
-        // MARK: Spinning Spot
-        // Add environment variables to run command
-        for (key, value) in combinedEnv {
-            runCommandArgs.append("-e")
-            runCommandArgs.append("\(key)=\(value)")
-        }
+        // Build the `container run` argument list using the standardized helper
+        let runCommandArgs = try Self.makeRunArgs(
+            service: service,
+            serviceName: serviceName,
+            image: imageToRun,
+            dockerCompose: dockerCompose,
+            projectName: projectName,
+            detach: detach,
+            cwd: cwd,
+            environmentVariables: combinedEnv
+        )
 
-         if let ports = service.ports {
-             for port in ports {
-                 let resolvedPort = resolveVariable(port, with: environmentVariables)
-                 runCommandArgs.append("-p")
-                 runCommandArgs.append("0.0.0.0:\(resolvedPort)")
-             }
-         }
-
-        // Connect to specified networks
-        if let serviceNetworks = service.networks {
-            for network in serviceNetworks {
-                let resolvedNetwork = resolveVariable(network, with: environmentVariables)
-                // Use the explicit network name from top-level definition if available, otherwise resolved name
-                let networkToConnect = dockerCompose.networks?[network]??.name ?? resolvedNetwork
-                runCommandArgs.append("--network")
-                runCommandArgs.append(networkToConnect)
-            }
-            print(
-                "Info: Service '\(serviceName)' is configured to connect to networks: \(serviceNetworks.joined(separator: ", ")) ascertained from networks attribute in \(composeFilename)."
-            )
-            print(
-                "Note: This tool assumes custom networks are defined at the top-level 'networks' key or are pre-existing. This tool does not create implicit networks for services if not explicitly defined at the top-level."
-            )
-        } else {
-            print("Note: Service '\(serviceName)' is not explicitly connected to any networks. It will likely use the default bridge network.")
-        }
-
-        // Add hostname
-        if let hostname = service.hostname {
-            let resolvedHostname = resolveVariable(hostname, with: environmentVariables)
-            runCommandArgs.append("--hostname")
-            runCommandArgs.append(resolvedHostname)
-        }
-
-        // Add working directory
-        if let workingDir = service.working_dir {
-            let resolvedWorkingDir = resolveVariable(workingDir, with: environmentVariables)
-            runCommandArgs.append("--workdir")
-            runCommandArgs.append(resolvedWorkingDir)
-        }
-
-        // Add privileged flag
-        if service.privileged == true {
-            runCommandArgs.append("--privileged")
-        }
-
-        // Add read-only flag
-        if service.read_only == true {
-            runCommandArgs.append("--read-only")
-        }
-
-        // Add resource limits
-        if let cpus = service.deploy?.resources?.limits?.cpus {
-            runCommandArgs.append(contentsOf: ["--cpus", cpus])
-        }
-        if let memory = service.deploy?.resources?.limits?.memory {
-            runCommandArgs.append(contentsOf: ["--memory", memory])
-        }
-
-        // Handle service-level configs (note: still only parsing/logging, not attaching)
-        if let serviceConfigs = service.configs {
-            print(
-                "Note: Service '\(serviceName)' defines 'configs'. Docker Compose 'configs' are primarily used for Docker Swarm deployed stacks and are not directly translatable to 'container run' commands."
-            )
-            print("This tool will parse 'configs' definitions but will not create or attach them to containers during 'container run'.")
-            for serviceConfig in serviceConfigs {
-                print(
-                    "  - Config: '\(serviceConfig.source)' (Target: \(serviceConfig.target ?? "default location"), UID: \(serviceConfig.uid ?? "default"), GID: \(serviceConfig.gid ?? "default"), Mode: \(serviceConfig.mode?.description ?? "default"))"
-                )
-            }
-        }
-        //
-        // Handle service-level secrets (note: still only parsing/logging, not attaching)
-        if let serviceSecrets = service.secrets {
-            print(
-                "Note: Service '\(serviceName)' defines 'secrets'. Docker Compose 'secrets' are primarily used for Docker Swarm deployed stacks and are not directly translatable to 'container run' commands."
-            )
-            print("This tool will parse 'secrets' definitions but will not create or attach them to containers during 'container run'.")
-            for serviceSecret in serviceSecrets {
-                print(
-                    "  - Secret: '\(serviceSecret.source)' (Target: \(serviceSecret.target ?? "default location"), UID: \(serviceSecret.uid ?? "default"), GID: \(serviceSecret.gid ?? "default"), Mode: \(serviceSecret.mode?.description ?? "default"))"
-                )
-            }
-        }
-
-        // Add interactive and TTY flags
-        if service.stdin_open == true {
-            runCommandArgs.append("-i")  // --interactive
-        }
-        if service.tty == true {
-            runCommandArgs.append("-t")  // --tty
-        }
-
-        // Configure DNS for container-to-container name resolution
-        if let dnsSearch = service.dns_search {
-            runCommandArgs.append("--dns-search")
-            runCommandArgs.append(dnsSearch)
-        }
-
-        // Add entrypoint override BEFORE image name (must be a flag to `container run`)
-        if let entrypointParts = service.entrypoint, let entrypointCmd = entrypointParts.first {
-            runCommandArgs.append(imageToRun)  // Add the image name as the final argument before command/entrypoint
-            runCommandArgs.append("--entrypoint")
-            runCommandArgs.append(entrypointCmd)
-        } else {
-            runCommandArgs.append(imageToRun)  // Image name separates `container run` flags from container arguments
-        }
-
-        // Add entrypoint arguments or command AFTER image name (these become container process args)
-        if let entrypointParts = service.entrypoint {
-            // First element was used as --entrypoint above, rest are arguments
-            runCommandArgs.append(contentsOf: entrypointParts.dropFirst())
-        } else if let commandParts = service.command {
-            runCommandArgs.append(contentsOf: commandParts)
-        }
+        // Extract container name for status checks (consistent with makeRunArgs logic)
+        let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
 
         var serviceColor: NamedColor = Self.availableContainerConsoleColors.randomElement()!
 
@@ -583,7 +432,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             print("\nStarting service: \(serviceName)")
             print("Starting \(serviceName)")
             print("----------------------------------------\n")
-            let _ = try await streamCommand("container", args: ["run"] + runCommandArgs, onStdout: handleOutput, onStderr: handleOutput)
+            // Disambiguate to call the global helper, passing the explicit `cwd`
+            let _ = try await ContainerComposeCore.streamCommand("container", args: ["run"] + runCommandArgs, cwd: self.cwd, onStdout: handleOutput, onStderr: handleOutput)
         }
 
         do {
@@ -749,7 +599,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 extension ComposeUp {
 
     /// Helper for building the `container run` argument list for a service. Used by tests.
-    public static func makeRunArgs(service: Service, serviceName: String, dockerCompose: DockerCompose, projectName: String, detach: Bool, cwd: String, environmentVariables: [String: String]) throws -> [String] {
+    public static func makeRunArgs(service: Service, serviceName: String, image: String?, dockerCompose: DockerCompose, projectName: String, detach: Bool, cwd: String, environmentVariables: [String: String]) throws -> [String] {
         var runArgs: [String] = []
 
         // Add detach flag if specified
@@ -769,18 +619,41 @@ extension ComposeUp {
 
         // Map restart policy if present
         if let restart = service.restart {
+            let mappedRestart: String
+            switch restart {
+            case "no":
+                mappedRestart = "no"
+            case "always", "unless-stopped":
+                mappedRestart = "always"
+            case "on-failure":
+                mappedRestart = "on-failure"
+            default:
+                mappedRestart = restart // Pass through any other values as-is
+            }
             runArgs.append("--restart")
-            runArgs.append(restart)
+            runArgs.append(mappedRestart)
+        }
+
+        // Map runtime flag if present
+        if let runtime = service.runtime {
+            runArgs.append("--runtime")
+            runArgs.append(runtime)
         }
 
         // Map init flag if present (support both explicit Bool and optional presence)
-        // Note: Service may not include an `init` field; this helper will check for a computed property on Service via KeyedDecoding.
-        if let mirrorInit = Mirror(reflecting: service).children.first(where: { $0.label == "init" }), let value = mirrorInit.value as? Bool, value {
+        // Note: Specifying init_image also implies --init
+        if service.`init` == true || service.init_image != nil {
             runArgs.append("--init")
         }
 
+        // Map init-image if present (must be passed before image name)
+        if let initImage = service.init_image {
+            runArgs.append("--init-image")
+            runArgs.append(initImage)
+        }
+
         // Ensure entrypoint flag is placed before the image name when provided
-        let imageToRun = service.image ?? "\(serviceName):latest"
+        let imageToRun = image ?? service.image ?? "\(serviceName):latest"
         if let entrypointParts = service.entrypoint, let entrypointCmd = entrypointParts.first {
             runArgs.append("--entrypoint")
             runArgs.append(entrypointCmd)
