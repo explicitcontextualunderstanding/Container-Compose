@@ -17,3 +17,4 @@ We are leveraging `apple/container` v0.10.0 features to enhance `container-compo
 
 ---
 *Last Updated: 2026-02-28*
+*Release Version: 0.10.0*
