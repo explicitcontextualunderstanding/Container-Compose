@@ -640,6 +640,12 @@ extension ComposeUp {
             runArgs.append(runtime)
         }
 
+        // Map dns search if present
+        if let dnsSearch = service.dns_search {
+            runArgs.append("--dns-search")
+            runArgs.append(dnsSearch)
+        }
+
         // Map init flag if present (support both explicit Bool and optional presence)
         // Note: Specifying init_image also implies --init
         if service.`init` == true || service.init_image != nil {

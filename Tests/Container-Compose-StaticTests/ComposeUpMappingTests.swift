@@ -120,4 +120,20 @@ final class ComposeUpMappingTests: XCTestCase {
 
         XCTAssertTrue(entryIdx < imageIdx, "Expected --entrypoint to appear before image, but args: \(args)")
     }
+
+    func testDNSSearchMapping() throws {
+        let yaml = """
+        services:
+          app:
+            image: busybox:latest
+            dns_search: "my-namespace.local"
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+
+        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+
+        XCTAssertTrue(args.contains("--dns-search"), "Expected --dns-search flag present in args: \(args)")
+        XCTAssertTrue(args.contains("my-namespace.local"), "Expected dns search value present in args: \(args)")
+    }
 }
