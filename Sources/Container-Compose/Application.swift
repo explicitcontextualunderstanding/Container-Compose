@@ -25,7 +25,7 @@ public struct Main: AsyncParsableCommand {
     }
     public static let configuration: CommandConfiguration = .init(
         commandName: Self.commandName,
-        abstract: "A tool to manage Docker Compose files using Apple Container. Features: checkpointing, network sync, volume management, dnsSearch, and multi-stage builds.",
+        abstract: "A tool to manage Docker Compose files using Apple Container. v0.10.1 includes: adversarial review fixes, silent failure remediation, missing field mappings (--user, --hostname, --workdir, --privileged, --read-only, --network, -i, -t), checkpointing, network sync, volume management, dnsSearch, and multi-stage builds.",
         version: Self.versionString,
         subcommands: [
             ComposeUp.self,
