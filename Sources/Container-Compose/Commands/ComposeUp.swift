@@ -740,6 +740,20 @@ extension ComposeUp {
             runArgs.append("-i")
         }
 
+        // Map CPU and memory limits from deploy.resources
+        if let deploy = service.deploy, let resources = deploy.resources {
+            if let limits = resources.limits {
+                if let cpus = limits.cpus {
+                    runArgs.append("--cpus")
+                    runArgs.append(cpus)
+                }
+                if let memory = limits.memory {
+                    runArgs.append("--memory")
+                    runArgs.append(memory)
+                }
+            }
+        }
+
         // Ensure entrypoint flag is placed before the image name when provided
         let imageToRun = image ?? service.image ?? "\(serviceName):latest"
         if let entrypointParts = service.entrypoint, let entrypointCmd = entrypointParts.first {
