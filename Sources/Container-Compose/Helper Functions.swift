@@ -185,12 +185,14 @@ public func streamCommand(
         let stdoutHandle = stdoutPipe.fileHandleForReading
         let stderrHandle = stderrPipe.fileHandleForReading
 
-        // Set up timeout
-        var timeoutTimer: Timer?
-        let timeoutHandler = { [weak process] in
-            guard let process = process, process.isRunning else { return }
-            process.terminate()
-            continuation.resume(throwing: CommandTimeoutError(command: command, timeout: timeout))
+        // Use async task for timeout instead of Timer to avoid Sendable issues
+        let timeoutTask = Task {
+            try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+            if process.isRunning {
+                process.terminate()
+            }
+            // After timeout, throw - we'll check below
+            throw CommandTimeoutError(command: command, timeout: timeout)
         }
 
         stdoutHandle.readabilityHandler = { handle in
@@ -210,7 +212,6 @@ public func streamCommand(
         }
 
         process.terminationHandler = { proc in
-            timeoutTimer?.invalidate()
             stdoutHandle.readabilityHandler = nil
             stderrHandle.readabilityHandler = nil
 
@@ -223,17 +224,11 @@ public func streamCommand(
 
         do {
             try process.run()
-
-            // Start timeout timer
-            Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { _ in
-                timeoutHandler()
-            }
         } catch {
-            timeoutTimer?.invalidate()
+            timeoutTask.cancel()
             stdoutHandle.readabilityHandler = nil
             stderrHandle.readabilityHandler = nil
             try? stdoutHandle.close()
-            try? stderrHandle.close()
             continuation.resume(throwing: error)
         }
     }
