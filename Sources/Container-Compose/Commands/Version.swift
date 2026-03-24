@@ -26,10 +26,10 @@ import Foundation
 
 public struct Version: ParsableCommand {
 
-  public static let configuration: CommandConfiguration = .init(
-    commandName: "version",
-    abstract: "Display container-compose version and fork capabilities (checkpointing, network sync, volumes, dnsSearch, multi-stage builds, stopped container restart)"
-  )
+    public static let configuration: CommandConfiguration = .init(
+        commandName: "version",
+        abstract: "Display container-compose version information"
+    )
 
     public func run() {
         print("\(Main.versionString)")

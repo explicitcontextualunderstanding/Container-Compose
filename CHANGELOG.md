@@ -1,14 +1,35 @@
 # CHANGELOG
 
-## v0.10.1 - Fork release (explicitcontextualunderstanding)
+## v0.10.1 - Fork release (explicitcontextualunderstanding) - 2026-03-24
 
-This release fixes a critical issue where stopped containers were not restarted on subsequent `up` commands.
+This release includes critical fixes from adversarial code review, silent failure remediation, and missing field mappings.
 
 ### Fixed
+
+- **Adversarial Review Fixes** - Comprehensive code review identified and fixed 63 confirmed issues:
+  - Fixed silent failures where streamCommand results were discarded (volume creation, container start, checkpoint)
+  - Fixed file handle resource leaks in Helper Functions with proper cleanup
+  - Added timeout mechanism to streamCommand (default 300s) to prevent indefinite hangs
+  - Fixed loadEnvFile to properly propagate errors instead of silently swallowing
 
 - **Stopped container restart**: When a container exists but is not running (e.g., stopped), `container-compose up` now starts the existing container instead of failing with an error message.
   - Previously: Container existed with status: stopped. Error was printed and command returned without starting the container.
   - Now: Container is automatically started using `container start <name> -d`, then waits for it to be running and updates service IPs.
+
+- **Missing Field Mappings** - Added support for compose fields that were parsed but never mapped to container run flags:
+  - `--user` for service.user
+  - `--hostname` for service.hostname
+  - `--workdir` for service.working_dir
+  - `--privileged` for service.privileged
+  - `--read-only` for service.read_only
+  - `--network` for service.networks (supports multiple networks)
+  - `-t` for service.tty
+  - `-i` for service.stdin_open
+
+- **Checkpoint Command Improvements**:
+  - Added pre-flight checks to verify container exists before checkpointing
+  - Added validation that container is running (with --force flag to override)
+  - Added exit code validation to ensure commit succeeded
 
 ## v0.9.1 - Fork release (explicitcontextualunderstanding)
 
