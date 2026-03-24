@@ -31,6 +31,13 @@ import Foundation
 @preconcurrency import Rainbow
 import Yams
 
+/// Error thrown when container run operations fail.
+public struct ContainerRunError: Error, CustomStringConvertible {
+    public let message: String
+    public var description: String { message }
+    public init(_ message: String) { self.message = message }
+}
+
 public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     public init() {}
 
@@ -103,8 +110,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         let dockerComposeString = String(data: yamlData, encoding: .utf8)!
         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: dockerComposeString)
 
-        // Load environment variables from .env file
-        environmentVariables = loadEnvFile(path: envFilePath)
+        // Load environment variables from .env file (non-strict: optional file)
+        environmentVariables = (try? loadEnvFile(path: envFilePath)) ?? [:]
 
         // Handle 'version' field
         if let version = dockerCompose.version {
@@ -250,22 +257,38 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
     }
 
+    /// Error thrown when volume operations fail.
+    public struct VolumeError: Error {
+        public let message: String
+        public init(_ message: String) { self.message = message }
+    }
+
     private func setupVolume(name volumeName: String, config volumeConfig: Volume?) async throws {
-        guard let projectName else { return }
+        guard let projectName else {
+            throw VolumeError("Cannot setup volume: projectName is nil")
+        }
         let actualVolumeName = volumeConfig?.name ?? volumeName
 
         let volumeCreateArgs = Self.makeVolumeCreateArgs(name: actualVolumeName, config: volumeConfig)
 
         print("Ensuring volume: \(actualVolumeName)")
         print("Executing container volume create: container volume create \(volumeCreateArgs.joined(separator: " "))")
-        
+
         // Use streamCommand to ensure volume via engine
-        let _ = try await ContainerComposeCore.streamCommand("container", args: ["volume", "create"] + volumeCreateArgs, cwd: self.cwd, onStdout: { print($0) }, onStderr: { print($0) })
+        let exitCode = try await ContainerComposeCore.streamCommand("container", args: ["volume", "create"] + volumeCreateArgs, cwd: self.cwd, onStdout: { print($0) }, onStderr: { print($0) })
+
+        guard exitCode == 0 else {
+            throw VolumeError("Volume creation failed with exit code \(exitCode)")
+        }
 
         let volumeUrl = URL.homeDirectory.appending(path: ".containers/Volumes/\(projectName)/\(actualVolumeName)")
         let volumePath = volumeUrl.path(percentEncoded: false)
 
-        try? fileManager.createDirectory(atPath: volumePath, withIntermediateDirectories: true)
+        do {
+            try fileManager.createDirectory(atPath: volumePath, withIntermediateDirectories: true)
+        } catch {
+            print("Warning: Could not create directory at \(volumePath): \(error)")
+        }
     }
 
     private func setupNetwork(name networkName: String, config networkConfig: Network?) async throws {
@@ -359,7 +382,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
         if let envFiles = service.env_file {
             for envFile in envFiles {
-                let additionalEnvVars = loadEnvFile(path: "\(cwd)/\(envFile)")
+                let additionalEnvVars = (try? loadEnvFile(path: "\(cwd)/\(envFile)")) ?? [:]
                 combinedEnv.merge(additionalEnvVars) { (current, _) in current }
             }
         }
@@ -428,24 +451,32 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
           }
       }
 
-        Task { [self, serviceColor] in
+        // Start container and capture result
+        let cwd = self.cwd  // Capture before Task
+        let containerTask: Task<Int32, Error> = Task {
             @Sendable
             func handleOutput(_ output: String) {
-                print("\(serviceName): \(output)".applyingColor(serviceColor))
+                print("\(serviceName): \(output)")
             }
 
             print("\nStarting service: \(serviceName)")
             print("Starting \(serviceName)")
             print("----------------------------------------\n")
             // Disambiguate to call the global helper, passing the explicit `cwd`
-            let _ = try await ContainerComposeCore.streamCommand("container", args: ["run"] + runCommandArgs, cwd: self.cwd, onStdout: handleOutput, onStderr: handleOutput)
+            return try await ContainerComposeCore.streamCommand("container", args: ["run"] + runCommandArgs, cwd: cwd, onStdout: handleOutput, onStderr: handleOutput)
         }
 
+        // Wait for container to start and validate it succeeded
         do {
+            let exitCode = try await containerTask.value
+            guard exitCode == 0 else {
+                throw ContainerRunError("Container run failed with exit code \(exitCode)")
+            }
             try await waitUntilContainerIsRunning(containerName)
             try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName)
         } catch {
-            print(error)
+            print("Error starting service \(serviceName): \(error)")
+            throw error
         }
     }
 
