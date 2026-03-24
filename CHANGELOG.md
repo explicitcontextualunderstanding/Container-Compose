@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v0.10.1 - Fork release (explicitcontextualunderstanding)
+
+This release fixes a critical issue where stopped containers were not restarted on subsequent `up` commands.
+
+### Fixed
+
+- **Stopped container restart**: When a container exists but is not running (e.g., stopped), `container-compose up` now starts the existing container instead of failing with an error message.
+  - Previously: Container existed with status: stopped. Error was printed and command returned without starting the container.
+  - Now: Container is automatically started using `container start <name> -d`, then waits for it to be running and updates service IPs.
+
 ## v0.9.1 - Fork release (explicitcontextualunderstanding)
 
 This release bundles several upstream fixes and improvements merged into this fork. Highlights and user-facing notes:
@@ -27,6 +37,5 @@ This release bundles several upstream fixes and improvements merged into this fo
 - CI and release automation (fork-specific)
   - Origin commits: https://github.com/explicitcontextualunderstanding/Container-Compose/commit/3f20dbf6a6268a93fa196632caa2c178214892f7 and https://github.com/explicitcontextualunderstanding/Container-Compose/commit/98b7fc4a50467067158d15eb47d9acca78121719
   - User note: This fork adds GitHub Actions for release automation used by the maintainers of this fork.
-
 
 For full details and links to the source commits/PRs, see FORK_CHANGES.md.

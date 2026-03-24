@@ -49,6 +49,10 @@ Notable changes included in this fork (with links):
     - https://github.com/explicitcontextualunderstanding/Container-Compose/commit/1d284fbc58e1abb0ff793e0eef0993fbeaf26189
   - Description: Adds and configures GitHub Actions workflows for release automation and CI build steps used by this fork.
 
+- fix: restart stopped containers on compose up (v0.10.1)
+  - Origin commit: https://github.com/explicitcontextualunderstanding/Container-Compose/commit/TODO
+  - Description: Fixes ComposeUp to start existing containers that are stopped instead of returning an error. When a container exists but has status != running, the tool now calls `container start <name> -d` and waits for the container to be running before proceeding.
+
 Additional upstream PRs of interest (not exhaustive):
 
 - Tests overhaul / fixes: https://github.com/Mcrich23/Container-Compose/pull/22
@@ -69,6 +73,7 @@ Notes and suggested next steps:
   - Ensure --entrypoint is passed before image name in run (commit: 84201f9)
   - Named-volume full-destination-path preservation and regression test (commits: b1badf8, 8edb8a9)
   - Fork-specific CI/release workflow additions (commits: 3f20dbf, 98b7fc4, 1d284fb)
+  - Restart stopped containers on compose up (v0.10.1): When containers exist but are stopped, automatically start them instead of returning an error
 
 - Recommended actions:
   1. Update this FORK_CHANGES.md and add a short CHANGELOG.md that clearly separates what was upstreamed in apple/container@0.10.0 and what remains unique to this fork.
@@ -76,6 +81,7 @@ Notes and suggested next steps:
   3. For each fork-only item, decide whether to upstream as a PR against apple/container or keep it as a fork patch; open PRs for items that are broadly useful (dns_search, build.target, entrypoint fix, named-volume behavior).
 
 TODOs:
+
 - Create a detailed CHANGELOG.md entry describing user-facing changes and migration notes, split into "Upstream in container@0.10.0" and "Fork-only changes".
 - Update README and CLI --help strings to reflect fork capabilities and any CLI differences.
 - Audit tests that depend on fork-only behavior and mark or adapt them for upstream compatibility.
@@ -125,11 +131,11 @@ The Change: PR #1172 adds `container commit` (exporting a container to an image)
 
 ### Suggested Testing Matrix for the Fork
 
-| Feature | Target PR | Test Case |
-| --- | --- | --- |
-| **Persistence** | #1108 / #1190 | Verify that named volumes aren't "lost" and `cp` works across them. |
-| **Security** | #1152 / #1166 | Ensure Compose-generated containers respect the new SELinux-off-by-default boot. |
-| **Reliability** | #1208 | Launch a Compose stack with `mem_limit: 128mb` and verify the CLI surfaces validation errors correctly. |
+| Feature         | Target PR     | Test Case                                                                                               |
+| --------------- | ------------- | ------------------------------------------------------------------------------------------------------- |
+| **Persistence** | #1108 / #1190 | Verify that named volumes aren't "lost" and `cp` works across them.                                     |
+| **Security**    | #1152 / #1166 | Ensure Compose-generated containers respect the new SELinux-off-by-default boot.                        |
+| **Reliability** | #1208         | Launch a Compose stack with `mem_limit: 128mb` and verify the CLI surfaces validation errors correctly. |
 
 ### Strategic Recommendation
 
