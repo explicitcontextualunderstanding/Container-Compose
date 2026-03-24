@@ -694,6 +694,52 @@ extension ComposeUp {
             runArgs.append(initImage)
         }
 
+        // Map user if present
+        if let user = service.user {
+            runArgs.append("--user")
+            runArgs.append(user)
+        }
+
+        // Map hostname if present
+        if let hostname = service.hostname {
+            runArgs.append("--hostname")
+            runArgs.append(hostname)
+        }
+
+        // Map working directory if present
+        if let workingDir = service.working_dir {
+            runArgs.append("--workdir")
+            runArgs.append(workingDir)
+        }
+
+        // Map privileged flag if present
+        if service.privileged == true {
+            runArgs.append("--privileged")
+        }
+
+        // Map read-only flag if present
+        if service.read_only == true {
+            runArgs.append("--read-only")
+        }
+
+        // Map networks if present
+        if let networks = service.networks {
+            for network in networks {
+                runArgs.append("--network")
+                runArgs.append(network)
+            }
+        }
+
+        // Map tty flag if present
+        if service.tty == true {
+            runArgs.append("-t")
+        }
+
+        // Map stdin_open flag if present
+        if service.stdin_open == true {
+            runArgs.append("-i")
+        }
+
         // Ensure entrypoint flag is placed before the image name when provided
         let imageToRun = image ?? service.image ?? "\(serviceName):latest"
         if let entrypointParts = service.entrypoint, let entrypointCmd = entrypointParts.first {
