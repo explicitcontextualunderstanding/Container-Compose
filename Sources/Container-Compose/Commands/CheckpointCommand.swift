@@ -3,6 +3,16 @@ import Foundation
 import ContainerizationExtras
 import ContainerAPIClient
 
+/// Error thrown when checkpoint operations fail.
+public struct CheckpointError: Error, CustomStringConvertible {
+    public let message: String
+    public var description: String { message }
+
+    public init(_ message: String) {
+        self.message = message
+    }
+}
+
 public struct CheckpointCommand: AsyncParsableCommand {
     public init() {}
 
@@ -13,6 +23,9 @@ public struct CheckpointCommand: AsyncParsableCommand {
 
     @Option(name: .long, help: "Image tag to use for the checkpointed image")
     var tag: String?
+
+    @Flag(name: .long, help: "Skip validation that container is running (may create stale checkpoint)")
+    var force: Bool = false
 
     public mutating func run() async throws {
         let project = deriveProjectName(cwd: FileManager.default.currentDirectoryPath)
@@ -25,10 +38,27 @@ public struct CheckpointCommand: AsyncParsableCommand {
             imageTag = "\(project)-\(service):checkpoint-\(ts)"
         }
 
+        // Pre-flight check: verify container exists
+        let containers = try await ClientContainer.list()
+        guard let container = containers.first(where: { $0.configuration.id == containerName }) else {
+            throw CheckpointError("Container '\(containerName)' not found. Is the service running?")
+        }
+
+        // Pre-flight check: verify container is running (unless --force)
+        if !force && container.status != .running {
+            throw CheckpointError("Container '\(containerName)' is not running (status: \(container.status)). Use --force to checkpoint anyway, but the image may be stale.")
+        }
+
         let args = Self.makeCommitArgs(containerName: containerName, imageName: imageTag)
 
         print("Executing: container \(args.joined(separator: " "))")
-        _ = try await streamCommand("container", args: args, cwd: FileManager.default.currentDirectoryPath, onStdout: { print($0) }, onStderr: { print($0) })
+        let exitCode = try await streamCommand("container", args: args, cwd: FileManager.default.currentDirectoryPath, onStdout: { print($0) }, onStderr: { print($0) })
+
+        // Verify commit succeeded
+        guard exitCode == 0 else {
+            throw CheckpointError("Checkpoint failed with exit code \(exitCode). Check output above for details.")
+        }
+
         print("Checkpointed \(containerName) -> \(imageTag)")
     }
 
