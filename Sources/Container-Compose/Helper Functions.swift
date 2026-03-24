@@ -26,12 +26,30 @@ import Yams
 import Rainbow
 import ContainerCommands
 
+/// Error thrown when loading environment files fails.
+public enum EnvFileError: Error {
+    case fileNotFound(path: String)
+    case readFailed(path: String, underlying: Error)
+}
+
 /// Loads environment variables from a .env file.
-/// - Parameter path: The full path to the .env file.
+/// - Parameters:
+///   - path: The full path to the .env file.
+///   - strict: If true, throws errors for missing files. If false, returns empty dict for missing files.
 /// - Returns: A dictionary of key-value pairs representing environment variables.
-public func loadEnvFile(path: String) -> [String: String] {
+/// - Throws: EnvFileError if strict mode and file cannot be read.
+public func loadEnvFile(path: String, strict: Bool = false) throws -> [String: String] {
     var envVars: [String: String] = [:]
     let fileURL = URL(fileURLWithPath: path)
+
+    // Check if file exists
+    if !FileManager.default.fileExists(atPath: path) {
+        if strict {
+            throw EnvFileError.fileNotFound(path: path)
+        }
+        return envVars
+    }
+
     do {
         let content = try String(contentsOf: fileURL, encoding: .utf8)
         let lines = content.split(separator: "\n")
@@ -48,8 +66,7 @@ public func loadEnvFile(path: String) -> [String: String] {
             }
         }
     } catch {
-        // print("Warning: Could not read .env file at \(path): \(error.localizedDescription)")
-        // Suppress error message if .env file is optional or missing
+        throw EnvFileError.readFailed(path: path, underlying: error)
     }
     return envVars
 }
@@ -122,19 +139,28 @@ extension NamedColor: @retroactive Codable {
 
 }
 
+/// Error thrown when command execution times out.
+public struct CommandTimeoutError: Error {
+    public let command: String
+    public let timeout: TimeInterval
+}
+
 /// Executes a command and streams its output.
 /// - Parameters:
 ///   - command: The command to execute.
 ///   - args: The arguments to pass to the command.
 ///   - cwd: The current working directory.
+///   - timeout: Maximum time to wait for command completion (default: 300 seconds).
 ///   - onStdout: Callback for standard output.
 ///   - onStderr: Callback for standard error.
 /// - Returns: The process's exit code.
+/// - Throws: Error if process fails to start, or CommandTimeoutError if timeout exceeded.
 @discardableResult
 public func streamCommand(
     _ command: String,
     args: [String] = [],
     cwd: String,
+    timeout: TimeInterval = 300,
     onStdout: @escaping (@Sendable (String) -> Void),
     onStderr: @escaping (@Sendable (String) -> Void)
 ) async throws -> Int32 {
@@ -149,12 +175,23 @@ public func streamCommand(
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 
+        // Preserve original PATH while adding common locations
+        let originalPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
+        let additionalPaths = "/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin"
         process.environment = ProcessInfo.processInfo.environment.merging([
-            "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            "PATH": originalPath.isEmpty ? additionalPaths : "\(additionalPaths):\(originalPath)"
         ]) { _, new in new }
 
         let stdoutHandle = stdoutPipe.fileHandleForReading
         let stderrHandle = stderrPipe.fileHandleForReading
+
+        // Set up timeout
+        var timeoutTimer: Timer?
+        let timeoutHandler = { [weak process] in
+            guard let process = process, process.isRunning else { return }
+            process.terminate()
+            continuation.resume(throwing: CommandTimeoutError(command: command, timeout: timeout))
+        }
 
         stdoutHandle.readabilityHandler = { handle in
             let data = handle.availableData
@@ -173,14 +210,30 @@ public func streamCommand(
         }
 
         process.terminationHandler = { proc in
+            timeoutTimer?.invalidate()
             stdoutHandle.readabilityHandler = nil
             stderrHandle.readabilityHandler = nil
+
+            // Ensure handles are closed
+            try? stdoutHandle.close()
+            try? stderrHandle.close()
+
             continuation.resume(returning: proc.terminationStatus)
         }
 
         do {
             try process.run()
+
+            // Start timeout timer
+            Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { _ in
+                timeoutHandler()
+            }
         } catch {
+            timeoutTimer?.invalidate()
+            stdoutHandle.readabilityHandler = nil
+            stderrHandle.readabilityHandler = nil
+            try? stdoutHandle.close()
+            try? stderrHandle.close()
             continuation.resume(throwing: error)
         }
     }
