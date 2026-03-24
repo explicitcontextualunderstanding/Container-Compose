@@ -182,7 +182,59 @@ struct ComposeUpTests {
 //        dump(containers)
 //    }
     
-    @Test("Test compose with complex dependency chain")
+    @Test("Test stopped container is restarted on compose up")
+  func testStoppedContainerRestart() async throws {
+    let yaml = """
+      services:
+        app:
+          image: nginx:alpine
+          ports:
+            - "8085:80"
+      """
+
+    let tempLocation = URL.temporaryDirectory.appending(path: "Container-Compose_Tests_\(UUID().uuidString)/docker-compose.yaml")
+    try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+    let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+
+    // First, start the container
+    var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+    try await composeUp.run()
+
+    // Verify container is running
+    let containersAfterFirstUp = try await ClientContainer.list()
+      .filter { $0.configuration.id.contains(folderName) }
+    guard let container = containersAfterFirstUp.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
+      throw Errors.containerNotFound
+    }
+    #expect(container.status == .running)
+
+    // Stop the container using container CLI
+    var stopCommand = try Application.ContainerStop.parse([container.configuration.id])
+    try await stopCommand.run()
+
+    // Verify container is stopped
+    let stoppedContainers = try await ClientContainer.list()
+      .filter { $0.configuration.id == "\(folderName)-app" }
+    guard let stoppedContainer = stoppedContainers.first else {
+      throw Errors.containerNotFound
+    }
+    #expect(stoppedContainer.status == .stopped)
+
+    // Now run compose up again - it should restart the stopped container
+    composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+    try await composeUp.run()
+
+    // Verify container is running again
+    let containersAfterSecondUp = try await ClientContainer.list()
+      .filter { $0.configuration.id == "\(folderName)-app" }
+    guard let restartedContainer = containersAfterSecondUp.first else {
+      throw Errors.containerNotFound
+    }
+    #expect(restartedContainer.status == .running)
+  }
+
+  @Test("Test compose with complex dependency chain")
     func TestComplexDependencyChain() async throws {
         let yaml = DockerComposeYamlFiles.dockerComposeYaml8
         
