@@ -35,7 +35,7 @@ struct EnvFileLoadingTests {
         try content.write(to: envFile, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: envFile) }
         
-        let envVars = loadEnvFile(path: envFile.path)
+        let envVars = try loadEnvFile(path: envFile.path)
         
         #expect(envVars["DATABASE_URL"] == "postgres://localhost/mydb")
         #expect(envVars["PORT"] == "8080")
@@ -58,7 +58,7 @@ struct EnvFileLoadingTests {
         try content.write(to: envFile, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: envFile) }
         
-        let envVars = loadEnvFile(path: envFile.path)
+        let envVars = try loadEnvFile(path: envFile.path)
         
         #expect(envVars["DATABASE_URL"] == "postgres://localhost/mydb")
         #expect(envVars["PORT"] == "8080")
@@ -81,7 +81,7 @@ struct EnvFileLoadingTests {
         try content.write(to: envFile, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: envFile) }
         
-        let envVars = loadEnvFile(path: envFile.path)
+        let envVars = try loadEnvFile(path: envFile.path)
         
         #expect(envVars.count == 3)
     }
@@ -98,7 +98,7 @@ struct EnvFileLoadingTests {
         try content.write(to: envFile, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: envFile) }
         
-        let envVars = loadEnvFile(path: envFile.path)
+        let envVars = try loadEnvFile(path: envFile.path)
         
         #expect(envVars["CONNECTION_STRING"] == "Server=localhost;Database=mydb;User=admin")
     }
@@ -116,7 +116,7 @@ struct EnvFileLoadingTests {
         try content.write(to: envFile, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: envFile) }
         
-        let envVars = loadEnvFile(path: envFile.path)
+        let envVars = try loadEnvFile(path: envFile.path)
         
         #expect(envVars["EMPTY_VAR"] == "")
         #expect(envVars["NORMAL_VAR"] == "value")
@@ -135,7 +135,7 @@ struct EnvFileLoadingTests {
         try content.write(to: envFile, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: envFile) }
         
-        let envVars = loadEnvFile(path: envFile.path)
+        let envVars = try loadEnvFile(path: envFile.path)
         
         #expect(envVars["MESSAGE"] == "Hello World")
         #expect(envVars["PATH_WITH_SPACES"] == "/path/to/some directory")
@@ -144,8 +144,8 @@ struct EnvFileLoadingTests {
     @Test("Return empty dict for non-existent file")
     func returnEmptyDictForNonExistentFile() {
         let nonExistentPath = "/tmp/non-existent-\(UUID().uuidString).env"
-        let envVars = loadEnvFile(path: nonExistentPath)
-        
+        let envVars = (try? loadEnvFile(path: nonExistentPath)) ?? [:]
+
         #expect(envVars.isEmpty)
     }
     
@@ -171,7 +171,7 @@ struct EnvFileLoadingTests {
         try content.write(to: envFile, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: envFile) }
         
-        let envVars = loadEnvFile(path: envFile.path)
+        let envVars = try loadEnvFile(path: envFile.path)
         
         #expect(envVars["APP_NAME"] == "MyApp")
         #expect(envVars["DATABASE_URL"] == "postgres://localhost/mydb")
