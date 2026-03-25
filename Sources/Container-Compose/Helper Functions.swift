@@ -166,8 +166,8 @@ public func deriveProjectName(cwd: String) throws -> String {
         }
     }
 
-    // Ensure it starts with a letter or number
-    if let first = sanitized.first, !first.isLetter && !first.isNumber {
+    // Ensure it starts with a letter, number, or underscore (all valid for container names)
+    if let first = sanitized.first, !first.isLetter && !first.isNumber && first != "_" {
         sanitized = "_" + sanitized
     }
 
