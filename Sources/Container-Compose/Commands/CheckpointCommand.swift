@@ -28,7 +28,7 @@ public struct CheckpointCommand: AsyncParsableCommand {
     var force: Bool = false
 
     public mutating func run() async throws {
-        let project = deriveProjectName(cwd: FileManager.default.currentDirectoryPath)
+        let project = try deriveProjectName(cwd: FileManager.default.currentDirectoryPath)
         let containerName = "\(project)-\(service)"
         let imageTag: String
         if let t = tag {

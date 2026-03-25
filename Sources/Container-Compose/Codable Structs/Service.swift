@@ -101,8 +101,9 @@ public struct Service: Codable, Hashable {
     /// Allocate a pseudo-TTY (-t flag for `container run`)
     public let tty: Bool?
 
-    /// DNS search domain for container-to-container name resolution
-    public let dns_search: String?
+    /// DNS search domain(s) for container-to-container name resolution
+    /// Supports both single string and array of strings
+    public let dns_search: [String]?
 
     /// Native runtime to use for this service (maps to container --runtime)
     public let runtime: String?
@@ -147,7 +148,7 @@ public struct Service: Codable, Hashable {
         secrets: [ServiceSecret]? = nil,
         stdin_open: Bool? = nil,
         tty: Bool? = nil,
-        dns_search: String? = nil,
+        dns_search: [String]? = nil,
         runtime: String? = nil,
         init_image: String? = nil,
         dependedBy: [String] = []
@@ -327,7 +328,12 @@ public struct Service: Codable, Hashable {
         runtime = rawRuntime
         init_image = try container.decodeIfPresent(String.self, forKey: .init_image)
 
-        dns_search = try container.decodeIfPresent(String.self, forKey: .dns_search)
+        // Support both single string and array for dns_search
+        if let dnsSearchString = try? container.decodeIfPresent(String.self, forKey: .dns_search) {
+            dns_search = [dnsSearchString]
+        } else {
+            dns_search = try container.decodeIfPresent([String].self, forKey: .dns_search)
+        }
     }
     
     /// Returns the services in topological order based on `depends_on` relationships.

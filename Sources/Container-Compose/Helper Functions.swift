@@ -110,15 +110,71 @@ public func resolveVariable(_ value: String, with envVars: [String: String]) -> 
     return resolvedValue
 }
 
-/// Derives a project name from the current working directory. It replaces any '.' characters with
-/// '_' to ensure compatibility with container naming conventions.
+/// Error thrown when project name derivation fails
+public struct ProjectNameError: Error, CustomStringConvertible {
+    public let message: String
+    public var description: String { message }
+    public init(_ message: String) { self.message = message }
+}
+
+/// Derives a project name from the current working directory.
+/// Sanitizes the name to ensure compatibility with container naming conventions.
+///
+/// Container names must:
+/// - Start with a letter or number
+/// - Contain only letters, numbers, underscores, periods, or hyphens
+/// - Not start with a period
 ///
 /// - Parameter cwd: The current working directory path.
 /// - Returns: A sanitized project name suitable for container naming.
-public func deriveProjectName(cwd: String) -> String {
-    // We need to replace '.' with _ because it is not supported in the container name
-    let projectName = URL(fileURLWithPath: cwd).lastPathComponent.replacingOccurrences(of: ".", with: "_")
-    return projectName
+/// - Throws: ProjectNameError if the path cannot be processed
+public func deriveProjectName(cwd: String) throws -> String {
+    // Validate input
+    guard !cwd.isEmpty else {
+        throw ProjectNameError("Cannot derive project name from empty path")
+    }
+
+    // Get the last path component
+    var projectName = URL(fileURLWithPath: cwd).lastPathComponent
+
+    // Handle path ending in separator (edge case)
+    if projectName.isEmpty {
+        // Fall back to full path's last component
+        let normalizedPath = (cwd as NSString).standardizingPath
+        let components = normalizedPath.split(separator: "/")
+        projectName = components.last.map(String.init) ?? "project"
+    }
+
+    // Apply sanitization rules:
+    // 1. Replace leading dots (hidden directories) with underscore
+    // 2. Replace characters that aren't alphanumeric, underscore, hyphen, or period
+    // 3. Ensure it starts with a letter or number
+
+    var sanitized = ""
+    for (index, char) in projectName.enumerated() {
+        if index == 0 && char == "." {
+            // Leading dot - replace with underscore
+            sanitized.append("_")
+        } else if char.isLetter || char.isNumber || char == "_" || char == "-" || char == "." {
+            // Valid character
+            sanitized.append(char)
+        } else {
+            // Invalid character - replace with underscore
+            sanitized.append("_")
+        }
+    }
+
+    // Ensure it starts with a letter or number
+    if let first = sanitized.first, !first.isLetter && !first.isNumber {
+        sanitized = "_" + sanitized
+    }
+
+    // Final validation
+    guard !sanitized.isEmpty else {
+        return "project"
+    }
+
+    return sanitized
 }
 
 extension String: @retroactive Error {}
