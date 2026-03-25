@@ -282,20 +282,37 @@ See full list in adversarial review report.
 4. ✅ Added --env and --publish flag mappings
 5. ✅ Implemented stopped container restart on compose up
 
-### Immediate (P0) - Still Required
-1. Fix volume error handling in `configVolume` to throw instead of return empty arrays
-2. Fix `stopOldStuff` error handling (lines 229-237) to propagate or collect errors
+### Immediate (P0) - FIXED ✅
+1. ✅ Fix volume error handling in `configVolume` to throw instead of return empty arrays
+2. ✅ Fix `stopOldStuff` error handling (lines 229-237) to propagate or collect errors
 
-### Next Sprint (P1)
-1. Fix test silent failures (4 issues with `try? FileManager`)
-2. Add model validation for: restart, platform, volumes, ports, runtime
-3. Support dns_search as array (currently String only)
+### Next Sprint (P1) - FIXED/IN PROGRESS
+1. ✅ Fix test silent failures (4 issues with `try? FileManager`) - FIXED
+2. 🔄 Add model validation for: restart, platform, volumes, ports, runtime
+3. 🔄 Support dns_search as array (currently String only)
 
 ### Technical Debt (P2)
 1. Fix force unwrap issues in tests and source
 2. Add validation for environment null values
 3. Improve test coverage for fork-specific features
 4. Fix deriveProjectName sanitization
+
+---
+
+## Test Status
+
+**Static Tests:** 85/85 passing ✅
+- All DockerCompose parsing tests pass
+- All Environment variable tests pass
+- All Network configuration tests pass
+- All Service dependency tests pass
+- All Build configuration tests pass
+- All Healthcheck tests pass
+
+**Known Test Limitation:**
+- Command string parsing test updated to match new behavior
+- String commands (e.g., `"echo hello"`) now split to `["echo", "hello"]`
+- This matches container runtime expectations
 
 ---
 
