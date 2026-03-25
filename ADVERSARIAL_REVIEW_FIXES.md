@@ -227,7 +227,7 @@ try FileManager.default.createDirectory(...)
 - Line 441: Task errors now awaited/captured ✅ FIXED v0.10.1
 - Line 448-449: Container wait errors now propagate ✅ FIXED v0.10.1
 - Line 263: Volume creation result captured with "already exists" handling ✅ FIXED v0.10.1
-- Line 546-580: Volume config still returns [] on error ⚠️ PARTIAL - logs warnings
+- Line 546-580: Volume config now throws VolumeConfigError ✅ FIXED
 
 **Missing Mappings (ALL FIXED v0.10.1):**
 - Lines 710-754: All 8 fields now mapped to container args ✅
