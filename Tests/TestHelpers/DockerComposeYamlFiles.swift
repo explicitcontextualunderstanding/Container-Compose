@@ -138,28 +138,28 @@ server {
         version: '3.8'
 
         services:
-          api-gateway:
+          api:
             image: traefik:v2.10
             ports:
               - "${TEST_PORT_GATEWAY:-18082}:80"
               - "${TEST_PORT_API:-18083}:8080"
             depends_on:
-              - auth-service
-              - user-service
-              - order-service
+              - auth
+              - user
+              - order
           
-          auth-service:
+          auth:
             image: auth:latest
             environment:
               JWT_SECRET: secret123
               DATABASE_URL: postgres://db:5432/auth
           
-          user-service:
+          user:
             image: user:latest
             environment:
               DATABASE_URL: postgres://db:5432/users
           
-          order-service:
+          order:
             image: order:latest
             environment:
               DATABASE_URL: postgres://db:5432/orders
