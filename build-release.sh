@@ -75,16 +75,14 @@ if [ $BUILD_STATUS -eq 0 ]; then
 
   # Remove macOS provenance attributes that can cause runtime traps
   if command -v xattr &>/dev/null; then
-    if xattr "$BINARY_PATH" 2>/dev/null | grep -q "com.apple.provenance"; then
-      echo ""
-      echo "Removing macOS provenance attributes..."
-      xattr -d com.apple.provenance "$BINARY_PATH" 2>/dev/null || true
-    fi
+    echo ""
+    echo "Clearing macOS extended attributes..."
+    xattr -c "$BINARY_PATH" 2>/dev/null || true
   fi
 
   echo ""
   echo "To install system-wide:"
-  echo " sudo cp .build/release/container-compose /usr/local/bin/"
+  echo " sudo ./install.sh"
 else
     echo ""
     echo "=========================================="

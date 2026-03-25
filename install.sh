@@ -19,26 +19,38 @@ echo "Installing container-compose..."
 
 # Check new binary exists
 if [ ! -f "$NEW_BINARY" ]; then
-    echo "Error: Build the binary first with: ./build-release.sh"
-    exit 1
+  echo "Error: Build the binary first with: ./build-release.sh"
+  exit 1
 fi
 
-# Check sudo needed
-if [ ! -w "/usr/local/bin" ] && [ "$EUID" -ne 0 ]; then
-    echo "Error: Run with sudo: sudo ./install.sh"
-    exit 1
-fi
-
-# Install
-cp "$NEW_BINARY" "$TARGET"
-chmod 755 "$TARGET"
-
-# Remove macOS provenance attributes that can cause runtime traps
+# Check for and clear macOS extended attributes that cause SIGUSR1 traps
 if command -v xattr &>/dev/null; then
-  if xattr "$TARGET" 2>/dev/null | grep -q "com.apple.provenance"; then
-    xattr -d com.apple.provenance "$TARGET" 2>/dev/null || true
+  if xattr "$NEW_BINARY" 2>/dev/null | grep -q "com.apple.provenance"; then
+    echo "Clearing provenance from source binary (causes SIGUSR1 crashes)..."
+    xattr -c "$NEW_BINARY"
   fi
 fi
+
+# Check sudo needed for symlink creation in /usr/local/bin
+if [ ! -w "/usr/local/bin" ] && [ "$EUID" -ne 0 ]; then
+  echo "Error: Run with sudo: sudo ./install.sh"
+  exit 1
+fi
+
+# Install via symlink to avoid macOS provenance monitoring
+# Symlinks in /usr/local/bin don't get com.apple.provenance attributes
+# The binary stays in .build/release/ where macOS doesn't monitor
+TARGET="/usr/local/bin/container-compose"
+
+# Remove old binary/symlink if exists
+if [ -e "$TARGET" ]; then
+  rm -f "$TARGET"
+fi
+
+# Create symlink to built binary
+ln -sf "$NEW_BINARY" "$TARGET"
+
+echo "✓ Created symlink: $TARGET -> $NEW_BINARY"
 
 echo "✓ Installed: $TARGET"
 echo " Version: $($TARGET version 2>&1 | head -1)"
