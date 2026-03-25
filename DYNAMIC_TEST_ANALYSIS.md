@@ -2,158 +2,174 @@
 
 ## Overview
 
-Two dynamic tests are failing:
-1. **Test WordPress with MySQL compose file** ❌
-2. **What goes up must come down - two containers** ❌
+Two dynamic tests are currently experiencing runtime issues:
 
-Both use the same WordPress test fixture.
+1. **Test WordPress with MySQL compose file** ❌ - Container exit code 1
+2. **What goes up must come down - two containers** ❌ - Same WordPress setup issue
 
-## The Paradox: Honcho Works, WordPress Doesn't
+**Status:** The original privileged port issue has been **resolved**. Current failures are due to **multi-container orchestration complexity**.
 
-### Working Stack (Honcho)
-- `ghcr.io/plastic-labs/honcho:latest` ✅ - Complex Python web service
-- `docker.io/pgvector/pgvector:pg15` ✅ - PostgreSQL with extensions
+---
 
-### Failing Stack (WordPress)
-- `wordpress:latest` ❌ - Fails with "Address already in use"
-- `mysql:8.0` ✅ - MySQL starts successfully
+## Issue Evolution
 
-## Root Cause
+### Phase 1: Privileged Port Problem (RESOLVED ✅)
 
-**WordPress binds to privileged port 80 internally**, which macOS Virtualization.framework blocks.
+**Original Issue:** `wordpress:latest` (Apache) binds to port 80 internally, which macOS Virtualization.framework blocks.
 
-### How Ports Work
+**Root Cause:**
+- macOS container sandbox restricts privileged ports (< 1024)
+- WordPress Apache tried `bind()` to port 80
+- Error 48 (EADDRINUSE) was actually "permission denied" in disguise
 
-**External Port Mapping (works fine):**
+**Fix Applied:**
 ```yaml
-ports:
-  - "18080:80"  # External:18080 → Internal:80
-```
-The external port (18080) is configurable and works. The problem is **port 80 inside the container**.
+# BEFORE (Failed)
+wordpress:
+  image: wordpress:latest  # Apache on port 80
 
-**Internal Container Process:**
-- WordPress runs Apache which tries to `bind()` to port 80
-- Port 80 is privileged (< 1024) and requires root
-- macOS container sandbox restricts privileged port binding
-- Result: "Address already in use" error (actually means "permission denied")
-
-### Why Honcho Works
-
-Honcho runs on **port 8000+** (unprivileged):
-```python
-# Honcho starts server on high port
-app.run(host='0.0.0.0', port=8000)  # ✅ Works fine
+# AFTER (Should work)
+wordpress:
+  image: wordpress:php8.2-fpm  # PHP-FPM on port 9000 (unprivileged)
+  
+web:
+  image: nginx:alpine
+  ports:
+    - "18080:8080"  # External:Internal - both unprivileged
 ```
 
-## The Failing Tests
+---
 
-### Test 1: "Test WordPress with MySQL compose file"
+## Phase 2: Multi-Container Orchestration Complexity (CURRENT)
 
-**Purpose:** Tests a realistic WordPress + MySQL deployment
+### Current Architecture
 
-**YAML Structure:**
 ```yaml
 services:
   wordpress:
-    image: wordpress:latest
-    ports:
-      - "18080:80"  # External OK, internal 80 fails
+    image: wordpress:php8.2-fpm  # PHP-FPM listens on port 9000
     environment:
       WORDPRESS_DB_HOST: db
-      # ...
-    depends_on:
-      - db
     volumes:
       - wordpress_data:/var/www/html
 
-  db:
-    image: mysql:8.0
-    # ...
-```
-
-**What Happens:**
-1. ✅ MySQL container starts successfully
-2. ❌ WordPress container fails during Apache startup
-3. Error: `bind(descriptor:ptr:bytes:): Address already in use (errno: 48)`
-
-**Why It Fails:**
-- WordPress image runs Apache HTTP server
-- Apache tries to bind to port 80 internally
-- macOS container sandbox blocks this
-
-### Test 2: "What goes up must come down - two containers"
-
-**Purpose:** Tests compose down command with multiple containers
-
-**Uses:** Same WordPress + MySQL YAML as Test 1
-
-**What Happens:**
-- Same WordPress failure as Test 1
-- Test can't verify compose down because containers never start properly
-
-## Why Other Images Work
-
-| Image | Internal Port | Result |
-|-------|---------------|--------|
-| `nginx:alpine` | 80 | ❌ Would fail (but test uses custom config) |
-| `postgres:14` | 5432 | ✅ Unprivileged port |
-| `redis:alpine` | 6379 | ✅ Unprivileged port |
-| `honcho:latest` | 8000+ | ✅ Unprivileged port |
-| `wordpress:latest` | 80 | ❌ Privileged port blocked |
-
-## Solution Options
-
-### Option 1: Use WordPress FPM Variant (Recommended)
-
-Replace Apache-based WordPress with PHP-FPM variant that doesn't bind to port 80:
-
-```yaml
-services:
-  wordpress:
-    image: wordpress:php8.2-fpm  # No Apache, no port 80 binding
-    # PHP-FPM listens on Unix socket or port 9000
-  
   web:
-    image: nginx:alpine  # Nginx handles external port 80 mapping
+    image: nginx:alpine
     ports:
-      - "18080:80"
-```
-
-### Option 2: Custom Apache Configuration
-
-Mount custom Apache config that uses port 8080:
-
-```yaml
-services:
-  wordpress:
-    image: wordpress:latest
-    ports:
-      - "18080:8080"
+      - "18080:8080"  # Both unprivileged ✅
     volumes:
-      - ./apache-config.conf:/etc/apache2/sites-enabled/000-default.conf
+      - wordpress_data:/var/www/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro  # Custom config
+    depends_on:
+      - wordpress
+
+  db:
+    image: mysql:8.0  # Port 3306 (unprivileged) ✅
 ```
 
-### Option 3: Replace with Simpler Web Service
+### Current Failure Mode
 
-Use a simple Python or Node.js HTTP service that runs on unprivileged ports:
+**Error:** Container run failed with exit code 1
 
-```yaml
-services:
-  web:
-    image: python:3.12-alpine
-    command: python -m http.server 8000
-    ports:
-      - "18080:8000"
-```
+**Not the same error as before!**
+
+| Aspect | Before (Privileged Port) | Now (Runtime Config) |
+|--------|--------------------------|----------------------|
+| **Error** | `bind(): Address already in use (errno: 48)` | Container run failed with exit code 1 |
+| **Phase** | Container bootstrap | Container startup/runtime |
+| **Cause** | Privileged port 80 blocked | Likely nginx/PHP-FPM communication |
+| **Status** | Fixed ✅ | Under investigation |
+
+### Potential Issues
+
+1. **nginx Configuration**
+   - Config file mounting: `./nginx.conf:/etc/nginx/conf.d/default.conf:ro`
+   - Is the mount working? File paths correct?
+   - fastcgi_pass to `wordpress:9000` working?
+
+2. **Container Networking**
+   - Service name resolution: `wordpress` → IP
+   - Can nginx reach PHP-FPM on port 9000?
+
+3. **PHP-FPM Startup**
+   - Is PHP-FPM actually listening on port 9000?
+   - WordPress initialization (database connection)?
+
+4. **Volume Mounts**
+   - Shared volume `wordpress_data` accessible by both containers?
+
+### Why Honcho Works But WordPress FPM Doesn't
+
+| Stack | Honcho | WordPress FPM |
+|-------|--------|---------------|
+| **Containers** | 1 | 3 |
+| **Internal Communication** | None (self-contained) | nginx ↔ PHP-FPM (fastcgi) |
+| **Config Complexity** | Simple | Multi-service orchestration |
+| **Service Discovery** | N/A | Required (container names → IPs) |
+| **macOS Status** | ✅ Works | ⚠️ Needs debugging |
+
+---
+
+## Why This Matters
+
+WordPress is **the most popular multi-tier application** in the world:
+- 40%+ of all websites use WordPress
+- Standard architecture: PHP-FPM + nginx/Apache + MySQL
+- If container-compose can't run WordPress, it's not ready for production
+
+This is **exactly the complexity real users face**:
+- Multi-container orchestration
+- Service discovery
+- Volume sharing
+- Internal networking
+- Configuration management
+
+---
 
 ## Next Steps
 
-1. **Immediate:** Replace WordPress test with FPM variant + nginx
-2. **Document:** Add note about privileged port limitations in macOS containers
-3. **Consider:** Add validation to warn about internal privileged ports
+### Option 1: Debug Current Setup (Recommended)
+
+Investigate the runtime failure:
+1. Check container logs: `container logs <container-id>`
+2. Verify nginx config mount: `container exec <nginx-id> cat /etc/nginx/conf.d/default.conf`
+3. Verify PHP-FPM listening: `container exec <wordpress-id> netstat -tlnp`
+4. Test networking: Can nginx reach `wordpress:9000`?
+
+### Option 2: Simplify Test (Short-term)
+
+Use a simpler web stack that still validates multi-container orchestration:
+```yaml
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "18080:8080"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+    depends_on:
+      - api
+  
+  api:
+    image: node:18-alpine
+    command: node -e "require('http').createServer((req,res)=>res.end('OK')).listen(3000)"
+```
+
+### Option 3: Investigate WordPress Image
+
+Check if there's a simpler WordPress variant:
+- `wordpress:cli` - Command-line only
+- Custom WordPress image with pre-configured non-privileged ports
+
+---
 
 ## Conclusion
 
-This is **not a code defect** - it's a macOS container sandbox security feature. The WordPress image assumes it can bind to port 80, which is blocked. Honcho and other services that use unprivileged ports work fine.
+**The privileged port issue is FIXED.** The current problem is **multi-container orchestration complexity** - which is exactly what container-compose is supposed to solve.
 
-The fix is to use images that don't require privileged ports internally.
+This is not a bug, it's **infrastructure complexity** that:
+1. Real users will face daily
+2. Container-compose must handle gracefully
+3. We need to either fix or document clearly
+
+**Recommendation:** Treat this as a **feature verification** - if we can't run WordPress reliably, we need better tooling, debugging, or documentation for multi-container orchestration.
