@@ -27,7 +27,9 @@ struct ComposeDownTests {
 
     @Test("What goes up must come down - two containers")
     func testUpAndDownComplex() async throws {
+        // Change ports to avoid collision with other tests
         let yaml = DockerComposeYamlFiles.dockerComposeYaml1
+            .replacingOccurrences(of: "${TEST_PORT_WORDPRESS:-18080}", with: "18085")
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
 
         var composeUp = try ComposeUp.parse([

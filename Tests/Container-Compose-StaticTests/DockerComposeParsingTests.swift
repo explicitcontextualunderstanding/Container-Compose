@@ -449,11 +449,11 @@ struct DockerComposeParsingTests {
         let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
         #expect(compose.services.count == 3)
-        #expect(compose.services["wordpress"] != nil)
+        #expect(compose.services["wp"] != nil)
         #expect(compose.services["web"] != nil)
         #expect(compose.services["db"] != nil)
         #expect(compose.volumes?.count == 2)
-        #expect(compose.services["wordpress"]??.depends_on?.contains("db") == true)
+        #expect(compose.services["wp"]??.depends_on?.contains("db") == true)
     }
     
     @Test("Parse three-tier web application")
@@ -477,7 +477,7 @@ struct DockerComposeParsingTests {
         let compose = try decoder.decode(DockerCompose.self, from: yaml)
         
         #expect(compose.services.count == 5)
-        #expect(compose.services["api-gateway"]??.depends_on?.count == 3)
+        #expect(compose.services["api"]??.depends_on?.count == 3)
     }
     
     @Test("Parse development environment with build")
