@@ -531,13 +531,22 @@ struct DockerComposeParsingTests {
         let sorted = try Service.topoSortConfiguredServices(services)
         
         // db and cache should come before api
-        let dbIndex = sorted.firstIndex(where: { $0.serviceName == "db" })!
-        let cacheIndex = sorted.firstIndex(where: { $0.serviceName == "cache" })!
-        let apiIndex = sorted.firstIndex(where: { $0.serviceName == "api" })!
-        let frontendIndex = sorted.firstIndex(where: { $0.serviceName == "frontend" })!
+        let dbIndex = sorted.firstIndex(where: { $0.serviceName == "db" })
+        let cacheIndex = sorted.firstIndex(where: { $0.serviceName == "cache" })
+        let apiIndex = sorted.firstIndex(where: { $0.serviceName == "api" })
+        let frontendIndex = sorted.firstIndex(where: { $0.serviceName == "frontend" })
+
+        #expect(dbIndex != nil, "db service should exist in sorted result")
+        #expect(cacheIndex != nil, "cache service should exist in sorted result")
+        #expect(apiIndex != nil, "api service should exist in sorted result")
+        #expect(frontendIndex != nil, "frontend service should exist in sorted result")
+
+        guard let dbIdx = dbIndex, let cacheIdx = cacheIndex, let apiIdx = apiIndex, let frontendIdx = frontendIndex else {
+            return
+        }
         
-        #expect(dbIndex < apiIndex)
-        #expect(cacheIndex < apiIndex)
-        #expect(apiIndex < frontendIndex)
+        #expect(dbIdx < apiIdx)
+        #expect(cacheIdx < apiIdx)
+        #expect(apiIdx < frontendIdx)
     }
 }
