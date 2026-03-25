@@ -41,10 +41,10 @@ struct ComposeDownTests {
             })
 
         #expect(
-            containers.count == 2,
-            "Expected 2 containers for \(project.name), found \(containers.count)")
+            containers.count == 3,
+            "Expected 3 containers for \(project.name) (wordpress + nginx + mysql), found \(containers.count)")
 
-        #expect(containers.filter({ $0.status == .running }).count == 2, "Expected 2 running containers for \(project.name), found \(containers.filter({ $0.status == .running }).count)")
+        #expect(containers.filter({ $0.status == .running }).count == 3, "Expected 3 running containers for \(project.name), found \(containers.filter({ $0.status == .running }).count)")
 
         var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
         try await composeDown.run()
@@ -55,10 +55,10 @@ struct ComposeDownTests {
             })
 
         #expect(
-            containers.count == 2,
-            "Expected 2 containers for \(project.name), found \(containers.count)")
+            containers.count == 3,
+            "Expected 3 containers for \(project.name) (wordpress + nginx + mysql), found \(containers.count)")
 
-        #expect(containers.filter({ $0.status == .stopped}).count == 2, "Expected 2 stopped containers for \(project.name), found \(containers.filter({ $0.status == .stopped }).count)")
+        #expect(containers.filter({ $0.status == .stopped}).count == 3, "Expected 3 stopped containers for \(project.name), found \(containers.filter({ $0.status == .stopped }).count)")
     }
 
     @Test("What goes up must come down - container_name")

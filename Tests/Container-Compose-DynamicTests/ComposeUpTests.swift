@@ -42,32 +42,33 @@ struct ComposeUpTests {
                 $0.configuration.id.contains(tempLocation.deletingLastPathComponent().lastPathComponent)
             })
         
-        // Assert correct wordpress container information
+        // Assert correct container information (wordpress + nginx + mysql setup)
         guard let wordpressContainer = containers.first(where: { $0.configuration.id == "\(folderName)-wordpress" }),
+              let webContainer = containers.first(where: { $0.configuration.id == "\(folderName)-web" }),
               let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" })
         else {
             throw Errors.containerNotFound
         }
-        
-        // Check Ports (host port is configurable via TEST_PORT_WORDPRESS env var, default 18080)
-        #expect(wordpressContainer.configuration.publishedPorts.count == 1)
-        #expect(wordpressContainer.configuration.publishedPorts.first?.containerPort == 80)
-        
-        // Check Image
-        #expect(wordpressContainer.configuration.image.reference == "docker.io/library/wordpress:latest")
-        
+
+        // Check WordPress container (php-fpm, no exposed ports internally)
+        #expect(wordpressContainer.configuration.image.reference == "docker.io/library/wordpress:php8.2-fpm")
+
         // Check Environment
         let wpEnv = parseEnvToDict(wordpressContainer.configuration.initProcess.environment)
-        #expect(wpEnv["WORDPRESS_DB_HOST"] == dbContainer.networks.first!.ipv4Gateway.description)
+        #expect(wpEnv["WORDPRESS_DB_HOST"] == dbContainer.networks.first?.ipv4Gateway.description)
         #expect(wpEnv["WORDPRESS_DB_USER"] == "wordpress")
         #expect(wpEnv["WORDPRESS_DB_PASSWORD"] == "wordpress")
         #expect(wpEnv["WORDPRESS_DB_NAME"] == "wordpress")
-        
+
         // Check Volume
-        #expect(wordpressContainer.configuration.mounts.map(\.destination) == ["/var/www/"])
-        
+        #expect(wordpressContainer.configuration.mounts.map(\.destination).contains("/var/www/html"))
+
+        // Check Web container (nginx, handles external port mapping)
+        #expect(webContainer.configuration.publishedPorts.count == 1)
+        #expect(webContainer.configuration.publishedPorts.first?.containerPort == 80)
+        #expect(webContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
+
         // Assert correct db container information
-        
         // Check Image
         #expect(dbContainer.configuration.image.reference == "docker.io/library/mysql:8.0")
         

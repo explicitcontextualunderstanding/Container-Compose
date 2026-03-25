@@ -86,8 +86,8 @@ public struct ComposeDown: AsyncParsableCommand {
                 "Note: The 'name' field currently only affects container naming (e.g., '\(name)-serviceName'). Full project-level isolation for other resources (networks, implicit volumes) is not implemented by this tool."
             )
         } else {
-            projectName = deriveProjectName(cwd: cwd)
-            print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName ?? "")")
+            projectName = try deriveProjectName(cwd: cwd)
+            print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
         }
 
         var services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap({ serviceName, service in
