@@ -23,10 +23,10 @@ public struct Main: AsyncParsableCommand {
     public static var versionString: String {
         "\(commandName) version \(version)"
     }
-    public static let configuration: CommandConfiguration = .init(
-        commandName: Self.commandName,
-        abstract: "A tool to manage Docker Compose files using Apple Container. v0.10.1 includes: adversarial review fixes, silent failure remediation, missing field mappings (--user, --hostname, --workdir, --privileged, --read-only, --network, -i, -t), checkpointing, network sync, volume management, dnsSearch, and multi-stage builds.",
-        version: Self.versionString,
+  public static let configuration: CommandConfiguration = .init(
+    commandName: Self.commandName,
+    abstract: "A tool to manage Docker Compose files using Apple Container. v0.10.2 includes: env: shorthand key support (alias for environment:), command string parsing, volume idempotency, --env and --publish flag mapping. Also supports: --user, --hostname, --workdir, --privileged, --read-only, --network, -i, -t, checkpointing, network sync, volume management, dnsSearch, multi-stage builds.",
+    version: Self.versionString,
         subcommands: [
             ComposeUp.self,
             ComposeDown.self,

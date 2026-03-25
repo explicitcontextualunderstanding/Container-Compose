@@ -91,12 +91,12 @@ This document summarizes all changes in this fork (`explicitcontextualunderstand
   - **Network/Volume Sync**: Improved synchronization of network and volume definitions
 
 - **v0.10.2 Fixes:**
+  - **Shorthand `env:` Key Support**: Fixed critical bug where `env:` shorthand was not decoded. Now properly recognized as alias for `environment:` (env takes precedence when both present)
   - **Environment Variable Test Fix**: Fixed `HOST` variable conflict in tests by using unique names (`DB_HOST`, `DB_PORT`, `DB_NAME`)
   - **Volume Creation Idempotency**: Gracefully handle "already exists" errors during volume creation
   - **Command String Parsing**: Split string-form commands into proper executable + arguments array
   - **Environment Variable Mapping**: Added `--env` flag mapping to pass service env vars to containers
   - **Port Mapping**: Added `--publish` flag mapping for service port mappings
-  - **Shorthand `env:` Key Support**: Added support for `env:` as alias for `environment:` in compose files (env takes precedence when both present)
 
 - **v0.10.1 Fixes:**
   - **Restart stopped containers on compose up**: When containers exist but are stopped, automatically start them instead of returning an error

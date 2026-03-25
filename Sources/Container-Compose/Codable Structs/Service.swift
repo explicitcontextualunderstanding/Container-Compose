@@ -114,8 +114,9 @@ public struct Service: Codable, Hashable {
     public var dependedBy: [String] = []
     
   // Defines custom coding keys to map YAML keys to Swift properties
+  // Note: 'env' is a shorthand alias for 'environment' in Docker Compose
   enum CodingKeys: String, CodingKey {
-    case image, build, deploy, restart, healthcheck, volumes, environment, env_file, ports, command, depends_on, user,
+    case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user,
          container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, runtime, `init`, init_image, dns_search
   }
     
@@ -199,8 +200,7 @@ public struct Service: Codable, Hashable {
     volumes = try container.decodeIfPresent([String].self, forKey: .volumes)
     // Support both 'environment:' and shorthand 'env:' - env takes precedence as the shorthand
     var mergedEnv = try container.decodeIfPresent([String: String].self, forKey: .environment)
-    // Also try shorthand 'env' key using string lookup
-    if let envShort = try container.decodeIfPresent([String: String].self, forKey: CodingKeys(rawValue: "env")!) {
+    if let envShort = try container.decodeIfPresent([String: String].self, forKey: .env) {
       if var env = mergedEnv {
         // Merge with env (shorthand) taking precedence
         for (key, value) in envShort {
@@ -299,6 +299,40 @@ public struct Service: Codable, Hashable {
             }
         }
 
-        return sorted
-    }
+    return sorted
+  }
+
+  /// Custom encoder to handle env/encoding - only encodes environment, not the env alias
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    // Encode all properties using their CodingKeys
+    try container.encodeIfPresent(image, forKey: .image)
+    try container.encodeIfPresent(build, forKey: .build)
+    try container.encodeIfPresent(deploy, forKey: .deploy)
+    try container.encodeIfPresent(restart, forKey: .restart)
+    try container.encodeIfPresent(healthcheck, forKey: .healthcheck)
+    try container.encodeIfPresent(volumes, forKey: .volumes)
+    try container.encodeIfPresent(environment, forKey: .environment)
+    try container.encodeIfPresent(env_file, forKey: .env_file)
+    try container.encodeIfPresent(ports, forKey: .ports)
+    try container.encodeIfPresent(command, forKey: .command)
+    try container.encodeIfPresent(depends_on, forKey: .depends_on)
+    try container.encodeIfPresent(user, forKey: .user)
+    try container.encodeIfPresent(container_name, forKey: .container_name)
+    try container.encodeIfPresent(networks, forKey: .networks)
+    try container.encodeIfPresent(hostname, forKey: .hostname)
+    try container.encodeIfPresent(entrypoint, forKey: .entrypoint)
+    try container.encodeIfPresent(privileged, forKey: .privileged)
+    try container.encodeIfPresent(read_only, forKey: .read_only)
+    try container.encodeIfPresent(working_dir, forKey: .working_dir)
+    try container.encodeIfPresent(configs, forKey: .configs)
+    try container.encodeIfPresent(secrets, forKey: .secrets)
+    try container.encodeIfPresent(stdin_open, forKey: .stdin_open)
+    try container.encodeIfPresent(tty, forKey: .tty)
+    try container.encodeIfPresent(platform, forKey: .platform)
+    try container.encodeIfPresent(`init`, forKey: .`init`)
+    try container.encodeIfPresent(runtime, forKey: .runtime)
+    try container.encodeIfPresent(init_image, forKey: .init_image)
+    try container.encodeIfPresent(dns_search, forKey: .dns_search)
+  }
 }
