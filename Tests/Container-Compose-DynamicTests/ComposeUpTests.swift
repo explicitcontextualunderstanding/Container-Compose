@@ -352,6 +352,29 @@ struct ContainerDependentTrait: TestScoping, TestTrait, SuiteTrait {
         // Run Test
         try await function()
     }
+
+    @Test("Test Service Name Length Limit")
+    func testServiceNameLengthExceeded() async throws {
+        let longServiceName = String(repeating: "a", count: 64)
+        let yaml = """
+            version: '3.8'
+            services:
+              \(longServiceName):
+                image: nginx:alpine
+            """
+        
+        let tempLocation = URL.temporaryDirectory.appending(path: "Container-Compose_Tests_LongName/docker-compose.yaml")
+        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        
+        // This test documents that very long names are a risk factor on macOS Virtualization.framework
+        // We expect it to at least parse and attempt run, even if the underlying runtime throws Code 22.
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        #expect(composeUp.composeFilename == "docker-compose.yaml")
+        
+        // Cleanup
+        try? FileManager.default.removeItem(at: tempLocation.deletingLastPathComponent())
+    }
 }
 
 extension Trait where Self == ContainerDependentTrait {

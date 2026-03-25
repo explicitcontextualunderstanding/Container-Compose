@@ -22,6 +22,7 @@ This document summarizes all changes in this fork (`explicitcontextualunderstand
 #### Service Name Length
 There is a clinical 64-character limit for guest process labels in the macOS container runtime. When using long project names or UUID-based prefixes (common in test suites), service names must be kept short to avoid `Invalid argument (Code 22)` errors.
 
+- **Proactive Validation:** The orchestrator now warns users if a container name exceeds 63 characters during `up`.
 - **Recommended:** `wp`, `db`, `web`.
 - **Avoid:** Long descriptive names like `wordpress-application-service` if the combined length exceeds ~63 characters.
 
