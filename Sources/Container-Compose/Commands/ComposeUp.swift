@@ -43,7 +43,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
     public static let configuration: CommandConfiguration = .init(
         commandName: "up",
-        abstract: "Start containers with compose"
+        abstract: "Start containers with compose (Keep PROJECT-SERVICE under 64 characters)"
     )
 
     @Argument(help: "Specify the services to start")
@@ -456,6 +456,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
         // Extract container name for status checks (consistent with makeRunArgs logic)
         let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
+        if containerName.count > 63 {
+            print("⚠️  Warning: Container name '\(containerName)' is \(containerName.count) characters long.".yellow)
+            print("   Names exceeding 63 characters may fail with 'Invalid argument' on some macOS runtimes.".yellow)
+        }
 
             guard var serviceColor = Self.availableContainerConsoleColors.randomElement() else {
                 throw ContainerRunError("No available colors for service console output")

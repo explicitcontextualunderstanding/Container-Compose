@@ -179,3 +179,5 @@ Check if there's a simpler WordPress variant:
 By shortening the service name from `wordpress` to `wp`, the total ID fell within the 64-character limit typical of BSD/Darwin `MAXHOSTNAMELEN` buffers, resolving the "Invalid argument" error immediately.
 
 **Recommendation:** For development environments using long project prefixes or UUIDs, keep service names as short as possible (e.g., `wp` instead of `wordpress`, `db` instead of `database`).
+
+**Safety Feature:** A proactive validation check has been added to `ComposeUp.swift` to warn users if their generated container names exceed 63 characters.
