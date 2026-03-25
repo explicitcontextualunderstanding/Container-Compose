@@ -231,15 +231,19 @@ public struct Service: Codable, Hashable {
         let rawVolumes = try container.decodeIfPresent([String].self, forKey: .volumes)
         if let vols = rawVolumes {
             for (index, vol) in vols.enumerated() {
-                // If volume has a colon, validate both sides are non-empty
-                // Anonymous volumes like "/app/node_modules" are valid (no colon)
+                // If volume has a colon, validate format
+                // Named volume: "name:/path" or "name:/path:ro"
+                // Bind mount: "./host:/container" or "./host:/container:rw"
+                // Anonymous volume: "/path" (no colon, valid)
                 if vol.contains(":") {
-                    let parts = vol.split(separator: ":", maxSplits: 2)
-                    guard parts.count == 2 && !parts[0].isEmpty && !parts[1].isEmpty else {
+                    let parts = vol.split(separator: ":", omittingEmptySubsequences: false)
+                    // Must have at least 2 parts (source:destination)
+                    // Can have 3 parts with mode (source:destination:ro/rw)
+                    guard parts.count >= 2 && !parts[0].isEmpty && !parts[1].isEmpty else {
                         throw DecodingError.dataCorruptedError(
                             forKey: .volumes,
                             in: container,
-                            debugDescription: "Invalid volume '\(vol)' at index \(index). Volumes with colon must be in format 'source:destination' (e.g., './data:/app/data')"
+                            debugDescription: "Invalid volume '\(vol)' at index \(index). Volumes with colon must be in format 'source:destination' or 'source:destination:mode' (e.g., 'wordpress_data:/var/www/html:ro')"
                         )
                     }
                 }

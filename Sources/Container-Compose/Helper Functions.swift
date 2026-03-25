@@ -146,17 +146,20 @@ public func deriveProjectName(cwd: String) throws -> String {
     }
 
     // Apply sanitization rules:
-    // 1. Replace leading dots (hidden directories) with underscore
-    // 2. Replace characters that aren't alphanumeric, underscore, hyphen, or period
-    // 3. Ensure it starts with a letter or number
+    // 1. Replace the FIRST dot (for hidden directories like .devcontainers)
+    // 2. Leave subsequent dots as-is (they're valid in container names)
+    // 3. Replace other invalid characters with underscore
+    // 4. Ensure it starts with a letter, number, or underscore
 
     var sanitized = ""
+    var replacedLeadingDot = false
     for (index, char) in projectName.enumerated() {
-        if index == 0 && char == "." {
-            // Leading dot - replace with underscore
+        if index == 0 && char == "." && !replacedLeadingDot {
+            // Leading dot - replace with underscore once
             sanitized.append("_")
+            replacedLeadingDot = true
         } else if char.isLetter || char.isNumber || char == "_" || char == "-" || char == "." {
-            // Valid character
+            // Valid character (dots after first are OK)
             sanitized.append(char)
         } else {
             // Invalid character - replace with underscore
