@@ -24,11 +24,11 @@ struct HelperFunctionsTests {
     @Test("Derive project name from current working directory - contains dot")
     func testDeriveProjectName() throws {
         var cwd = "/Users/user/Projects/My.Project"
-        var projectName = deriveProjectName(cwd: cwd)
+        var projectName = try deriveProjectName(cwd: cwd)
         #expect(projectName == "My_Project")
 
         cwd = ".devcontainers"
-        projectName = deriveProjectName(cwd: cwd)
+        projectName = try deriveProjectName(cwd: cwd)
         #expect(projectName == "_devcontainers")
     }
 
