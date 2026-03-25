@@ -23,6 +23,7 @@ version: '3.8'
 services:
   wordpress:
     image: wordpress:php8.2-fpm
+    command: php-fpm
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress
