@@ -167,9 +167,15 @@ Check if there's a simpler WordPress variant:
 
 **The privileged port issue is FIXED.** The current problem is **multi-container orchestration complexity** - which is exactly what container-compose is supposed to solve.
 
-This is not a bug, it's **infrastructure complexity** that:
-1. Real users will face daily
-2. Container-compose must handle gracefully
-3. We need to either fix or document clearly
+### 4. Discovery: Service Name Length Constraint (The "wp" Fix)
 
-**Recommendation:** Treat this as a **feature verification** - if we can't run WordPress reliably, we need better tooling, debugging, or documentation for multi-container orchestration.
+**Symptom:** Even after switching to Alpine images, the `wordpress` service continued to fail with `NSPOSIXErrorDomain Code=22 ("Invalid argument")` during `vmexec`, while the `db` service (MySQL) started consistently.
+
+**Root Cause:** The macOS `Virtualization.framework` (and specifically the `VZLinuxBootLoader` guest label buffer) appears to have a strict character limit for container labels/hostnames. 
+
+- **Failing Name:** `Container-Compose_Tests_UUID-wordpress` (~70 characters)
+- **Passing Name:** `Container-Compose_Tests_UUID-wp` (~63 characters)
+
+By shortening the service name from `wordpress` to `wp`, the total ID fell within the 64-character limit typical of BSD/Darwin `MAXHOSTNAMELEN` buffers, resolving the "Invalid argument" error immediately.
+
+**Recommendation:** For development environments using long project prefixes or UUIDs, keep service names as short as possible (e.g., `wp` instead of `wordpress`, `db` instead of `database`).

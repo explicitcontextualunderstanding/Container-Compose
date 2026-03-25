@@ -16,6 +16,17 @@ This document summarizes all changes in this fork (`explicitcontextualunderstand
 | `CHANGELOG.md` | Version changelog |
 | `ADVERSARIAL_REVIEW_FIXES.md` | Comprehensive security audit and fix documentation |
 | `DYNAMIC_TEST_ANALYSIS.md` | Analysis of dynamic test failures |
+
+### Known Runtime Limitations
+
+#### Service Name Length
+There is a clinical 64-character limit for guest process labels in the macOS container runtime. When using long project names or UUID-based prefixes (common in test suites), service names must be kept short to avoid `Invalid argument (Code 22)` errors.
+
+- **Recommended:** `wp`, `db`, `web`.
+- **Avoid:** Long descriptive names like `wordpress-application-service` if the combined length exceeds ~63 characters.
+
+| File | Purpose |
+|------|---------|
 | `VERIFICATION.md` | Verification procedures and testing guidelines |
 | `build-release.sh` | Release build script with conda/xattr cleanup |
 | `build-and-install.sh` | Combined build+install script with codesign |
