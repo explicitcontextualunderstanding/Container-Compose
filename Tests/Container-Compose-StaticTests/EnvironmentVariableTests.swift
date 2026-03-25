@@ -51,13 +51,13 @@ struct EnvironmentVariableTests {
     @Test("Resolve multiple variables in string")
     func resolveMultipleVariables() {
         let envVars = [
-            "HOST": "localhost",
-            "PORT": "5432",
-            "DATABASE": "mydb"
+            "DB_HOST": "localhost",
+            "DB_PORT": "5432",
+            "DB_NAME": "mydb"
         ]
-        let input = "postgres://${HOST}:${PORT}/${DATABASE}"
+        let input = "postgres://${DB_HOST}:${DB_PORT}/${DB_NAME}"
         let result = resolveVariable(input, with: envVars)
-        
+
         #expect(result == "postgres://localhost:5432/mydb")
     }
     

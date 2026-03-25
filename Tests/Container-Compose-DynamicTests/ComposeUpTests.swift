@@ -263,11 +263,12 @@ struct ComposeUpTests {
         #expect(webContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
         #expect(webContainer.configuration.publishedPorts.map { "\($0.hostAddress):\($0.hostPort):\($0.containerPort)" } == ["0.0.0.0:8082:80"])
         
-        // --- APP Container ---
-        #expect(appContainer.configuration.image.reference == "docker.io/library/python:3.12-alpine")
-        let appEnv = parseEnvToDict(appContainer.configuration.initProcess.environment)
-        #expect(appEnv["DATABASE_URL"] == "postgres://postgres:postgres@db:5432/appdb")
-        #expect(appContainer.configuration.initProcess.executable == "python -m http.server 8000")
+    // --- APP Container ---
+    #expect(appContainer.configuration.image.reference == "docker.io/library/python:3.12-alpine")
+    let appEnv = parseEnvToDict(appContainer.configuration.initProcess.environment)
+    #expect(appEnv["DATABASE_URL"] == "postgres://postgres:postgres@db:5432/appdb")
+    // After fixing command parsing, executable is just "python" (args are separate)
+    #expect(appContainer.configuration.initProcess.executable == "python")
         #expect(appContainer.configuration.platform.architecture == "arm64")
         #expect(appContainer.configuration.platform.os == "linux")
         

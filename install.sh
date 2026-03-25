@@ -25,8 +25,15 @@ fi
 cp "$NEW_BINARY" "$TARGET"
 chmod 755 "$TARGET"
 
+# Remove macOS provenance attributes that can cause runtime traps
+if command -v xattr &>/dev/null; then
+  if xattr "$TARGET" 2>/dev/null | grep -q "com.apple.provenance"; then
+    xattr -d com.apple.provenance "$TARGET" 2>/dev/null || true
+  fi
+fi
+
 echo "✓ Installed: $TARGET"
-echo "  Version: $($TARGET version 2>&1 | head -1)"
+echo " Version: $($TARGET version 2>&1 | head -1)"
 
 # Verify SINGLE binary
 echo ""
