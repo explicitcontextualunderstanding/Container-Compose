@@ -18,37 +18,44 @@ import Foundation
 
 public struct DockerComposeYamlFiles {
     public static let dockerComposeYaml1 = """
-        version: '3.8'
+version: '3.8'
 
-        services:
-          wordpress:
-            image: wordpress:latest
-            ports:
-              - "${TEST_PORT_WORDPRESS:-18080}:80"
-            environment:
-              WORDPRESS_DB_HOST: db
-              WORDPRESS_DB_USER: wordpress
-              WORDPRESS_DB_PASSWORD: wordpress
-              WORDPRESS_DB_NAME: wordpress
-            depends_on:
-              - db
-            volumes:
-              - wordpress_data:/var/www/html
-          
-          db:
-            image: mysql:8.0
-            environment:
-              MYSQL_DATABASE: wordpress
-              MYSQL_USER: wordpress
-              MYSQL_PASSWORD: wordpress
-              MYSQL_ROOT_PASSWORD: rootpassword
-            volumes:
-              - db_data:/var/lib/mysql
+services:
+  wordpress:
+    image: wordpress:php8.2-fpm
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    depends_on:
+      - db
+    volumes:
+      - wordpress_data:/var/www/html
 
-        volumes:
-          wordpress_data:
-          db_data:
-        """
+  web:
+    image: nginx:alpine
+    ports:
+      - "${TEST_PORT_WORDPRESS:-18080}:80"
+    depends_on:
+      - wordpress
+    volumes:
+      - wordpress_data:/var/www/html:ro
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: rootpassword
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  wordpress_data:
+  db_data:
+"""
 
     public static let dockerComposeYaml2 = """
         version: '3.8'
