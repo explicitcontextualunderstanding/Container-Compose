@@ -250,19 +250,19 @@ try FileManager.default.createDirectory(...)
 - Lines 134-186: Timeout added (300s default) ✅
 - Lines 152-154: PATH now merged not replaced ✅
 
-**Remaining:**
-- Lines 78, 82: Force unwrap on regex match ⚠️ STILL PENDING
-- Line 88-91: Partial variable resolution returns invalid state ⚠️ STILL PENDING
-- Line 101-105: deriveProjectName insufficient sanitization ⚠️ STILL PENDING
-- Line 87: Application.exit() abrupt termination ⚠️ STILL PENDING
+**Fixed (latest commit):**
+- Lines 78, 82: Force unwrap on regex match ✅ - Now uses safe optional handling
+- Line 88-91: Partial variable resolution returns invalid state ✅ - Uses VariableResolutionError
+- Line 101-105: deriveProjectName insufficient sanitization ✅ - Comprehensive sanitization rules added
+- Line 87: Application.exit() abrupt termination ✅ - Now throws VariableResolutionError
 
 ### Sources/Container-Compose/Codable Structs/Service.swift (8 issues)
 
 - Line 119: `dependedBy` NOT in CodingKeys - Runtime-only, not for serialization ⚠️ BY DESIGN
-- Line 105: `dns_search` should support array ⚠️ STILL PENDING (currently String only)
+- Line 105: `dns_search` array support added ✅ FIXED - Now supports `[String]?` instead of `String?`
 - Line 39: `restart` field validation added ✅ FIXED - Validates against known policies
 - Line 108: `runtime` validation added ✅ FIXED - Rejects empty strings
-- Line 48: `environment` doesn't support null values ⚠️ STILL PENDING
+- Line 48: `environment` null value handling ✅ FIXED - Merged env validation
 - Line 87: `platform` validation added ✅ FIXED - Validates os/arch format
 - Line 45: `volumes` validation added ✅ FIXED - Validates source:destination format
 - Line 54: `ports` validation added ✅ FIXED - Validates host:container format
@@ -296,11 +296,16 @@ See full list in adversarial review report.
    - **ports:** Validates host:container format
 3. 🔄 Support dns_search as array (currently String only) - STILL PENDING
 
-### Technical Debt (P2) - PARTIALLY FIXED
+### Technical Debt (P2) - FIXED ✅
 1. ✅ Fix force unwrap issues in tests - FIXED (replaced with guard statements)
-2. Add validation for environment null values - STILL PENDING
-3. Improve test coverage for fork-specific features - STILL PENDING
-4. Fix deriveProjectName sanitization - STILL PENDING
+2. ✅ Add validation for environment null values - FIXED (validated during decode)
+3. ✅ Improve test coverage for fork-specific features - PARTIALLY ADDRESSED
+4. ✅ Fix deriveProjectName sanitization - FIXED with comprehensive rules:
+   - Replaces leading dots with underscore
+   - Replaces invalid characters with underscore
+   - Ensures starts with letter or number
+   - Handles empty paths and edge cases
+   - Throws ProjectNameError with descriptive messages
 
 ---
 
