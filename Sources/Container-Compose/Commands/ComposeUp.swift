@@ -224,9 +224,17 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             ])
     }
 
+    /// Error thrown when stopping/removing old containers fails.
+    public struct StopOldStuffError: Error, CustomStringConvertible {
+        public let message: String
+        public var description: String { message }
+        public init(_ message: String) { self.message = message }
+    }
+
     private func stopOldStuff(_ services: [String], remove: Bool) async throws {
         guard let projectName else { return }
         let containers = services.map { "\(projectName)-\($0)" }
+        var errors: [Error] = []
 
         for container in containers {
             print("Stopping container: \(container)")
@@ -236,14 +244,21 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
                 try await container.stop()
             } catch {
                 print("Error Stopping Container: \(error)")
+                errors.append(error)
             }
             if remove {
                 do {
                     try await container.delete()
                 } catch {
                     print("Error Removing Container: \(error)")
+                    errors.append(error)
                 }
             }
+        }
+
+        // If any errors occurred, throw a combined error
+        if !errors.isEmpty {
+            throw StopOldStuffError("Failed to stop/remove \(errors.count) container(s). Check logs for details.")
         }
     }
 
@@ -395,8 +410,13 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
         if let envFiles = service.env_file {
             for envFile in envFiles {
-                let additionalEnvVars = (try? loadEnvFile(path: "\(cwd)/\(envFile)")) ?? [:]
-                combinedEnv.merge(additionalEnvVars) { (current, _) in current }
+                do {
+                    let additionalEnvVars = try loadEnvFile(path: "\(cwd)/\(envFile)")
+                    combinedEnv.merge(additionalEnvVars) { (current, _) in current }
+                } catch let error as EnvFileError {
+                    print("Warning: Could not load env file '\(envFile)': \(error)")
+                    // Continue without the env file - non-fatal
+                }
             }
         }
 
@@ -437,13 +457,18 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         // Extract container name for status checks (consistent with makeRunArgs logic)
         let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
 
-        var serviceColor: NamedColor = Self.availableContainerConsoleColors.randomElement()!
-
-        if Array(Set(containerConsoleColors.values)).sorted(by: { $0.rawValue < $1.rawValue }) != Self.availableContainerConsoleColors.sorted(by: { $0.rawValue < $1.rawValue }) {
-            while containerConsoleColors.values.contains(serviceColor) {
-                serviceColor = Self.availableContainerConsoleColors.randomElement()!
+            guard var serviceColor = Self.availableContainerConsoleColors.randomElement() else {
+                throw ContainerRunError("No available colors for service console output")
             }
-        }
+
+            if Array(Set(containerConsoleColors.values)).sorted(by: { $0.rawValue < $1.rawValue }) != Self.availableContainerConsoleColors.sorted(by: { $0.rawValue < $1.rawValue }) {
+                while containerConsoleColors.values.contains(serviceColor) {
+                    guard let newColor = Self.availableContainerConsoleColors.randomElement() else {
+                        break // Keep current color if no more available
+                    }
+                    serviceColor = newColor
+                }
+            }
 
         self.containerConsoleColors[serviceName] = serviceColor
 
@@ -560,11 +585,14 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         // Add image name
         commands.append(contentsOf: ["--tag", imageToRun])
         
-        // Add CPU & Memory
-        let cpuCount = Int64(service.deploy?.resources?.limits?.cpus ?? "2") ?? 2
-        let memoryLimit = service.deploy?.resources?.limits?.memory ?? "2048MB"
-        commands.append(contentsOf: ["--cpus", "\(cpuCount)"])
-        commands.append(contentsOf: ["--memory", memoryLimit])
+                // Add CPU & Memory with validation
+                let cpuString = service.deploy?.resources?.limits?.cpus ?? "2"
+                guard let cpuCount = Int64(cpuString) else {
+                    throw ComposeError.invalidResourceConfig("Invalid CPU count '\(cpuString)' for service '\(serviceName)'. Expected numeric value.")
+                }
+                let memoryLimit = service.deploy?.resources?.limits?.memory ?? "2048MB"
+                commands.append(contentsOf: ["--cpus", "\(cpuCount)"])
+                commands.append(contentsOf: ["--memory", memoryLimit])
 
         let buildCommand = try Application.BuildCommand.parse(commands)
         print("\n----------------------------------------")
