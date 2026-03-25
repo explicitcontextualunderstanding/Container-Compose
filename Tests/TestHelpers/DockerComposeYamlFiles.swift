@@ -36,11 +36,12 @@ services:
   web:
     image: nginx:alpine
     ports:
-      - "${TEST_PORT_WORDPRESS:-18080}:80"
+      - "${TEST_PORT_WORDPRESS:-18080}:8080"
     depends_on:
       - wordpress
     volumes:
       - wordpress_data:/var/www/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
   db:
     image: mysql:8.0
@@ -55,6 +56,26 @@ services:
 volumes:
   wordpress_data:
   db_data:
+"""
+
+    public static let nginxConf = """
+server {
+    listen 8080;
+    server_name localhost;
+    root /var/www/html;
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    location ~ \\.php$ {
+        fastcgi_pass wordpress:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
 """
 
     public static let dockerComposeYaml2 = """

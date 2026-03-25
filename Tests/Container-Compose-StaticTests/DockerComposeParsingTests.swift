@@ -444,12 +444,13 @@ struct DockerComposeParsingTests {
     @Test("Parse WordPress with MySQL compose file")
     func parseWordPressCompose() throws {
         let yaml = DockerComposeYamlFiles.dockerComposeYaml1
-        
+
         let decoder = YAMLDecoder()
         let compose = try decoder.decode(DockerCompose.self, from: yaml)
-        
-        #expect(compose.services.count == 2)
+
+        #expect(compose.services.count == 3)
         #expect(compose.services["wordpress"] != nil)
+        #expect(compose.services["web"] != nil)
         #expect(compose.services["db"] != nil)
         #expect(compose.volumes?.count == 2)
         #expect(compose.services["wordpress"]??.depends_on?.contains("db") == true)
