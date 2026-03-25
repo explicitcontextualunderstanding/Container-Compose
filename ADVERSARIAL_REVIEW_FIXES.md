@@ -260,12 +260,12 @@ try FileManager.default.createDirectory(...)
 
 - Line 119: `dependedBy` NOT in CodingKeys - Runtime-only, not for serialization ⚠️ BY DESIGN
 - Line 105: `dns_search` should support array ⚠️ STILL PENDING (currently String only)
-- Line 39: `restart` field has no validation ⚠️ STILL PENDING
-- Line 108: `runtime` field accepts any string ⚠️ STILL PENDING
+- Line 39: `restart` field validation added ✅ FIXED - Validates against known policies
+- Line 108: `runtime` validation added ✅ FIXED - Rejects empty strings
 - Line 48: `environment` doesn't support null values ⚠️ STILL PENDING
-- Line 87: `platform` has no validation ⚠️ STILL PENDING
-- Line 45: `volumes` string parsing has no validation ⚠️ STILL PENDING
-- Line 54: `ports` string parsing has no validation ⚠️ STILL PENDING
+- Line 87: `platform` validation added ✅ FIXED - Validates os/arch format
+- Line 45: `volumes` validation added ✅ FIXED - Validates source:destination format
+- Line 54: `ports` validation added ✅ FIXED - Validates host:container format
 
 ### Tests (22 issues)
 
@@ -286,16 +286,21 @@ See full list in adversarial review report.
 1. ✅ Fix volume error handling in `configVolume` to throw instead of return empty arrays
 2. ✅ Fix `stopOldStuff` error handling (lines 229-237) to propagate or collect errors
 
-### Next Sprint (P1) - FIXED/IN PROGRESS
+### Next Sprint (P1) - FIXED ✅
 1. ✅ Fix test silent failures (4 issues with `try? FileManager`) - FIXED
-2. 🔄 Add model validation for: restart, platform, volumes, ports, runtime
-3. 🔄 Support dns_search as array (currently String only)
+2. ✅ Add model validation for: restart, platform, volumes, ports, runtime - FIXED
+   - **restart:** Validates against known policies (no, always, on-failure, unless-stopped)
+   - **platform:** Validates os/arch format (e.g., linux/amd64)
+   - **runtime:** Validates non-empty string
+   - **volumes:** Validates source:destination format, allows anonymous volumes
+   - **ports:** Validates host:container format
+3. 🔄 Support dns_search as array (currently String only) - STILL PENDING
 
-### Technical Debt (P2)
-1. Fix force unwrap issues in tests and source
-2. Add validation for environment null values
-3. Improve test coverage for fork-specific features
-4. Fix deriveProjectName sanitization
+### Technical Debt (P2) - PARTIALLY FIXED
+1. ✅ Fix force unwrap issues in tests - FIXED (replaced with guard statements)
+2. Add validation for environment null values - STILL PENDING
+3. Improve test coverage for fork-specific features - STILL PENDING
+4. Fix deriveProjectName sanitization - STILL PENDING
 
 ---
 
