@@ -49,8 +49,9 @@ struct ComposeUpTests {
             throw Errors.containerNotFound
         }
         
-        // Check Ports
-        #expect(wordpressContainer.configuration.publishedPorts.map({ "\($0.hostAddress):\($0.hostPort):\($0.containerPort)" }) == ["0.0.0.0:8080:80"])
+        // Check Ports (host port is configurable via TEST_PORT_WORDPRESS env var, default 18080)
+        #expect(wordpressContainer.configuration.publishedPorts.count == 1)
+        #expect(wordpressContainer.configuration.publishedPorts.first?.containerPort == 80)
         
         // Check Image
         #expect(wordpressContainer.configuration.image.reference == "docker.io/library/wordpress:latest")
@@ -261,7 +262,9 @@ struct ComposeUpTests {
         
         // --- WEB Container ---
         #expect(webContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
-        #expect(webContainer.configuration.publishedPorts.map { "\($0.hostAddress):\($0.hostPort):\($0.containerPort)" } == ["0.0.0.0:8082:80"])
+        // Check that port mapping exists (host port is configurable via TEST_PORT_WEB2 env var)
+#expect(webContainer.configuration.publishedPorts.count == 1)
+#expect(webContainer.configuration.publishedPorts.first?.containerPort == 80)
         
     // --- APP Container ---
     #expect(appContainer.configuration.image.reference == "docker.io/library/python:3.12-alpine")

@@ -773,13 +773,13 @@ extension ComposeUp {
       runArgs.append("\(key)=\(value)")
     }
 
-    // Map port mappings if present
-    if let ports = service.ports {
-      for portMapping in ports {
-        runArgs.append("--publish")
-        runArgs.append(portMapping)
-      }
-    }
+        // Map port mappings if present (resolve environment variables in port specs)
+        if let ports = service.ports {
+            for portMapping in ports {
+                runArgs.append("--publish")
+                runArgs.append(resolveVariable(portMapping, with: environmentVariables))
+            }
+        }
 
     // Ensure entrypoint flag is placed before the image name when provided
         let imageToRun = image ?? service.image ?? "\(serviceName):latest"
