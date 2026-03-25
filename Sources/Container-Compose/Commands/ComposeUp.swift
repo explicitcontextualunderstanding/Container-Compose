@@ -127,8 +127,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
                 "Note: The 'name' field currently only affects container naming (e.g., '\(name)-serviceName'). Full project-level isolation for other resources (networks, implicit volumes) is not implemented by this tool."
             )
         } else {
-            projectName = deriveProjectName(cwd: cwd)
-            print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName ?? "")")
+            projectName = try deriveProjectName(cwd: cwd)
+            print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
         }
 
         // Get Services to use
@@ -689,10 +689,12 @@ extension ComposeUp {
             runArgs.append(runtime)
         }
 
-        // Map dns search if present
-        if let dnsSearch = service.dns_search {
-            runArgs.append("--dns-search")
-            runArgs.append(dnsSearch)
+        // Map dns search domains if present (supports array)
+        if let dnsSearches = service.dns_search {
+            for dnsSearch in dnsSearches {
+                runArgs.append("--dns-search")
+                runArgs.append(dnsSearch)
+            }
         }
 
         // Map init flag if present (support both explicit Bool and optional presence)
