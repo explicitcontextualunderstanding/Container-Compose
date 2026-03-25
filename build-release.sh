@@ -61,16 +61,30 @@ swift build $BUILD_ARGS
 BUILD_STATUS=$?
 
 if [ $BUILD_STATUS -eq 0 ]; then
-    echo ""
-    echo "=========================================="
-    echo "✅ Build successful!"
-    echo "=========================================="
-    echo ""
-    echo "Binary location:"
-    ls -lh .build/release/container-compose 2>/dev/null || ls -lh .build/debug/container-compose 2>/dev/null
-    echo ""
-    echo "To install system-wide:"
-    echo "  sudo cp .build/release/container-compose /usr/local/bin/"
+  echo ""
+  echo "=========================================="
+  echo "✅ Build successful!"
+  echo "=========================================="
+  echo ""
+  echo "Binary location:"
+  BINARY_PATH=".build/release/container-compose"
+  if [ ! -f "$BINARY_PATH" ]; then
+    BINARY_PATH=".build/debug/container-compose"
+  fi
+  ls -lh "$BINARY_PATH" 2>/dev/null
+
+  # Remove macOS provenance attributes that can cause runtime traps
+  if command -v xattr &>/dev/null; then
+    if xattr "$BINARY_PATH" 2>/dev/null | grep -q "com.apple.provenance"; then
+      echo ""
+      echo "Removing macOS provenance attributes..."
+      xattr -d com.apple.provenance "$BINARY_PATH" 2>/dev/null || true
+    fi
+  fi
+
+  echo ""
+  echo "To install system-wide:"
+  echo " sudo cp .build/release/container-compose /usr/local/bin/"
 else
     echo ""
     echo "=========================================="

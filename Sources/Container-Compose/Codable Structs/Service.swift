@@ -113,11 +113,11 @@ public struct Service: Codable, Hashable {
     /// Other services that depend on this service
     public var dependedBy: [String] = []
     
-    // Defines custom coding keys to map YAML keys to Swift properties
-    enum CodingKeys: String, CodingKey {
-        case image, build, deploy, restart, healthcheck, volumes, environment, env_file, ports, command, depends_on, user,
-             container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, runtime, `init`, init_image, dns_search
-    }
+  // Defines custom coding keys to map YAML keys to Swift properties
+  enum CodingKeys: String, CodingKey {
+    case image, build, deploy, restart, healthcheck, volumes, environment, env_file, ports, command, depends_on, user,
+         container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, runtime, `init`, init_image, dns_search
+  }
     
     /// Public memberwise initializer for testing
     public init(
@@ -194,21 +194,36 @@ public struct Service: Codable, Hashable {
             throw DecodingError.dataCorruptedError(forKey: .image, in: container, debugDescription: "Service must have either 'image' or 'build' specified.")
         }
 
-        restart = try container.decodeIfPresent(String.self, forKey: .restart)
-        healthcheck = try container.decodeIfPresent(Healthcheck.self, forKey: .healthcheck)
-        volumes = try container.decodeIfPresent([String].self, forKey: .volumes)
-        environment = try container.decodeIfPresent([String: String].self, forKey: .environment)
-        env_file = try container.decodeIfPresent([String].self, forKey: .env_file)
+    restart = try container.decodeIfPresent(String.self, forKey: .restart)
+    healthcheck = try container.decodeIfPresent(Healthcheck.self, forKey: .healthcheck)
+    volumes = try container.decodeIfPresent([String].self, forKey: .volumes)
+    // Support both 'environment:' and shorthand 'env:' - env takes precedence as the shorthand
+    var mergedEnv = try container.decodeIfPresent([String: String].self, forKey: .environment)
+    // Also try shorthand 'env' key using string lookup
+    if let envShort = try container.decodeIfPresent([String: String].self, forKey: CodingKeys(rawValue: "env")!) {
+      if var env = mergedEnv {
+        // Merge with env (shorthand) taking precedence
+        for (key, value) in envShort {
+          env[key] = value
+        }
+        mergedEnv = env
+      } else {
+        mergedEnv = envShort
+      }
+    }
+    environment = mergedEnv
+    env_file = try container.decodeIfPresent([String].self, forKey: .env_file)
         ports = try container.decodeIfPresent([String].self, forKey: .ports)
 
-        // Decode 'command' which can be either a single string or an array of strings.
-        if let cmdArray = try? container.decodeIfPresent([String].self, forKey: .command) {
-            command = cmdArray
-        } else if let cmdString = try? container.decodeIfPresent(String.self, forKey: .command) {
-            command = [cmdString]
-        } else {
-            command = nil
-        }
+    // Decode 'command' which can be either a single string or an array of strings.
+    if let cmdArray = try? container.decodeIfPresent([String].self, forKey: .command) {
+      command = cmdArray
+    } else if let cmdString = try? container.decodeIfPresent(String.self, forKey: .command) {
+      // Split string command by whitespace to properly separate executable and arguments
+      command = cmdString.split(separator: " ").map(String.init)
+    } else {
+      command = nil
+    }
         
         if let dependsOnString = try? container.decodeIfPresent(String.self, forKey: .depends_on) {
             depends_on = [dependsOnString]
@@ -221,14 +236,15 @@ public struct Service: Codable, Hashable {
         networks = try container.decodeIfPresent([String].self, forKey: .networks)
         hostname = try container.decodeIfPresent(String.self, forKey: .hostname)
         
-        // Decode 'entrypoint' which can be either a single string or an array of strings.
-        if let entrypointArray = try? container.decodeIfPresent([String].self, forKey: .entrypoint) {
-            entrypoint = entrypointArray
-        } else if let entrypointString = try? container.decodeIfPresent(String.self, forKey: .entrypoint) {
-            entrypoint = [entrypointString]
-        } else {
-            entrypoint = nil
-        }
+    // Decode 'entrypoint' which can be either a single string or an array of strings.
+    if let entrypointArray = try? container.decodeIfPresent([String].self, forKey: .entrypoint) {
+      entrypoint = entrypointArray
+    } else if let entrypointString = try? container.decodeIfPresent(String.self, forKey: .entrypoint) {
+      // Split string entrypoint by whitespace to properly separate executable and arguments
+      entrypoint = entrypointString.split(separator: " ").map(String.init)
+    } else {
+      entrypoint = nil
+    }
 
         privileged = try container.decodeIfPresent(Bool.self, forKey: .privileged)
         read_only = try container.decodeIfPresent(Bool.self, forKey: .read_only)

@@ -2,7 +2,7 @@
 
 This document summarizes all changes in this fork (`explicitcontextualunderstanding/Container-Compose`) relative to the upstream repository (`Mcrich23/Container-Compose`).
 
-**Current Release:** v0.10.1  
+**Current Release:** v0.10.2
 **Last Updated:** 2026-03-24
 
 ---
@@ -89,6 +89,14 @@ This document summarizes all changes in this fork (`explicitcontextualunderstand
   - **Checkpoint Subcommand**: Added `container-compose checkpoint <service>` using `container commit`
   - **Mapping Tests**: Added `ComposeUpMappingTests` for flag generation validation
   - **Network/Volume Sync**: Improved synchronization of network and volume definitions
+
+- **v0.10.2 Fixes:**
+  - **Environment Variable Test Fix**: Fixed `HOST` variable conflict in tests by using unique names (`DB_HOST`, `DB_PORT`, `DB_NAME`)
+  - **Volume Creation Idempotency**: Gracefully handle "already exists" errors during volume creation
+  - **Command String Parsing**: Split string-form commands into proper executable + arguments array
+  - **Environment Variable Mapping**: Added `--env` flag mapping to pass service env vars to containers
+  - **Port Mapping**: Added `--publish` flag mapping for service port mappings
+  - **Shorthand `env:` Key Support**: Added support for `env:` as alias for `environment:` in compose files (env takes precedence when both present)
 
 - **v0.10.1 Fixes:**
   - **Restart stopped containers on compose up**: When containers exist but are stopped, automatically start them instead of returning an error
