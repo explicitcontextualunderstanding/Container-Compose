@@ -1,13 +1,21 @@
 #!/bin/bash
-# Install container-compose v0.10.1 to /usr/local/bin
+# Install container-compose to /usr/local/bin
 # Usage: sudo ./install.sh
+#
+# This script installs the built binary from .build/release/container-compose
 
 set -e
 
 NEW_BINARY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.build/release/container-compose"
 TARGET="/usr/local/bin/container-compose"
 
-echo "Installing container-compose v0.10.1..."
+# Get version from binary
+VERSION="unknown"
+if [ -f "$NEW_BINARY" ]; then
+  VERSION="$($NEW_BINARY version 2>&1 | head -1)"
+fi
+
+echo "Installing container-compose..."
 
 # Check new binary exists
 if [ ! -f "$NEW_BINARY" ]; then
