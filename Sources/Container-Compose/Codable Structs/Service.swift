@@ -195,10 +195,22 @@ public struct Service: Codable, Hashable {
             throw DecodingError.dataCorruptedError(forKey: .image, in: container, debugDescription: "Service must have either 'image' or 'build' specified.")
         }
 
-    restart = try container.decodeIfPresent(String.self, forKey: .restart)
-    healthcheck = try container.decodeIfPresent(Healthcheck.self, forKey: .healthcheck)
-    volumes = try container.decodeIfPresent([String].self, forKey: .volumes)
-    // Support both 'environment:' and shorthand 'env:' - env takes precedence as the shorthand
+        // Validate restart policy if present
+        let rawRestart = try container.decodeIfPresent(String.self, forKey: .restart)
+        if let restartPolicy = rawRestart {
+            let validPolicies = ["no", "always", "on-failure", "unless-stopped"]
+            guard validPolicies.contains(restartPolicy) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .restart,
+                    in: container,
+                    debugDescription: "Invalid restart policy '\(restartPolicy)'. Valid policies: \(validPolicies.joined(separator: ", "))"
+                )
+            }
+        }
+        restart = rawRestart
+        healthcheck = try container.decodeIfPresent(Healthcheck.self, forKey: .healthcheck)
+        // Note: volumes validated below after env_file
+        // Support both 'environment:' and shorthand 'env:' - env takes precedence as the shorthand
     var mergedEnv = try container.decodeIfPresent([String: String].self, forKey: .environment)
     if let envShort = try container.decodeIfPresent([String: String].self, forKey: .env) {
       if var env = mergedEnv {
@@ -211,9 +223,44 @@ public struct Service: Codable, Hashable {
         mergedEnv = envShort
       }
     }
-    environment = mergedEnv
-    env_file = try container.decodeIfPresent([String].self, forKey: .env_file)
-        ports = try container.decodeIfPresent([String].self, forKey: .ports)
+        environment = mergedEnv
+        env_file = try container.decodeIfPresent([String].self, forKey: .env_file)
+
+        // Validate volumes if present
+        let rawVolumes = try container.decodeIfPresent([String].self, forKey: .volumes)
+        if let vols = rawVolumes {
+            for (index, vol) in vols.enumerated() {
+                // If volume has a colon, validate both sides are non-empty
+                // Anonymous volumes like "/app/node_modules" are valid (no colon)
+                if vol.contains(":") {
+                    let parts = vol.split(separator: ":", maxSplits: 2)
+                    guard parts.count == 2 && !parts[0].isEmpty && !parts[1].isEmpty else {
+                        throw DecodingError.dataCorruptedError(
+                            forKey: .volumes,
+                            in: container,
+                            debugDescription: "Invalid volume '\(vol)' at index \(index). Volumes with colon must be in format 'source:destination' (e.g., './data:/app/data')"
+                        )
+                    }
+                }
+            }
+        }
+        volumes = rawVolumes
+
+        // Validate ports if present
+        let rawPorts = try container.decodeIfPresent([String].self, forKey: .ports)
+        if let prts = rawPorts {
+            for (index, port) in prts.enumerated() {
+                // Port should contain a colon separating host and container ports
+                guard port.contains(":") else {
+                    throw DecodingError.dataCorruptedError(
+                        forKey: .ports,
+                        in: container,
+                        debugDescription: "Invalid port '\(port)' at index \(index). Ports must be in format 'host:container' (e.g., '8080:80')"
+                    )
+                }
+            }
+        }
+        ports = rawPorts
 
     // Decode 'command' which can be either a single string or an array of strings.
     if let cmdArray = try? container.decodeIfPresent([String].self, forKey: .command) {
@@ -253,10 +300,31 @@ public struct Service: Codable, Hashable {
         secrets = try container.decodeIfPresent([ServiceSecret].self, forKey: .secrets)
         stdin_open = try container.decodeIfPresent(Bool.self, forKey: .stdin_open)
         tty = try container.decodeIfPresent(Bool.self, forKey: .tty)
-        platform = try container.decodeIfPresent(String.self, forKey: .platform)
+        // Validate platform if present (should be in format os/arch like linux/amd64)
+        let rawPlatform = try container.decodeIfPresent(String.self, forKey: .platform)
+        if let plat = rawPlatform {
+            let platformPattern = #"^[a-z]+/[a-z0-9]+$"#
+            guard plat.range(of: platformPattern, options: .regularExpression) != nil else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .platform,
+                    in: container,
+                    debugDescription: "Invalid platform '\(plat)'. Expected format: 'os/architecture' (e.g., 'linux/amd64', 'linux/arm64')"
+                )
+            }
+        }
+        platform = rawPlatform
         // Decode optional init flag (YAML key: init)
         `init` = try container.decodeIfPresent(Bool.self, forKey: .`init`)
-        runtime = try container.decodeIfPresent(String.self, forKey: .runtime)
+        // Validate runtime if present (should not be empty)
+        let rawRuntime = try container.decodeIfPresent(String.self, forKey: .runtime)
+        if let rt = rawRuntime, rt.isEmpty {
+            throw DecodingError.dataCorruptedError(
+                forKey: .runtime,
+                in: container,
+                debugDescription: "Runtime cannot be an empty string"
+            )
+        }
+        runtime = rawRuntime
         init_image = try container.decodeIfPresent(String.self, forKey: .init_image)
 
         dns_search = try container.decodeIfPresent(String.self, forKey: .dns_search)
