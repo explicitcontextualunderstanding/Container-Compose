@@ -60,6 +60,26 @@ unset _CE_CONDA _CE_M CONDA_PREFIX CONDA_PROMPT_MODIFIER 2>/dev/null || true
 export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v 'miniconda' | tr '\n' ':')"
 export PATH="${PATH%:}"
 
+# Check for root-owned files in .build if not running as root
+if [ -d ".build" ] && [ "$EUID" -ne 0 ]; then
+    root_files=$(find .build -user root -print -quit 2>/dev/null || true)
+    if [ -n "$root_files" ]; then
+        echo "⚠️  Detected root-owned files in .build directory."
+        echo "   This will cause 'Permission denied' errors during compilation."
+        echo ""
+        read -p "   Would you like to fix permissions using sudo? [y/N] " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            sudo chown -R "$USER" .build
+            echo "✓ Permissions fixed."
+            echo ""
+        else
+            echo "⚠️  Continuing without fixing permissions. Build may fail."
+            echo ""
+        fi
+    fi
+fi
+
 # Set configurable test ports to avoid conflicts with existing services
 # Override these via environment variables if needed
 export TEST_PORT_WORDPRESS="${TEST_PORT_WORDPRESS:-18080}"
@@ -113,45 +133,51 @@ for test in "${PRIVILEGED_TESTS[@]}"; do
 done
 echo ""
 
+# Parse arguments for flags
+FORCE_NO_SUDO=false
+FILTERED_ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == "--no-sudo" ]]; then
+        FORCE_NO_SUDO=true
+    else
+        FILTERED_ARGS+=("$arg")
+    fi
+done
+
 # Check if already running as root/sudo
 if [ "$EUID" -eq 0 ]; then
     echo "✓ Already running with sudo"
     echo ""
-    swift test "$@"
+    swift test "${FILTERED_ARGS[@]}"
     exit $?
 fi
 
-# Prompt for sudo
-echo "These tests require sudo privileges to:"
+# Not root - check if we should skip sudo
+if [ "$FORCE_NO_SUDO" = true ]; then
+    echo "Running tests without sudo (requested via --no-sudo)..."
+    echo ""
+    swift test "${FILTERED_ARGS[@]}"
+    exit $?
+fi
+
+# Prompt for sudo if not forced no-sudo
+echo "These tests requiring container runtime (privileged) typically require sudo to:"
 echo "  - Install kernel extensions (--enable-kernel-install)"
 echo "  - Create container volumes"
 echo "  - Start container runtime"
 echo ""
-echo "Options:"
-echo ""
-echo "1. Run with sudo (privileged tests):"
-echo "   ./run-tests.sh"
-echo ""
-echo "2. Run unit tests only (no sudo needed):"
-echo "   swift test --filter StaticTests"
-echo ""
-echo "3. Run specific test:"
-echo "   swift test --filter 'Parse compose'"
-echo ""
 
 read -p "Run with sudo? [y/N] " -n 1 -r
-echo
+echo ""
 
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Running unit tests only (no sudo)..."
+    echo "Attempting to run tests without sudo..."
     echo ""
-    swift test --filter StaticTests "$@"
+    swift test "${FILTERED_ARGS[@]}"
     exit $?
 fi
 
 # Re-run with sudo
 echo "Requesting sudo privileges..."
 echo ""
-
-# Preserve environment for Swift
-exec sudo -E env "PATH=$PATH" "HOME=$HOME" "$0" "$@"
+exec sudo -E env "PATH=$PATH" "HOME=$HOME" "$0" "${FILTERED_ARGS[@]}"
