@@ -22,6 +22,24 @@ unset _CE_CONDA _CE_M CONDA_PREFIX CONDA_PROMPT_MODIFIER 2>/dev/null || true
 export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v 'miniconda' | tr '\n' ':')"
 export PATH="${PATH%:}"
 
+# Set configurable test ports to avoid conflicts with existing services
+# Override these via environment variables if needed
+export TEST_PORT_WORDPRESS="${TEST_PORT_WORDPRESS:-18080}"
+export TEST_PORT_WEB="${TEST_PORT_WEB:-18081}"
+export TEST_PORT_GATEWAY="${TEST_PORT_GATEWAY:-18082}"
+export TEST_PORT_API="${TEST_PORT_API:-18083}"
+export TEST_PORT_APP="${TEST_PORT_APP:-13000}"
+export TEST_PORT_WEB2="${TEST_PORT_WEB2:-18084}"
+
+echo "Test ports configured:"
+echo "  WordPress: $TEST_PORT_WORDPRESS"
+echo "  Web/Nginx: $TEST_PORT_WEB"
+echo "  API Gateway: $TEST_PORT_GATEWAY"
+echo "  API Service: $TEST_PORT_API"
+echo "  App/Node.js: $TEST_PORT_APP"
+echo "  Web Service 2: $TEST_PORT_WEB2"
+echo ""
+
 # Check if we're in CI
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
     echo "✓ Running in CI environment"

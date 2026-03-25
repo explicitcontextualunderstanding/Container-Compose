@@ -24,7 +24,7 @@ public struct DockerComposeYamlFiles {
           wordpress:
             image: wordpress:latest
             ports:
-              - "8080:80"
+              - "${TEST_PORT_WORDPRESS:-18080}:80"
             environment:
               WORDPRESS_DB_HOST: db
               WORDPRESS_DB_USER: wordpress
@@ -58,7 +58,7 @@ public struct DockerComposeYamlFiles {
           nginx:
             image: nginx:alpine
             ports:
-              - "80:80"
+              - "${TEST_PORT_WEB:-18081}:80"
             depends_on:
               - app
             networks:
@@ -108,8 +108,8 @@ public struct DockerComposeYamlFiles {
           api-gateway:
             image: traefik:v2.10
             ports:
-              - "81:80"
-              - "8081:8080"
+              - "${TEST_PORT_GATEWAY:-18082}:80"
+              - "${TEST_PORT_API:-18083}:8080"
             depends_on:
               - auth-service
               - user-service
@@ -151,7 +151,7 @@ public struct DockerComposeYamlFiles {
             environment:
               NODE_ENV: development
             ports:
-              - "3000:3000"
+              - "${TEST_PORT_APP:-13000}:3000"
             command: npm run dev
         """
 
@@ -229,7 +229,7 @@ public struct DockerComposeYamlFiles {
           web:
             image: nginx:alpine
             ports:
-              - "8082:80"
+              - "${TEST_PORT_WEB2:-18084}:80"
             depends_on:
               - app
 
