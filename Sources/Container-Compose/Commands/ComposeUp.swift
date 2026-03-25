@@ -43,7 +43,15 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
     public static let configuration: CommandConfiguration = .init(
         commandName: "up",
-        abstract: "Start containers with compose (Keep PROJECT-SERVICE under 64 characters)"
+        abstract: "Start containers with compose (Keep PROJECT-SERVICE under 64 characters)",
+        discussion: """
+            NOTE ON MACOS LIMITATIONS:
+            The macOS Virtualization.framework has a hard limit of 63 characters for container labels (names).
+            Container-Compose generates names in the format 'PROJECT-SERVICE' (or uses the explicit 'container_name').
+            If this combined name exceeds 63 characters, the container will fail to start with 'Invalid argument' (Code 22).
+
+            Please keep your service names and project directory names short.
+            """
     )
 
     @Argument(help: "Specify the services to start")
@@ -458,7 +466,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
         if containerName.count > 63 {
             print("⚠️  Warning: Container name '\(containerName)' is \(containerName.count) characters long.".yellow)
-            print("   Names exceeding 63 characters may fail with 'Invalid argument' on some macOS runtimes.".yellow)
+            print("   macOS Virtualization.framework has a hard limit of 63 characters for container labels.".yellow)
+            print("   Please shorten your service names or project directory name to prevent 'Invalid argument' errors.".yellow)
         }
 
             guard var serviceColor = Self.availableContainerConsoleColors.randomElement() else {
