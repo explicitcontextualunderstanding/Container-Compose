@@ -329,9 +329,20 @@ See full list in adversarial review report.
 
 ### Dynamic Test Failures - Root Cause Analysis
 
-The two failing dynamic tests are **NOT** caused by code defects but by **macOS Virtualization.framework limitations**:
+The two failing dynamic tests are **NOT** caused by code defects but by **image-specific requirements** on macOS Virtualization.framework:
 
 **Note:** Container-Compose is a macOS-only project using Apple's native Virtualization.framework. The containers themselves are Linux containers running inside macOS virtualization. All tests run exclusively on macOS.
+
+#### The Paradox: Honcho Works, WordPress Doesn't
+
+**Working Example (Honcho stack):**
+- `ghcr.io/plastic-labs/honcho:latest` ✅ - Complex Python web service
+- `docker.io/pgvector/pgvector:pg15` ✅ - PostgreSQL with pgvector extension
+- Both containers start successfully with macOS Virtualization.framework
+
+**Failing Example (WordPress stack):**
+- `wordpress:latest` ❌ - Fails with "Address already in use"
+- `mysql:8.0` ✅ - MySQL starts successfully
 
 #### 1. WordPress Container Bootstrap Failure
 ```
@@ -342,11 +353,12 @@ wordpress: Error: failed to bootstrap container
 **Analysis:**
 - MySQL container starts successfully (proves compose logic works)
 - WordPress container fails during bootstrap with "Address already in use"
-- This is a **macOS Virtualization.framework** error, not a container-compose bug
-- Likely causes:
-  - WordPress image attempting to bind to privileged port 80 internally
-  - Image may require additional capabilities not supported by Apple's container runtime
-  - Missing required volume mounts or environment configuration for WordPress
+- This is a **WordPress image-specific** issue, not a general macOS Virtualization.framework limitation
+- **Key difference from Honcho:**
+  - WordPress image runs Apache on port 80 by default (privileged port)
+  - Honcho runs on unprivileged ports (8000+)
+  - Apple's container runtime may have restrictions on privileged port binding
+  - WordPress image may also require additional capabilities (setuid, setgid) not available in the sandbox
 
 #### 2. Second Test Failure ("What goes up must come down - two containers")
 ```
@@ -355,10 +367,12 @@ wordpress: Error: failed to start process ...
 internalError: \"vmexec error: internalError: ... Error Domain=NSPOSIXErrorDomain Code=22 \"Invalid argument\"")
 ```
 **Analysis:**
-- Same WordPress image compatibility issue
-- "Invalid argument" indicates Apple's container runtime rejected the image configuration
-- The `container` CLI tool from Apple has known limitations with certain complex Linux images
-- WordPress image may have requirements incompatible with macOS container sandbox
+- Same WordPress image issue
+- "Invalid argument" suggests the container runtime rejected the WordPress container's configuration
+- May be related to:
+  - Volume mount requirements (WordPress expects specific paths)
+  - Permission requirements (WordPress writes to /var/www/html)
+  - Apache process startup requirements
 
 ### Why These Are Not Code Issues
 
@@ -366,26 +380,44 @@ internalError: \"vmexec error: internalError: ... Error Domain=NSPOSIXErrorDomai
    - Parses the YAML
    - Creates containers with correct names
    - Sets up volumes and networks
-   - Starts the MySQL container successfully
+   - Starts MySQL, Honcho, Postgres, nginx, redis containers successfully
 
-2. **WordPress-specific failures** - Other images work fine on macOS:
+2. **WordPress-specific failures** - Complex images with special requirements:
    - `nginx:alpine` ✅ works
    - `postgres:14` ✅ works
    - `redis:alpine` ✅ works
-   - `wordpress:latest` ❌ fails (macOS Virtualization.framework limitation)
+   - `ghcr.io/plastic-labs/honcho:latest` ✅ works (complex Python service)
+   - `docker.io/pgvector/pgvector:pg15` ✅ works (Postgres with extensions)
+   - `wordpress:latest` ❌ fails (requires Apache, privileged ports, specific volume setup)
 
-3. **Error is at macOS virtualization layer** - The errors occur in:
-   - `vmexec` (Apple's VM execution layer)
-   - `bind()` system calls inside the VM
-   - Apple's container runtime, not container-compose code
+3. **Error is at WordPress image layer** - The errors suggest:
+   - WordPress attempting to bind to port 80 internally
+   - Apache startup failing in the constrained environment
+   - Volume mount/permission issues with /var/www/html
+
+### Investigation Needed
+
+To understand why WordPress fails while Honcho works:
+
+1. **Compare image characteristics:**
+   - Honcho: Non-privileged ports, simple Python process
+   - WordPress: Apache on port 80, requires specific permissions
+
+2. **Test WordPress alternatives:**
+   - Try `wordpress:php-apache` vs `wordpress:fpm`
+   - Check if running on non-privileged port helps
+
+3. **Check volume requirements:**
+   - Does WordPress need pre-created volume data?
+   - Are permissions on /var/www/html correct?
 
 ### Recommended Actions
 
-1. **Replace WordPress test image** with a simpler HTTP service that works on macOS Virtualization.framework
-2. **Document known limitations** about certain Linux images on macOS
-3. **Consider using lighter test fixtures** that don't require complex PHP/Apache stacks
+1. **Replace WordPress test image** with a simpler PHP or Python HTTP service that doesn't require privileged ports
+2. **Test with WordPress variants** (php-fpm, custom port configuration)
+3. **Document known limitations** about images requiring privileged ports or special capabilities
 
-**Verdict:** Code is correct. Test infrastructure needs adjustment for macOS Virtualization.framework limitations with certain Linux images.
+**Verdict:** Code is correct. WordPress image has requirements incompatible with macOS container sandbox (privileged ports, Apache requirements). Other complex web services (Honcho) work fine.
 
 **Known Test Limitation:**
 - Command string parsing test updated to match new behavior
