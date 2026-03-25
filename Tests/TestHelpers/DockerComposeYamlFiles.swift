@@ -21,9 +21,8 @@ public struct DockerComposeYamlFiles {
 version: '3.8'
 
 services:
-  wordpress:
-    image: wordpress:php8.2-fpm
-    command: php-fpm
+  wp:
+    image: wordpress:fpm-alpine
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress
@@ -39,7 +38,7 @@ services:
     ports:
       - "${TEST_PORT_WORDPRESS:-18080}:8080"
     depends_on:
-      - wordpress
+      - wp
     volumes:
       - wordpress_data:/var/www/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
@@ -61,7 +60,7 @@ volumes:
 
     public static let nginxConf = """
 upstream php {
-    server wordpress:9000;
+    server wp:9000;
 }
 
 server {
