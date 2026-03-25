@@ -7,6 +7,44 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Cleanup function - removes only test containers created by this run
+cleanup_test_containers() {
+    local exit_code=$?
+    echo ""
+    echo "=========================================="
+    echo "Cleaning up test containers..."
+    echo "=========================================="
+    
+    # Find and remove only containers created by our tests (Container-Compose_Tests_*)
+    if command -v container &> /dev/null; then
+        local test_containers
+        test_containers=$(container list 2>/dev/null | grep "Container-Compose_Tests_" | awk '{print $1}' || true)
+        
+        if [ -n "$test_containers" ]; then
+            echo "Found test containers to clean up:"
+            echo "$test_containers" | while read -r container_id; do
+                echo "  - Stopping: $container_id"
+                container stop "$container_id" 2>/dev/null || true
+                echo "  - Deleting: $container_id"
+                container delete "$container_id" 2>/dev/null || true
+            done
+            echo "✓ Test containers cleaned up"
+        else
+            echo "✓ No test containers to clean up"
+        fi
+    else
+        echo "⚠️ 'container' CLI not available, skipping container cleanup"
+    fi
+    
+    echo "=========================================="
+    
+    # Exit with the original exit code
+    exit $exit_code
+}
+
+# Register cleanup function to run on exit
+trap cleanup_test_containers EXIT
+
 echo "=========================================="
 echo "Container-Compose Test Runner"
 echo "=========================================="
