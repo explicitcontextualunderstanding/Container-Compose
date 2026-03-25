@@ -27,12 +27,15 @@ struct ComposeUpTests {
     @Test("Test WordPress with MySQL compose file")
     func testWordPressCompose() async throws {
         let yaml = DockerComposeYamlFiles.dockerComposeYaml1
-        
+        let nginxConf = DockerComposeYamlFiles.nginxConf
+
         let tempLocation = URL.temporaryDirectory.appending(path: "Container-Compose_Tests_\(UUID().uuidString)/docker-compose.yaml")
-        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let nginxConfLocation = tempLocation.deletingLastPathComponent().appending(path: "nginx.conf")
+        try FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        try nginxConf.write(to: nginxConfLocation, atomically: false, encoding: .utf8)
         let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
-        
+
         var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
         try await composeUp.run()
         
