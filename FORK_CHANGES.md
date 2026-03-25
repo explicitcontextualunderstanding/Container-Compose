@@ -3,7 +3,7 @@
 This document summarizes all changes in this fork (`explicitcontextualunderstanding/Container-Compose`) relative to the upstream repository (`Mcrich23/Container-Compose`).
 
 **Current Release:** v0.10.2
-**Last Updated:** 2026-03-24
+**Last Updated:** 2026-03-25
 
 ---
 
@@ -14,10 +14,25 @@ This document summarizes all changes in this fork (`explicitcontextualunderstand
 |------|---------|
 | `.github/workflows/release.yml` | Automated release workflow |
 | `CHANGELOG.md` | Version changelog |
+| `ADVERSARIAL_REVIEW_FIXES.md` | Comprehensive security audit and fix documentation |
+| `DYNAMIC_TEST_ANALYSIS.md` | Analysis of dynamic test failures |
+| `VERIFICATION.md` | Verification procedures and testing guidelines |
+| `build-release.sh` | Release build script with conda/xattr cleanup |
+| `build-and-install.sh` | Combined build+install script with codesign |
+| `install.sh` | Installation script with macOS provenance handling |
+| `run-tests.sh` | Test runner with conda environment cleanup |
 | `Sources/Container-Compose/Commands/CheckpointCommand.swift` | New checkpoint command using `container commit` |
+| `Sources/Container-Compose/Errors.swift` | Centralized error types and definitions |
 | `Tests/Container-Compose-StaticTests/CheckpointCommandTests.swift` | Unit tests for checkpoint command |
 | `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift` | Mapping tests for restart/init/entrypoint flags |
 | `Tests/Container-Compose-StaticTests/NetworkVolumeMappingTests.swift` | Network and volume synchronization tests |
+| `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift` | Tests for helper functions like deriveProjectName |
+| `Tests/Container-Compose-StaticTests/EnvironmentVariableTests.swift` | Environment variable parsing tests |
+| `Tests/Container-Compose-StaticTests/EnvFileLoadingTests.swift` | .env file loading tests |
+| `Tests/Container-Compose-StaticTests/NetworkConfigurationTests.swift` | Network configuration parsing tests |
+| `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift` | Service dependency graph tests |
+| `Tests/Container-Compose-StaticTests/HealthcheckConfigurationTests.swift` | Healthcheck configuration tests |
+| `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift` | Dynamic tests for compose down command |
 | `Tests/compose_static_checks.sh` | Static validation script for compose files |
 | `Tests/network_reachability.sh` | Network connectivity testing script |
 | `docs/checkpoint.md` | Documentation for checkpoint feature |
@@ -25,17 +40,31 @@ This document summarizes all changes in this fork (`explicitcontextualunderstand
 ### Modified Files
 | File | Change Summary |
 |------|--------------|
-| `.github/workflows/tests.yml` | Enhanced CI workflow |
-| `Sources/Container-Compose/Application.swift` | Added checkpoint command registration |
+| `.github/workflows/tests.yml` | Enhanced CI workflow, added static test filtering |
+| `Sources/Container-Compose/Application.swift` | Added checkpoint command registration, git hash in version string |
 | `Sources/Container-Compose/Codable Structs/Build.swift` | Added `target` field for multi-stage builds |
 | `Sources/Container-Compose/Codable Structs/Network.swift` | Enhanced network synchronization |
-| `Sources/Container-Compose/Codable Structs/Service.swift` | Added `dns_search` and restored `runtime`, `init`, `init_image` |
-| `Sources/Container-Compose/Commands/ComposeUp.swift` | Refactored with `makeRunArgs` helper, added restart stopped containers |
-| `Sources/Container-Compose/Commands/Version.swift` | Version bump to 0.10.1 |
-| `Sources/Container-Compose/Helper Functions.swift` | Added `streamCommand` and `deriveProjectName` utilities |
-| `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift` | Updated dynamic tests |
+| `Sources/Container-Compose/Codable Structs/Service.swift` | Added `dns_search` array support, validation for restart/platform/runtime/volumes/ports |
+| `Sources/Container-Compose/Commands/CheckpointCommand.swift` | P0 fixes: error handling, pre-flight checks, exit code validation |
+| `Sources/Container-Compose/Commands/ComposeUp.swift` | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation |
+| `Sources/Container-Compose/Commands/ComposeDown.swift` | Added try/throw support for deriveProjectName |
+| `Sources/Container-Compose/Commands/Version.swift` | Version display with git commit hash |
+| `Sources/Container-Compose/Errors.swift` | Added `invalidResourceConfig` error case |
+| `Sources/Container-Compose/Helper Functions.swift` | P0/P2 fixes: safe regex handling, VariableResolutionError, deriveProjectName sanitization, env_file error handling |
+| `Tests/TestHelpers/DockerComposeYamlFiles.swift` | Configurable test ports via environment variables |
+| `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift` | Updated for WordPress FPM variant, port-agnostic assertions |
+| `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift` | Updated for 3-container WordPress setup |
 | `Tests/Container-Compose-StaticTests/BuildConfigurationTests.swift` | Added build target tests |
-| `Tests/Container-Compose-StaticTests/DockerComposeParsingTests.swift` | Enhanced parsing tests |
+| `Tests/Container-Compose-StaticTests/DockerComposeParsingTests.swift` | Replaced force unwraps with guard statements |
+| `Tests/Container-Compose-StaticTests/CheckpointCommandTests.swift` | Checkpoint command tests |
+| `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift` | Mapping tests for restart/init/entrypoint flags |
+| `Tests/Container-Compose-StaticTests/EnvFileLoadingTests.swift` | .env file loading tests |
+| `Tests/Container-Compose-StaticTests/EnvironmentVariableTests.swift` | Environment variable tests |
+| `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift` | deriveProjectName tests |
+| `Tests/Container-Compose-StaticTests/NetworkConfigurationTests.swift` | Network configuration tests |
+| `Tests/Container-Compose-StaticTests/NetworkVolumeMappingTests.swift` | Network and volume mapping tests |
+| `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift` | Service dependency tests |
+| `Tests/Container-Compose-StaticTests/HealthcheckConfigurationTests.swift` | Healthcheck configuration tests |
 
 ---
 
