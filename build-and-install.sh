@@ -24,8 +24,8 @@ unset _CE_CONDA _CE_M CONDA_PREFIX CONDA_PROMPT_MODIFIER 2>/dev/null || true
 export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v 'miniconda' | tr '\n' ':')"
 export PATH="${PATH%:}"
 
-BINARY_PATH=".build/release/container-compose"
-TARGET="/usr/local/bin/container-compose"
+BINARY_PATH=".build/arm64-apple-macosx/release/Container-Compose"
+TARGET="$HOME/bin/container-compose"
 
 # Build
 echo "Building container-compose..."
@@ -64,13 +64,8 @@ fi
 echo ""
 echo "Installing to $TARGET..."
 
-# Check sudo needed
-if [ ! -w "/usr/local/bin" ]; then
-  echo "Requires sudo for installation to /usr/local/bin"
-  SUDO="sudo"
-else
-  SUDO=""
-fi
+# No sudo needed for home directory
+SUDO=""
 
 # Copy and set permissions
 $SUDO cp "$BINARY_PATH" "$TARGET"
