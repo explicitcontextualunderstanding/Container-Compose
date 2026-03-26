@@ -202,7 +202,7 @@ struct DockerComposeParsingTests {
         let decoder = YAMLDecoder()
         let compose = try decoder.decode(DockerCompose.self, from: yaml)
         
-        #expect(compose.services["web"]??.depends_on?.contains("db") == true)
+        #expect(compose.services["web"]??.depends_on?["db"] != nil)
     }
     
     @Test("Parse compose with build context")
@@ -453,7 +453,7 @@ struct DockerComposeParsingTests {
         #expect(compose.services["web"] != nil)
         #expect(compose.services["db"] != nil)
         #expect(compose.volumes?.count == 2)
-        #expect(compose.services["wp"]??.depends_on?.contains("db") == true)
+        #expect(compose.services["wp"]??.depends_on?["db"] != nil)
     }
     
     @Test("Parse three-tier web application")

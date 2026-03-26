@@ -24,6 +24,21 @@
 import Foundation
 
 
+/// Condition for `depends_on` long-form entries.
+public enum DependsOnCondition: String, Codable, Hashable {
+    case service_started
+    case service_healthy
+}
+
+/// A single entry in the long-form `depends_on` map.
+public struct DependsOnEntry: Codable, Hashable {
+    public let condition: DependsOnCondition?
+
+    public init(condition: DependsOnCondition? = nil) {
+        self.condition = condition
+    }
+}
+
 /// Represents a single service definition within the `services` section.
 public struct Service: Codable, Hashable {
     /// Docker image name
@@ -57,7 +72,9 @@ public struct Service: Codable, Hashable {
     public let command: [String]?
 
     /// Services this service depends on (for startup order)
-    public let depends_on: [String]?
+    /// Supports both short-form `[String]` and long-form `[String: DependsOnEntry]`.
+    /// Long-form allows specifying conditions like `service_healthy`.
+    public let depends_on: [String: DependsOnEntry]?
 
     /// User or UID to run the container as
     public let user: String?
@@ -113,6 +130,18 @@ public struct Service: Codable, Hashable {
 
     /// Other services that depend on this service
     public var dependedBy: [String] = []
+
+    /// Flat list of dependency service names (from both short and long form).
+    public var dependencyNames: [String] {
+        depends_on?.keys.sorted() ?? []
+    }
+
+    /// Dependency service names that require `service_healthy` condition.
+    public var healthyDependencies: [String] {
+        depends_on?.compactMap { name, entry in
+            entry.condition == .service_healthy ? name : nil
+        }.sorted() ?? []
+    }
     
   // Defines custom coding keys to map YAML keys to Swift properties
   // Note: 'env' is a shorthand alias for 'environment' in Docker Compose
@@ -133,7 +162,7 @@ public struct Service: Codable, Hashable {
         env_file: [String]? = nil,
         ports: [String]? = nil,
         command: [String]? = nil,
-        depends_on: [String]? = nil,
+        depends_on: [String: DependsOnEntry]? = nil,
         user: String? = nil,
         container_name: String? = nil,
         networks: [String]? = nil,
@@ -277,10 +306,13 @@ public struct Service: Codable, Hashable {
       command = nil
     }
         
+        // Decode depends_on: supports string, [string], and {service: {condition: ...}} forms
         if let dependsOnString = try? container.decodeIfPresent(String.self, forKey: .depends_on) {
-            depends_on = [dependsOnString]
+            depends_on = [dependsOnString: DependsOnEntry(condition: nil)]
+        } else if let dependsOnArray = try? container.decodeIfPresent([String].self, forKey: .depends_on) {
+            depends_on = Dictionary(uniqueKeysWithValues: dependsOnArray.map { ($0, DependsOnEntry(condition: nil)) })
         } else {
-            depends_on = try container.decodeIfPresent([String].self, forKey: .depends_on)
+            depends_on = try container.decodeIfPresent([String: DependsOnEntry].self, forKey: .depends_on)
         }
         user = try container.decodeIfPresent(String.self, forKey: .user)
 
@@ -363,7 +395,7 @@ public struct Service: Codable, Hashable {
             guard !visited.contains(name) else { return }
 
             visiting.insert(name)
-            for depName in serviceTuple.service.depends_on ?? [] {
+            for depName in serviceTuple.service.dependencyNames {
                 try visit(depName, from: name)
             }
             visiting.remove(name)

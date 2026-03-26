@@ -38,6 +38,13 @@ public struct ContainerRunError: Error, CustomStringConvertible {
     public init(_ message: String) { self.message = message }
 }
 
+/// Error thrown when a dependency does not become healthy in time.
+public struct HealthcheckTimeoutError: Error, CustomStringConvertible {
+    public let message: String
+    public var description: String { message }
+    public init(_ message: String) { self.message = message }
+}
+
 public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     public init() {}
 
@@ -182,6 +189,26 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         print(services.map(\.serviceName))
         for (serviceName, service) in services {
             try await configService(service, serviceName: serviceName, from: dockerCompose)
+
+            // After starting this service, check if any subsequent services need it to be healthy
+            let containerName = service.container_name ?? "\(projectName ?? "")-\(serviceName)"
+            let remainingServices = Array(services.dropFirst(services.firstIndex(where: { $0.serviceName == serviceName })! + 1))
+            for (futureName, futureService) in remainingServices {
+                if futureService.healthyDependencies.contains(serviceName) {
+                    // Find the healthcheck on the dependency (this service)
+                    guard let healthcheck = service.healthcheck else {
+                        print("Warning: Service '\(futureName)' depends on '\(serviceName)' with condition service_healthy, but '\(serviceName)' has no healthcheck configured.")
+                        continue
+                    }
+                    print("Service '\(futureName)' depends on '\(serviceName)' being healthy. Waiting...")
+                    try await waitForHealthy(
+                        containerName: containerName,
+                        dependencyName: serviceName,
+                        healthcheck: healthcheck
+                    )
+                    print("Service '\(serviceName)' is healthy.")
+                }
+            }
         }
 
         if !detach {
@@ -230,6 +257,90 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             userInfo: [
                 NSLocalizedDescriptionKey: "Timed out waiting for container '\(containerName)' to be running."
             ])
+    }
+
+    /// Waits for a container to pass its healthcheck by running the healthcheck command inside it.
+    private func waitForHealthy(containerName: String, dependencyName: String, healthcheck: Healthcheck) async throws {
+        guard let test = healthcheck.test, test.first != "NONE" else {
+            return // No healthcheck or explicitly disabled
+        }
+
+        let startPeriodSeconds = Self.parseDuration(healthcheck.start_period) ?? 30
+        let intervalSeconds = Self.parseDuration(healthcheck.interval) ?? 30
+        let timeoutSeconds = Self.parseDuration(healthcheck.timeout) ?? 30
+        let retries = healthcheck.retries ?? 3
+
+        // Respect start_period: sleep initially before checking
+        if startPeriodSeconds > 0 {
+            print("  Waiting \(startPeriodSeconds)s start_period for '\(dependencyName)'...")
+            try await Task.sleep(nanoseconds: UInt64(startPeriodSeconds * 1_000_000_000))
+        }
+
+        // Build the exec arguments from the healthcheck test
+        let execArgs: [String]
+        if test.first == "CMD-SHELL" {
+            // ["CMD-SHELL", "pg_isready -U postgres"] -> exec with /bin/sh -c
+            guard test.count >= 2 else { return }
+            let shellCommand = test.dropFirst().joined(separator: " ")
+            execArgs = [containerName, "--", "/bin/sh", "-c", shellCommand]
+        } else if test.first == "CMD" {
+            // ["CMD", "pg_isready", "-U", "postgres"] -> exec directly
+            execArgs = [containerName, "--"] + Array(test.dropFirst())
+        } else {
+            // Unknown format, try treating as direct command
+            execArgs = [containerName, "--"] + test
+        }
+
+        var consecutiveFailures = 0
+        let deadline = Date().addingTimeInterval(
+            TimeInterval(retries) * intervalSeconds + timeoutSeconds
+        )
+
+        while Date() < deadline {
+            let exitCode = try await ContainerComposeCore.streamCommand(
+                "container", args: ["exec"] + execArgs, cwd: self.cwd,
+                onStdout: { _ in }, onStderr: { _ in }
+            )
+
+            if exitCode == 0 {
+                return // Healthy!
+            }
+
+            consecutiveFailures += 1
+            if consecutiveFailures >= retries {
+                throw HealthcheckTimeoutError(
+                    "Dependency '\(dependencyName)' failed healthcheck after \(retries) retries"
+                )
+            }
+
+            print("  Healthcheck for '\(dependencyName)' failed (attempt \(consecutiveFailures)/\(retries)). Retrying in \(intervalSeconds)s...")
+            try await Task.sleep(nanoseconds: UInt64(intervalSeconds * 1_000_000_000))
+        }
+
+        throw HealthcheckTimeoutError(
+            "Timed out waiting for dependency '\(dependencyName)' to become healthy"
+        )
+    }
+
+    /// Parses a duration string like "30s", "1m", "10" into seconds. Returns nil if unparseable.
+    static func parseDuration(_ value: String?) -> TimeInterval? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty { return nil }
+
+        if trimmed.hasSuffix("s") {
+            guard let val = Double(trimmed.dropLast()) else { return nil }
+            return val
+        } else if trimmed.hasSuffix("m") {
+            guard let val = Double(trimmed.dropLast()) else { return nil }
+            return val * 60
+        } else if trimmed.hasSuffix("h") {
+            guard let val = Double(trimmed.dropLast()) else { return nil }
+            return val * 3600
+        } else {
+            // Bare number treated as seconds
+            return Double(trimmed)
+        }
     }
 
     /// Error thrown when stopping/removing old containers fails.

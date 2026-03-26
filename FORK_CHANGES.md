@@ -226,6 +226,27 @@ Based on analysis of `apple/container` v0.11.0 upcoming features and current for
 | Auto-Start (LaunchAgent) | #1176, #1201 | Boot service installation |
 | Container Prune on Start | #1290 | Reap auto-remove containers |
 
+### Compose Orchestration Gaps
+
+Features currently worked around in external orchestrator scripts (e.g., `apple-container-honcho-compose.sh`).
+
+#### Real Gap
+
+| Gap | Current Workaround | Impact | Priority |
+|-----|-------------------|--------|----------|
+| **`healthcheck` orchestration** (`depends_on: condition: service_healthy`) | Custom poll loops (`wait_for_db_ready`, `wait_for_api_ready`) with retries | `Healthcheck` struct is parsed from compose but never consumed — no logic waits for a dependency to become healthy before starting dependents | High |
+
+#### Non-Gaps (already supported by container-compose)
+
+The orchestrator script works around several features that container-compose already implements natively:
+
+| Feature | Container-Compose Support | Orchestrator Workaround (unnecessary) |
+|---------|--------------------------|--------------------------------------|
+| **`-f` flag** | `@Option` on `ComposeUp` and `ComposeDown`; accepts filename relative to cwd | Symlink desired file to `compose.yml` before each call |
+| **`${VAR}` interpolation** | `resolveVariable()` in `Helper Functions.swift` handles `${VAR}`, `${VAR:-default}`, `${VAR:?error}` | Python pre-renders compose file with `os.environ` substitution |
+| **`depends_on` ordering** | `Service.topoSortConfiguredServices()` does topological sort at `ComposeUp.swift:147` | Manual sequential `container-compose up -d <service>` calls |
+| **Partial compose / volumes** | `setupVolume()` handles "already exists" gracefully; top-level volumes created idempotently per compose file regardless of service selection | Regex-based stripping of `volumes:` and single-service extraction |
+
 ### Compatibility & Migration
 
 #### v0.10.x → v0.11.0 Migration
@@ -279,6 +300,7 @@ Based on analysis of `apple/container` v0.11.0 upcoming features and current for
 | **Networking** | DNS search, network reachability, MTU configuration | Medium |
 | **Build** | Multi-stage targets, build secrets, resource limits | High |
 | **Lifecycle** | Checkpoint export/import, container restart | High |
+| **Orchestration** | healthcheck-aware `depends_on` | High |
 | **Registry** | Authentication, push/pull | Medium |
 
 ---
@@ -289,6 +311,7 @@ Based on analysis of `apple/container` v0.11.0 upcoming features and current for
 - [ ] Update README and CLI --help strings for fork-only features
 - [ ] Audit tests for upstream compatibility
 - [ ] Consider upstreaming: dns_search, build.target, entrypoint fix, named-volume behavior
+- [ ] Implement healthcheck-aware `depends_on` (wait for dependency healthy before starting dependents)
 
 ---
 
