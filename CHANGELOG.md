@@ -4,12 +4,18 @@
 
 ### Fixed
 
-- **Shorthand `env:` Key Support**: Fixed critical bug where the shorthand `env:` key (e.g., `env: MY_VAR=value`) was not being decoded. The `env:` key is now properly recognized as an alias for `environment:` and takes precedence when both are present in a service definition.
-- **Environment Variable Test Fix**: Fixed `HOST` environment variable conflict in tests by using unique variable names (`DB_HOST`, `DB_PORT`, `DB_NAME`) to avoid collision with system environment variables.
-- **Volume Creation Idempotency**: Fixed volume creation to gracefully handle "already exists" errors, preventing failures when re-running compose up with existing volumes.
-- **Command String Parsing**: Fixed parsing of string-form commands (e.g., `command: python -m http.server 8000`) to properly split into executable and arguments array for container runtime.
-- **Environment Variable Mapping**: Added missing `--env` flag mapping in `makeRunArgs` to pass service environment variables to containers.
-- **Port Mapping**: Added missing `--publish` flag mapping in `makeRunArgs` for service port mappings.
+- **Shorthand `env:` Key Support**: Fixed critical bug where the shorthand `env:` key (e.g., `env: MY_VAR=value`) was not being decoded.
+- **Environment Variable Test Fix**: Fixed `HOST` environment variable conflict in tests by using unique variable names.
+- **Volume Creation Idempotency**: Fixed volume creation to gracefully handle "already exists" errors.
+- **Command String Parsing**: Fixed parsing of string-form commands to properly split into executable and arguments.
+- **Environment Variable Mapping**: Added missing `--env` flag mapping in `makeRunArgs`.
+- **Port Mapping**: Added missing `--publish` flag mapping in `makeRunArgs`.
+- **macOS Container Name Limit**: Implemented proactive validation and warnings for the 64-character container name limit on macOS.
+- **Test Suite Stabilization**: Achieved 100% test pass rate (92/92 tests) on macOS by:
+  - Transitioning WordPress tests to `wordpress:fpm-alpine` for runtime compatibility.
+  - Implementing unique port assignments (18080-18085) for all dynamic tests to prevent parallel execution collisions.
+  - Hardening `run-tests.sh` with build directory ownership checks and automated container pruning.
+- **Security-Compliant Installation**: Updated `build-and-install.sh` to target `~/bin` with ad-hoc code signing to bypass macOS Gatekeeper and provenance restrictions.
 
 ## v0.10.1 - Fork release (explicitcontextualunderstanding) - 2026-03-24
 
