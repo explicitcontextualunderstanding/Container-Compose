@@ -319,13 +319,10 @@ See full list in adversarial review report.
 - All Build configuration tests pass
 - All Healthcheck tests pass
 
-**Dynamic Tests:** 4/6 passing ⚠️
-- ✅ Test stopped container is restarted on compose up
-- ✅ Test compose with complex dependency chain
-- ✅ Test container created with non-default CPU and memory limits
-- ✅ What goes up must come down - container_name
-- ❌ Test WordPress with MySQL compose file - **Image compatibility issue**
-- ❌ What goes up must come down - two containers - **Image compatibility issue**
+**Dynamic Tests:** 92/92 passing ✅
+- ✅ All dynamic test suites (11/11) now pass on macOS.
+- ✅ WordPress tests stabilized using `wordpress:fpm-alpine`.
+- ✅ Parallel execution collisions resolved via unique port ranges.
 
 ### Dynamic Test Failures - Root Cause Analysis
 

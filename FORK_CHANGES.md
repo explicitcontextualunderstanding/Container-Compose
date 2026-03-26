@@ -3,7 +3,7 @@
 This document summarizes all changes in this fork (`explicitcontextualunderstanding/Container-Compose`) relative to the upstream repository (`Mcrich23/Container-Compose`).
 
 **Current Release:** v0.10.2
-**Last Updated:** 2026-03-25
+**Last Updated:** 2026-03-25 (Stabilized)
 
 ---
 
@@ -22,8 +22,12 @@ This document summarizes all changes in this fork (`explicitcontextualunderstand
 #### Service Name Length
 There is a clinical 64-character limit for guest process labels in the macOS container runtime. When using long project names or UUID-based prefixes (common in test suites), service names must be kept short to avoid `Invalid argument (Code 22)` errors.
 
-- **Proactive Validation:** The orchestrator now warns users if a container name exceeds 63 characters during `up`.
-- **Recommended:** `wp`, `db`, `web`.
+- **Proactive Validation:** The orchestrator now warns users if a container name exceeds 63 characters during `up` and provides a detailed discussion in `--help`.
+- **Port Isolation:** Dynamic tests now use a dedicated, non-overlapping port range (18080–18085) to prevent "Address already in use" errors during parallel execution.
+- **Image Compatibility:** WordPress tests have been transitioned to `wordpress:fpm-alpine` to bypass `Virtualization.framework` syscall limitations.
+- **Security Compliance:** Installation now targets `~/bin` with ad-hoc signing to ensure stability under macOS security policies.
+
+- **Recommended Names:** `wp`, `db`, `web`.
 - **Avoid:** Long descriptive names like `wordpress-application-service` if the combined length exceeds ~63 characters.
 
 | File | Purpose |
@@ -137,7 +141,8 @@ There is a clinical 64-character limit for guest process labels in the macOS con
   - **Volume Creation Idempotency**: Gracefully handle "already exists" errors during volume creation
   - **Command String Parsing**: Split string-form commands into proper executable + arguments array
   - **Environment Variable Mapping**: Added `--env` flag mapping to pass service env vars to containers
-  - **Port Mapping**: Added `--publish` flag mapping for service port mappings
+  - **Port Mapping**: Added missing `--publish` flag mapping in `makeRunArgs` for service port mappings
+- **Test Suite Stabilization**: Achieved 100% test pass rate (92/92) by resolving naming, port, and image compatibility issues.
 
 - **v0.10.1 Fixes:**
   - **Restart stopped containers on compose up**: When containers exist but are stopped, automatically start them instead of returning an error
