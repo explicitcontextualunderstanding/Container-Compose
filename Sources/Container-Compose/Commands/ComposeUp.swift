@@ -76,6 +76,12 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     @Flag(name: [.customShort("b"), .customLong("build")])
     var rebuild: Bool = false
 
+    @Flag(name: .long, help: "Stop and recreate all containers even if already running")
+    var forceRecreate: Bool = false
+
+    @Flag(name: .long, help: "If containers already exist, don't recreate them")
+    var noRecreate: Bool = false
+
     @Flag(name: .long, help: "Do not use cache")
     var noCache: Bool = false
 
@@ -97,6 +103,12 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     private static let availableContainerConsoleColors: Set<NamedColor> = [
         .blue, .cyan, .magenta, .lightBlack, .lightBlue, .lightCyan, .lightYellow, .yellow, .lightGreen, .green,
     ]
+
+    public mutating func validate() throws {
+        if forceRecreate && noRecreate {
+            throw ValidationError("--force-recreate and --no-recreate are mutually exclusive")
+        }
+    }
 
     public mutating func run() async throws {
         // Check for supported filenames and extensions
@@ -160,8 +172,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             })
         }
 
-        // Stop Services
-        try await stopOldStuff(services.map({ $0.serviceName }), remove: true)
+        // Only force-recreate tears down existing containers first
+        if forceRecreate {
+            try await stopOldStuff(services.map({ $0.serviceName }), remove: true)
+        }
 
         // Process top-level networks
         // This creates named networks defined in the docker-compose.yml
@@ -188,7 +202,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
         print(services.map(\.serviceName))
         for (serviceName, service) in services {
-            try await configService(service, serviceName: serviceName, from: dockerCompose)
+            try await configService(service, serviceName: serviceName, from: dockerCompose, noRecreate: noRecreate)
 
             // After starting this service, check if any subsequent services need it to be healthy
             let containerName = service.container_name ?? "\(projectName ?? "")-\(serviceName)"
@@ -507,7 +521,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     }
 
     // MARK: Compose Service Level Functions
-    private mutating func configService(_ service: Service, serviceName: String, from dockerCompose: DockerCompose) async throws {
+    private mutating func configService(_ service: Service, serviceName: String, from dockerCompose: DockerCompose, noRecreate: Bool = false) async throws {
         guard let projectName else { throw ComposeError.invalidProjectName }
 
         var imageToRun: String
@@ -604,7 +618,11 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
               try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName)
               return
           } else {
-              // Container exists but is not running - START IT instead of returning
+              // Container exists but is not running
+              if noRecreate {
+                  print("Container '\(containerName)' exists with status: \(existingContainer.status). Not recreating (--no-recreate).")
+                  return
+              }
               print("Container '\(containerName)' exists with status: \(existingContainer.status). Starting it...")
               let startCommand = try Application.ContainerStart.parse([containerName, "-d"])
               try await startCommand.run()
