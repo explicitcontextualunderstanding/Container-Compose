@@ -96,15 +96,8 @@ echo "Container-Compose Test Runner"
 echo "=========================================="
 echo ""
 
-# Clear ALL conda-injected compiler flags and variables
-unset CPPFLAGS CFLAGS CXXFLAGS LDFLAGS DEBUG_CFLAGS DEBUG_CXXFLAGS CMAKE_ARGS 2>/dev/null || true
-unset CONDA_TOOLCHAIN_BUILD CONDA_TOOLCHAIN_HOST CONDA_DEFAULT_ENV 2>/dev/null || true
-unset CC CXX CC_FOR_BUILD CXX_FOR_BUILD OBJC_FOR_BUILD 2>/dev/null || true
-unset _CE_CONDA _CE_M CONDA_PREFIX CONDA_PROMPT_MODIFIER 2>/dev/null || true
-
-# Remove miniconda from PATH
-export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v 'miniconda' | tr '\n' ':')"
-export PATH="${PATH%:}"
+# Neutralize conda environment contamination (shared with build-and-install.sh)
+source "$SCRIPT_DIR/scripts/env-setup.sh"
 
 # Check for root-owned files in .build if not running as root
 if [ -d ".build" ] && [ "$EUID" -ne 0 ]; then

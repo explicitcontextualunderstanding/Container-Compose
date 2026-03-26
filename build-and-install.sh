@@ -14,15 +14,8 @@ echo "Container-Compose Build & Install"
 echo "=========================================="
 echo ""
 
-# Clear conda-injected compiler flags
-unset CPPFLAGS CFLAGS CXXFLAGS LDFLAGS DEBUG_CFLAGS DEBUG_CXXFLAGS CMAKE_ARGS 2>/dev/null || true
-unset CONDA_TOOLCHAIN_BUILD CONDA_TOOLCHAIN_HOST CONDA_DEFAULT_ENV 2>/dev/null || true
-unset CC CXX CC_FOR_BUILD CXX_FOR_BUILD OBJC_FOR_BUILD 2>/dev/null || true
-unset _CE_CONDA _CE_M CONDA_PREFIX CONDA_PROMPT_MODIFIER 2>/dev/null || true
-
-# Remove miniconda from PATH
-export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v 'miniconda' | tr '\n' ':')"
-export PATH="${PATH%:}"
+# Neutralize conda environment contamination (shared with run-tests.sh)
+source "$SCRIPT_DIR/scripts/env-setup.sh"
 
 BINARY_PATH=".build/arm64-apple-macosx/release/Container-Compose"
 TARGET="$HOME/bin/container-compose"
