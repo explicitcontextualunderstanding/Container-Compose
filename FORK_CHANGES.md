@@ -136,6 +136,8 @@ There is a clinical 64-character limit for guest process labels in the macOS con
   - **Network/Volume Sync**: Improved synchronization of network and volume definitions
 
 - **v0.10.2 Fixes:**
+  - **Healthcheck-aware depends_on**: Implemented `waitForHealthy()` in `ComposeUp.swift` that polls a dependency's healthcheck command via `container exec` before starting dependent services. Supports CMD, CMD-SHELL, and NONE formats with configurable interval/timeout/retries/start_period.
+  - **Fixed `container exec` syntax**: Apple's `container exec` does not use `--` separator (unlike Docker). Updated exec arg construction to match Apple CLI format.
   - **Shorthand `env:` Key Support**: Fixed critical bug where `env:` shorthand was not decoded. Now properly recognized as alias for `environment:` (env takes precedence when both present)
   - **Environment Variable Test Fix**: Fixed `HOST` variable conflict in tests by using unique names (`DB_HOST`, `DB_PORT`, `DB_NAME`)
   - **Volume Creation Idempotency**: Gracefully handle "already exists" errors during volume creation
@@ -234,7 +236,9 @@ Features currently worked around in external orchestrator scripts (e.g., `apple-
 
 | Gap | Current Workaround | Impact | Priority |
 |-----|-------------------|--------|----------|
-| **`healthcheck` orchestration** (`depends_on: condition: service_healthy`) | Custom poll loops (`wait_for_db_ready`, `wait_for_api_ready`) with retries | `Healthcheck` struct is parsed from compose but never consumed — no logic waits for a dependency to become healthy before starting dependents | High |
+| **`container restart`** | External watchdog scripts | No native restart policy enforcement after crashes; `restart: always/on-failure` is parsed but cannot be delegated to runtime | High |
+| **`container cp`** | Volume mounts for all file sharing | No hot-reload or file sync capability; limits dev workflow | High |
+| **`container wait`** | Polling with `container list` | Cannot efficiently block until a container exits; adds latency to shutdown orchestration | Medium |
 
 #### Non-Gaps (already supported by container-compose)
 
@@ -311,7 +315,53 @@ The orchestrator script works around several features that container-compose alr
 - [ ] Update README and CLI --help strings for fork-only features
 - [ ] Audit tests for upstream compatibility
 - [ ] Consider upstreaming: dns_search, build.target, entrypoint fix, named-volume behavior
-- [ ] Implement healthcheck-aware `depends_on` (wait for dependency healthy before starting dependents)
+- [x] Implement healthcheck-aware `depends_on` (wait for dependency healthy before starting dependents)
+
+---
+
+## Feature Requests for Apple Containers (`container` CLI)
+
+Features missing or incompatible in Apple's `container` CLI relative to Docker that block or complicate compose orchestration.
+
+### High Priority — Blocks Core Compose Features
+
+| Feature | Docker CLI | Apple `container` CLI | Impact on Compose |
+|---------|-----------|----------------------|-------------------|
+| **`exec --` separator** | `docker exec <id> -- cmd args` | No `--` support; args go directly after container ID: `container exec <id> cmd args` | Compose healthcheck execution must strip `--` from exec args (worked around in fork) |
+| **`container wait`** | `docker wait <id>` returns exit code | Not implemented (`Plugin 'container-wait' not found`) | No way to block until a container exits; forces polling with `container list` |
+| **`container cp`** | `docker cp <id>:src dest` | Not implemented (`Plugin 'container-cp' not found`) | No file sync or hot-reload; must use volume mounts for all file sharing |
+| **`container restart`** | `docker restart <id>` | Not implemented (`Plugin 'container-restart' not found`) | Restart policies (`restart: always/on-failure`) cannot trigger restarts after crashes |
+| **`container attach`** | `docker attach <id>` | Not implemented (`Plugin 'container-attach' not found`) | Cannot reconnect to a container's stdin/stdout after detach |
+
+### Medium Priority — Complicates Orchestration
+
+| Feature | Docker CLI | Apple `container` CLI | Impact on Compose |
+|---------|-----------|----------------------|-------------------|
+| **`container rename`** | `docker rename <old> <new>` | Not implemented (`Plugin 'container-restart' not found`) | Cannot rename containers; must track original names |
+| **`container health` / health status in `inspect`** | `docker inspect` returns `Health.Status` | No health status field in container metadata | Compose must exec healthcheck commands manually via `container exec` (works, but native health state would avoid exec overhead per poll) |
+| **`container logs --since` / `--tail`** | `docker logs --tail 100 --since 1m` | `container logs` lacks filtering flags | Cannot efficiently fetch recent logs for debugging |
+| **`--restart` policy on `run`/`create`** | `docker run --restart=always` | Not present on `container run` | Compose `restart:` key cannot delegate to runtime; needs external watchdog |
+| **`--hostname` on `run`/`create`** | `docker run --hostname foo` | Not present on `container run` | Compose `hostname:` key must be handled via `/etc/hosts` volume mount workaround |
+
+### Low Priority — Nice to Have
+
+| Feature | Docker CLI | Apple `container` CLI | Impact on Compose |
+|---------|-----------|----------------------|-------------------|
+| **`--cap-add` / `--cap-drop`** | `docker run --cap-add SYS_PTRACE` | Not present on `container run` | Cannot configure Linux capabilities |
+| **`--security-opt`** | `docker run --security-opt seccomp=...` | Not present on `container run` | Cannot configure seccomp/AppArmor profiles |
+| **`--pid` (PID sharing)** | `docker run --pid=container:id` | Not present on `container run` | Cannot share PID namespace between containers |
+| **`--shm-size`** | `docker run --shm-size=256m` | Not present on `container run` | Cannot configure shared memory size |
+| **`--tmpfs` with options** | `docker run --tmpfs /run:rw,noexec` | `container run --tmpfs` supports path only | Cannot set tmpfs mount options |
+| **`--gpus`** | `docker run --gpus all` | Not present on `container run` | No GPU passthrough support |
+
+### Syntax Incompatibilities (Implemented, Requires Workarounds)
+
+| Feature | Docker Syntax | Apple `container` Syntax | Workaround in Fork |
+|---------|-------------|------------------------|-------------------|
+| **`exec` argument separation** | `docker exec <id> -- cmd args` | `container exec <id> cmd args` | Strip `--` before passing to exec |
+| **Volume bind mount format** | `docker run -v src:dest:ro` | `container run --mount type=bind,source=src,target=dest,readonly` | Convert `-v` format to `--mount` format in `makeRunArgs` |
+| **Network attach format** | `docker run --network foo` | `container run --network foo[,mac=XX:XX:XX:XX:XX:XX]` | Direct mapping, no issue |
+| **Port publish format** | `docker run -p 127.0.0.1:8080:80` | `container run --publish 8080:80` (no bind address in older versions) | Verified: `--publish 127.0.0.1:8080:80` works in current version |
 
 ---
 

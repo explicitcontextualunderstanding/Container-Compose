@@ -264,18 +264,26 @@ server {
             ports:
               - "${TEST_PORT_WEB2:-18084}:80"
             depends_on:
-              - app
+              app:
+                condition: service_started
 
           app:
             image: python:3.12-alpine
             depends_on:
-              - db
+              db:
+                condition: service_healthy
             command: python -m http.server 8000
             environment:
               DATABASE_URL: postgres://postgres:postgres@db:5432/appdb
 
           db:
             image: postgres:14
+            healthcheck:
+              test: ["CMD-SHELL", "pg_isready -U postgres"]
+              interval: 5s
+              timeout: 3s
+              retries: 5
+              start_period: 10s
             environment:
               POSTGRES_DB: appdb
               POSTGRES_USER: postgres

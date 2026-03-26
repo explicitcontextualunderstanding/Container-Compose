@@ -277,18 +277,19 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
 
         // Build the exec arguments from the healthcheck test
+        // Apple container exec: container exec <id> <command> <args>... (no "--" separator)
         let execArgs: [String]
         if test.first == "CMD-SHELL" {
             // ["CMD-SHELL", "pg_isready -U postgres"] -> exec with /bin/sh -c
             guard test.count >= 2 else { return }
             let shellCommand = test.dropFirst().joined(separator: " ")
-            execArgs = [containerName, "--", "/bin/sh", "-c", shellCommand]
+            execArgs = [containerName, "/bin/sh", "-c", shellCommand]
         } else if test.first == "CMD" {
             // ["CMD", "pg_isready", "-U", "postgres"] -> exec directly
-            execArgs = [containerName, "--"] + Array(test.dropFirst())
+            execArgs = [containerName] + Array(test.dropFirst())
         } else {
             // Unknown format, try treating as direct command
-            execArgs = [containerName, "--"] + test
+            execArgs = [containerName] + test
         }
 
         var consecutiveFailures = 0
