@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run Container-Compose tests with proper privilege handling
-# Usage: ./run-tests.sh [test-filter]
+# Usage: ./run-tests.sh [--auto-clean] [--no-sudo] [test-filter]
 
 set -e
 
@@ -44,6 +44,52 @@ cleanup_test_containers() {
 
 # Register cleanup function to run on exit
 trap cleanup_test_containers EXIT
+
+# Prune leftover test containers from previous runs
+prune_leftover_test_containers() {
+    if ! command -v container &> /dev/null; then
+        return
+    fi
+
+    local test_containers
+    test_containers=$(container list 2>/dev/null | grep "Container-Compose_Tests_" | awk '{print $1}' || true)
+
+    if [ -z "$test_containers" ]; then
+        return
+    fi
+
+    local count
+    count=$(echo "$test_containers" | wc -l | tr -d ' ')
+
+    echo "Found $count leftover test container(s) from previous runs:"
+    echo "$test_containers" | while read -r container_id; do
+        echo "  - $container_id"
+    done
+
+    local should_clean=false
+    if [ "$AUTO_CLEAN" = true ] || [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
+        should_clean=true
+    else
+        read -p "Remove them? [y/N] " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            should_clean=true
+        fi
+    fi
+
+    if [ "$should_clean" = true ]; then
+        local stopped=0 deleted=0
+        echo "$test_containers" | while read -r container_id; do
+            container stop "$container_id" 2>/dev/null && ((stopped++)) || true
+            container delete "$container_id" 2>/dev/null && ((deleted++)) || true
+        done
+        echo "✓ Cleaned up leftover test containers"
+        echo ""
+    else
+        echo "Skipping cleanup."
+        echo ""
+    fi
+}
 
 echo "=========================================="
 echo "Container-Compose Test Runner"
@@ -98,6 +144,20 @@ echo "  App/Node.js: $TEST_PORT_APP"
 echo "  Web Service 2: $TEST_PORT_WEB2"
 echo ""
 
+# Parse --auto-clean flag early (needed before prune step)
+AUTO_CLEAN=false
+EARLY_FILTERED_ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == "--auto-clean" ]]; then
+        AUTO_CLEAN=true
+    else
+        EARLY_FILTERED_ARGS+=("$arg")
+    fi
+done
+
+# Prune leftover test containers from previous runs
+prune_leftover_test_containers
+
 # Check if we're in CI
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
     echo "✓ Running in CI environment"
@@ -133,12 +193,14 @@ for test in "${PRIVILEGED_TESTS[@]}"; do
 done
 echo ""
 
-# Parse arguments for flags
+# Parse arguments for flags (filters out --auto-clean and --no-sudo)
 FORCE_NO_SUDO=false
 FILTERED_ARGS=()
 for arg in "$@"; do
     if [[ "$arg" == "--no-sudo" ]]; then
         FORCE_NO_SUDO=true
+    elif [[ "$arg" == "--auto-clean" ]]; then
+        true  # already handled above
     else
         FILTERED_ARGS+=("$arg")
     fi
