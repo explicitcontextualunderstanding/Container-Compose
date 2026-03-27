@@ -96,8 +96,9 @@ echo "Container-Compose Test Runner"
 echo "=========================================="
 echo ""
 
-# Neutralize conda environment contamination (shared with build-and-install.sh)
+# Neutralize conda environment contamination (shared with build-sign-install.sh)
 source "$SCRIPT_DIR/scripts/env-setup.sh"
+[ -n "$_ENV_SETUP_SUMMARY" ] && echo "  Env: $_ENV_SETUP_SUMMARY"
 
 # Check for root-owned files in .build if not running as root
 if [ -d ".build" ] && [ "$EUID" -ne 0 ]; then

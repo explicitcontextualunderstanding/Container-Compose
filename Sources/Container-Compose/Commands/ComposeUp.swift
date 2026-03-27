@@ -624,7 +624,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
                   return
               }
               print("Container '\(containerName)' exists with status: \(existingContainer.status). Starting it...")
-              let startCommand = try Application.ContainerStart.parse([containerName, "-d"])
+              let startCommand = try Application.ContainerStart.parse([containerName])
               try await startCommand.run()
               try await waitUntilContainerIsRunning(containerName)
               try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName)

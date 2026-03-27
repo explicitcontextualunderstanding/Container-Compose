@@ -1,8 +1,8 @@
 #!/bin/bash
-# One-shot build and install script for container-compose
-# Handles conda environment cleanup, xattr clearing, and installation
+# One-shot build, sign, and install script for container-compose
+# Handles conda env cleanup, xattr clearing, ad-hoc signing, and installation
 #
-# Usage: ./build-and-install.sh
+# Usage: ./build-sign-install.sh
 
 set -e
 
@@ -10,12 +10,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo "=========================================="
-echo "Container-Compose Build & Install"
+echo "Container-Compose Build, Sign & Install"
 echo "=========================================="
 echo ""
 
 # Neutralize conda environment contamination (shared with run-tests.sh)
+# This removes conda's codesign shim and restores Xcode's codesign
 source "$SCRIPT_DIR/scripts/env-setup.sh"
+
+# Report environment setup
+[ -n "$_ENV_SETUP_SUMMARY" ] && echo "  Env: $_ENV_SETUP_SUMMARY"
 
 BINARY_PATH=".build/arm64-apple-macosx/release/Container-Compose"
 TARGET="$HOME/bin/container-compose"
@@ -38,7 +42,7 @@ echo ""
 echo "Clearing extended attributes from built binary..."
 if command -v xattr &>/dev/null; then
   xattr -c "$BINARY_PATH" 2>/dev/null || true
-  echo "✓ Cleared xattrs from $BINARY_PATH"
+  echo "  Cleared xattrs from $BINARY_PATH"
 fi
 
 # Check if already installed - compare checksums
@@ -56,33 +60,45 @@ fi
 # Install
 echo ""
 echo "Installing to $TARGET..."
+mkdir -p "$(dirname "$TARGET")"
+cp "$BINARY_PATH" "$TARGET"
+chmod 755 "$TARGET"
 
-# No sudo needed for home directory
-SUDO=""
-
-# Copy and set permissions
-$SUDO cp "$BINARY_PATH" "$TARGET"
-$SUDO chmod 755 "$TARGET"
-
-# Apply ad-hoc code signature to prevent macOS from re-applying provenance
-# macOS monitors /usr/local/bin and re-applies com.apple.provenance to unsigned binaries
-echo "Applying ad-hoc code signature..."
+# Apply ad-hoc code signature (requires real Xcode codesign, not conda's shim)
+# env-setup.sh above ensures conda's codesign shim is not in PATH
+echo ""
+echo "Signing binary..."
 if command -v codesign &>/dev/null; then
-  $SUDO codesign --force --sign - "$TARGET" 2>/dev/null || true
+  codesign --force --sign - "$TARGET" 2>/dev/null || {
+    echo "Warning: codesign failed - container runtime may reject unsigned binary"
+  }
+else
+  echo "Warning: codesign not found - container runtime may reject unsigned binary"
 fi
 
 # Clean up any existing provenance attribute (ad-hoc sig prevents re-application)
 if command -v xattr &>/dev/null; then
-  $SUDO xattr -d com.apple.provenance "$TARGET" 2>/dev/null || true
+  xattr -d com.apple.provenance "$TARGET" 2>/dev/null || true
+fi
+
+# Verify
+echo ""
+echo "Verifying installation..."
+if [ -f "$TARGET" ]; then
+  VERSION=$("$TARGET" version 2>&1 | head -1)
+  echo "  Binary:  $TARGET"
+  echo "  Version: $VERSION"
+  if codesign -d "$TARGET" 2>/dev/null; then
+    echo "  Signed:  yes"
+  else
+    echo "  Signed:  WARNING - unsigned (container runtime may reject)"
+  fi
+else
+  echo "Error: Installation failed - binary not found at $TARGET"
+  exit 1
 fi
 
 echo ""
 echo "=========================================="
-echo "✅ Installation complete!"
+echo "Done!"
 echo "=========================================="
-echo ""
-echo "Binary: $TARGET"
-echo "Version: $($TARGET version 2>&1 | head -1)"
-echo ""
-echo "Test with:"
-echo "  container-compose --help"
