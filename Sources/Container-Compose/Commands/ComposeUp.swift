@@ -70,8 +70,15 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     var detach: Bool = false
 
     @Option(name: [.customShort("f"), .customLong("file")], help: "The path to your Docker Compose file")
-    var composeFilename: String = "compose.yml"
-    private var composePath: String { "\(cwd)/\(composeFilename)" }  // Path to compose.yml
+    var composeFile: String? = nil
+
+    private var foundFilename: String?
+    var composePath: String {
+        if let file = composeFile {
+            return file.hasPrefix("/") ? file : "\(cwd)/\(file)"
+        }
+        return "\(cwd)/\(foundFilename ?? "compose.yml")"
+    }
 
     @Flag(name: [.customShort("b"), .customLong("build")])
     var rebuild: Bool = false
@@ -112,17 +119,20 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     }
 
     public mutating func run() async throws {
-        // Check for supported filenames and extensions
-        let filenames = [
-            "compose.yml",
-            "compose.yaml",
-            "docker-compose.yml",
-            "docker-compose.yaml",
-        ]
-        for filename in filenames {
-            if fileManager.fileExists(atPath: "\(cwd)/\(filename)") {
-                composeFilename = filename
-                break
+        // Skip CWD scanning if -f was explicitly provided
+        if composeFile == nil {
+            // Check for supported filenames and extensions
+            let filenames = [
+                "compose.yml",
+                "compose.yaml",
+                "docker-compose.yml",
+                "docker-compose.yaml",
+            ]
+            for filename in filenames {
+                if fileManager.fileExists(atPath: "\(cwd)/\(filename)") {
+                    foundFilename = filename
+                    break
+                }
             }
         }
 

@@ -408,4 +408,37 @@ final class ComposeUpMappingTests: XCTestCase {
         )
         XCTAssertEqual(result, "__FOO_PORT__")
     }
+
+    // MARK: - -f flag path resolution
+
+    func testAbsolutePathPreserved() throws {
+        var cmd = try ComposeUp.parse(["-f", "/absolute/path/compose.yml", "--cwd", "/tmp/dir"])
+        XCTAssertEqual(cmd.composeFile, "/absolute/path/compose.yml")
+        XCTAssertEqual(cmd.composePath, "/absolute/path/compose.yml")
+    }
+
+    func testRelativePathJoinedWithCwd() throws {
+        var cmd = try ComposeUp.parse(["-f", "relative.yml", "--cwd", "/tmp/dir"])
+        XCTAssertEqual(cmd.composeFile, "relative.yml")
+        XCTAssertEqual(cmd.composePath, "/tmp/dir/relative.yml")
+    }
+
+    func testDefaultComposePathUsesCwd() throws {
+        var cmd = try ComposeUp.parse(["--cwd", "/tmp/dir"])
+        XCTAssertNil(cmd.composeFile)
+        XCTAssertEqual(cmd.composePath, "/tmp/dir/compose.yml")
+    }
+
+    func testNoDashFScanningNotOverridden() throws {
+        // When -f is not provided, composeFile should be nil (scanning runs)
+        var cmd = try ComposeUp.parse(["--cwd", "/home/user/project"])
+        XCTAssertNil(cmd.composeFile, "composeFile should be nil when -f is not provided")
+    }
+
+    func testDashFOverridesScanning() throws {
+        // When -f is explicitly provided, scanning should be skipped
+        var cmd = try ComposeUp.parse(["-f", "/custom/path.yml"])
+        XCTAssertNotNil(cmd.composeFile, "composeFile should be set when -f is provided")
+        XCTAssertEqual(cmd.composePath, "/custom/path.yml")
+    }
 }
