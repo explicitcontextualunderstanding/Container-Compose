@@ -622,20 +622,12 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
 
         if let serviceEnv = service.environment {
-            combinedEnv.merge(serviceEnv) { (old, new) in
-                guard !new.contains("${") else {
-                    return old
-                }
-                return new
-            }  // Service env overrides .env files
+            combinedEnv.merge(serviceEnv) { (_, new) in new }  // Service env overrides .env files
         }
 
-        // Fill in variables
+        // Fill in variables (${VAR}, ${VAR:-default}, ${VAR:?error})
         combinedEnv = combinedEnv.mapValues({ value in
-            guard value.contains("${") else { return value }
-
-            let variableName = String(value.replacingOccurrences(of: "${", with: "").dropLast())
-            return combinedEnv[variableName] ?? value
+            resolveVariable(value, with: combinedEnv)
         })
 
         // Fill in IPs

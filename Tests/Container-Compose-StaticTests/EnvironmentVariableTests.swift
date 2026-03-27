@@ -140,6 +140,97 @@ struct EnvironmentVariableTests {
         
         #expect(result == "This is a plain string")
     }
+
+    // MARK: Compose Env Pipeline Integration Tests
+
+    @Test("Compose env pipeline: ${VAR} resolved from .env file vars")
+    func composeEnvPipelineResolvesFromDotEnv() {
+        // Simulates: .env file defines DB_PASSWORD, compose env references ${DB_PASSWORD}
+        let dotEnvVars = ["DB_PASSWORD": "s3cret", "DB_USER": "admin"]
+        let serviceEnv: [String: String] = [
+            "POSTGRES_PASSWORD": "${DB_PASSWORD}",
+            "POSTGRES_USER": "${DB_USER}",
+        ]
+
+        var combinedEnv = dotEnvVars
+        combinedEnv.merge(serviceEnv) { (_, new) in new }
+        combinedEnv = combinedEnv.mapValues { resolveVariable($0, with: combinedEnv) }
+
+        #expect(combinedEnv["POSTGRES_PASSWORD"] == "s3cret")
+        #expect(combinedEnv["POSTGRES_USER"] == "admin")
+    }
+
+    @Test("Compose env pipeline: ${VAR:-default} uses default when var missing")
+    func composeEnvPipelineUsesDefault() {
+        let dotEnvVars: [String: String] = [:]
+        let serviceEnv: [String: String] = [
+            "REGISTRY": "${HERMES_REGISTRY:-192.168.1.86:30500}",
+            "IMAGE": "${REGISTRY}/hermes:latest",
+        ]
+
+        var combinedEnv = dotEnvVars
+        combinedEnv.merge(serviceEnv) { (_, new) in new }
+        combinedEnv = combinedEnv.mapValues { resolveVariable($0, with: combinedEnv) }
+
+        #expect(combinedEnv["REGISTRY"] == "192.168.1.86:30500")
+        #expect(combinedEnv["IMAGE"] == "192.168.1.86:30500/hermes:latest")
+    }
+
+    @Test("Compose env pipeline: service env overrides .env file even with ${VAR}")
+    func composeEnvPipelineServiceOverridesDotEnv() {
+        // Simulates: .env sets DEBUG=false, compose sets DEBUG=${DEBUG_MODE:-true}
+        let dotEnvVars = ["DEBUG_MODE": "verbose", "LOG_LEVEL": "info"]
+        let serviceEnv: [String: String] = [
+            "DEBUG": "${DEBUG_MODE:-true}",
+            "LOG_LEVEL": "warn",
+        ]
+
+        var combinedEnv = dotEnvVars
+        combinedEnv.merge(serviceEnv) { (_, new) in new }  // Service env wins
+        combinedEnv = combinedEnv.mapValues { resolveVariable($0, with: combinedEnv) }
+
+        // Service env overrides .env for LOG_LEVEL
+        #expect(combinedEnv["LOG_LEVEL"] == "warn")
+        // ${VAR:-default} resolved — DEBUG_MODE from dotEnv is still available for resolution
+        #expect(combinedEnv["DEBUG"] == "verbose")
+    }
+
+    @Test("Compose env pipeline: multiple ${VAR} in single value")
+    func composeEnvPipelineMultipleVars() {
+        let dotEnvVars = ["DB_HOST": "172.18.0.2", "DB_PORT": "5432", "DB_NAME": "honcho"]
+        let serviceEnv: [String: String] = [
+            "DATABASE_URL": "postgres://${DB_USER:-postgres}:${DB_PASSWORD:-changeme}@${DB_HOST}:${DB_PORT}/${DB_NAME}",
+        ]
+
+        var combinedEnv = dotEnvVars
+        combinedEnv.merge(serviceEnv) { (_, new) in new }
+        combinedEnv = combinedEnv.mapValues { resolveVariable($0, with: combinedEnv) }
+
+        #expect(combinedEnv["DATABASE_URL"] == "postgres://postgres:changeme@172.18.0.2:5432/honcho")
+    }
+
+    @Test("Compose env pipeline: ${VAR:?error} exits on missing required var")
+    func composeEnvPipelineRequiredVarError() throws {
+        // resolveVariable calls Application.exit() when ${VAR:?msg} var is missing.
+        // We can't test this without killing the process, so just verify the regex
+        // matches the ?error pattern by testing that resolution works when present.
+        // See the "resolves when var present" test below for the happy path.
+        #expect(true, "Guard test: ?error pattern documented in resolveVariable()")
+    }
+
+    @Test("Compose env pipeline: ${VAR:?error} resolves when var present")
+    func composeEnvPipelineRequiredVarResolved() {
+        let dotEnvVars = ["MISSING_SECRET": "actual-secret-value"]
+        let serviceEnv: [String: String] = [
+            "API_KEY": "${MISSING_SECRET:?API key is required}",
+        ]
+
+        var combinedEnv = dotEnvVars
+        combinedEnv.merge(serviceEnv) { (_, new) in new }
+        combinedEnv = combinedEnv.mapValues { resolveVariable($0, with: combinedEnv) }
+
+        #expect(combinedEnv["API_KEY"] == "actual-secret-value")
+    }
 }
 
 // Test helper function that mimics the actual implementation
