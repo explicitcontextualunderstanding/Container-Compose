@@ -77,35 +77,36 @@ public func loadEnvFile(path: String, strict: Bool = false) throws -> [String: S
 ///   - value: The string possibly containing environment variable references.
 ///   - envVars: A dictionary of environment variables to use for resolution.
 /// - Returns: The string with all recognized environment variables resolved.
-public func resolveVariable(_ value: String, with envVars: [String: String]) -> String {
+public func resolveVariable(_ value: String, with envVars: [String: String]) throws -> String {
     var resolvedValue = value
     // Regex to find ${VAR}, ${VAR:-default}, ${VAR:?error}
     let regex = try! NSRegularExpression(pattern: #"\$\{([A-Za-z0-9_]+)(:?-(.*?))?(:\?(.*?))?\}"#, options: [])
-    
+
     // Combine process environment with loaded .env file variables, prioritizing process environment
     let combinedEnv = ProcessInfo.processInfo.environment.merging(envVars) { (current, _) in current }
-    
-    // Loop to resolve all occurrences of variables in the string
-    while let match = regex.firstMatch(in: resolvedValue, options: [], range: NSRange(resolvedValue.startIndex..<resolvedValue.endIndex, in: resolvedValue)) {
-        guard let varNameRange = Range(match.range(at: 1), in: resolvedValue) else { break }
-        let varName = String(resolvedValue[varNameRange])
-        
-        if let envValue = combinedEnv[varName] {
-            // Variable found in environment, replace with its value
-            resolvedValue.replaceSubrange(Range(match.range(at: 0), in: resolvedValue)!, with: envValue)
-        } else if let defaultValueRange = Range(match.range(at: 3), in: resolvedValue) {
-            // Variable not found, but default value is provided, replace with default
-            let defaultValue = String(resolvedValue[defaultValueRange])
-            resolvedValue.replaceSubrange(Range(match.range(at: 0), in: resolvedValue)!, with: defaultValue)
-        } else if match.range(at: 5).location != NSNotFound, let errorMessageRange = Range(match.range(at: 5), in: resolvedValue) {
-            // Variable not found, and error-on-missing syntax used, print error and exit
-            let errorMessage = String(resolvedValue[errorMessageRange])
-            fputs("Error: Missing required environment variable '\(varName)': \(errorMessage)\n", stderr)
-            Application.exit(withError: "Error: Missing required environment variable '\(varName)': \(errorMessage)\n")
-        } else {
-            // Variable not found and no default/error specified, leave as is and break loop to avoid infinite loop
-            break
-        }
+
+    // Collect all matches first, then process in reverse order to preserve ranges
+    let fullRange = NSRange(resolvedValue.startIndex..<resolvedValue.endIndex, in: resolvedValue)
+    let matches = regex.matches(in: resolvedValue, options: [], range: fullRange)
+
+    // Process in reverse order so earlier replacements don't shift later ranges
+    for match in matches.reversed() {
+      guard let varNameRange = Range(match.range(at: 1), in: resolvedValue) else { continue }
+      let varName = String(resolvedValue[varNameRange])
+
+      if let envValue = combinedEnv[varName] {
+        guard let matchRange = Range(match.range(at: 0), in: resolvedValue) else { continue }
+        resolvedValue.replaceSubrange(matchRange, with: envValue)
+      } else if let defaultValueRange = Range(match.range(at: 3), in: resolvedValue) {
+        let defaultValue = String(resolvedValue[defaultValueRange])
+        guard let matchRange = Range(match.range(at: 0), in: resolvedValue) else { continue }
+        resolvedValue.replaceSubrange(matchRange, with: defaultValue)
+      } else if match.range(at: 5).location != NSNotFound, let errorMessageRange = Range(match.range(at: 5), in: resolvedValue) {
+        let errorMessage = String(resolvedValue[errorMessageRange])
+        // Throw error instead of calling Application.exit() for better library usability
+        throw MissingVariableError(name: varName, message: errorMessage)
+      }
+      // If no env value and no default/error, leave the variable as-is
     }
     return resolvedValue
 }
@@ -117,11 +118,11 @@ public func resolveVariable(_ value: String, with envVars: [String: String]) -> 
 ///   - yaml: The raw YAML string potentially containing variable references.
 ///   - envVars: A dictionary of environment variables to use for resolution.
 /// - Returns: The YAML string with all variable references resolved.
-public func resolveYamlVariables(_ yaml: String, with envVars: [String: String]) -> String {
+public func resolveYamlVariables(_ yaml: String, with envVars: [String: String]) throws -> String {
     // 1. Replace $$ with sentinel to preserve literal $ for shell interpreters
     var yaml = yaml.replacingOccurrences(of: "$$", with: "\u{0000}DOLLAR\u{0000}")
     // 2. Resolve all ${VAR} / ${VAR:-default} / ${VAR:?error}
-    yaml = resolveVariable(yaml, with: envVars)
+    yaml = try resolveVariable(yaml, with: envVars)
     // 3. Restore sentinel → single $
     yaml = yaml.replacingOccurrences(of: "\u{0000}DOLLAR\u{0000}", with: "$")
     return yaml
@@ -293,6 +294,9 @@ public func streamCommand(
             // Ensure handles are closed
             try? stdoutHandle.close()
             try? stderrHandle.close()
+
+            // Cancel timeout task since process completed
+            timeoutTask.cancel()
 
             continuation.resume(returning: proc.terminationStatus)
         }

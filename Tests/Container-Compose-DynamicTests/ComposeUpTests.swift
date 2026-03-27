@@ -359,7 +359,7 @@ struct ComposeUpTests {
             ports:
               - "18083:80"
         """
-        let resolvedYaml = resolveYamlVariables(yaml, with: [:])
+        let resolvedYaml = try resolveYamlVariables(yaml, with: [:])
 
         let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)

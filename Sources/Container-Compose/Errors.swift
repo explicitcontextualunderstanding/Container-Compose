@@ -26,31 +26,59 @@ import Foundation
 
 //extension Application {
 public enum YamlError: Error, LocalizedError {
-    case composeFileNotFound(String)
+  case composeFileNotFound(String)
+  case invalidYamlEncoding
 
-    public var errorDescription: String? {
-        switch self {
-        case .composeFileNotFound(let path):
-            return "compose.yml not found at \(path)"
-        }
+  public var errorDescription: String? {
+    switch self {
+    case .composeFileNotFound(let path):
+      return "compose.yml not found at \(path)"
+    case .invalidYamlEncoding:
+      return "Compose file contains invalid UTF-8 encoding"
     }
+  }
 }
 
 public enum ComposeError: Error, LocalizedError {
-    case imageNotFound(String)
-    case invalidProjectName
-    case invalidResourceConfig(String)
+  case imageNotFound(String)
+  case invalidProjectName
+  case invalidResourceConfig(String)
 
-    public var errorDescription: String? {
-        switch self {
-        case .imageNotFound(let name):
-            return "Service \(name) must define either 'image' or 'build'."
-        case .invalidProjectName:
-            return "Could not find project name."
-        case .invalidResourceConfig(let message):
-            return message
-        }
+  public var errorDescription: String? {
+    switch self {
+    case .imageNotFound(let name):
+      return "Service \(name) must define either 'image' or 'build'."
+    case .invalidProjectName:
+      return "Could not find project name."
+    case .invalidResourceConfig(let message):
+      return message
     }
+  }
+}
+
+public enum VolumeConfigError: Error, LocalizedError {
+  case createFailed(name: String, exitCode: Int32, stderr: String)
+
+  public var errorDescription: String? {
+    switch self {
+    case .createFailed(let name, let exitCode, let stderr):
+      return "Failed to create volume '\(name)' (exit code \(exitCode)): \(stderr)"
+    }
+  }
+}
+
+public struct MissingVariableError: Error, LocalizedError {
+  public let name: String
+  public let message: String
+
+  public init(name: String, message: String) {
+    self.name = name
+    self.message = message
+  }
+
+  public var errorDescription: String? {
+    "Missing required environment variable '\(name)': \(message)"
+  }
 }
 
 public enum TerminalError: Error, LocalizedError {

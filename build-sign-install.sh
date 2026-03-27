@@ -29,14 +29,14 @@ SYSTEM_SYMLINK="/usr/local/bin/container-compose"
 APPLICATION_FILE="Sources/Container-Compose/Application.swift"
 GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 echo "Injecting git commit: $GIT_COMMIT"
-sed -i '' "s/BUILD_GIT_COMMIT/$GIT_COMMIT/" "$APPLICATION_FILE"
+perl -pi -e "s/BUILD_GIT_COMMIT/$GIT_COMMIT/" "$APPLICATION_FILE"
 
 # Build
 echo "Building container-compose..."
 swift build -c release
 
 # Restore placeholder so it's not accidentally committed
-sed -i '' "s/$GIT_COMMIT/BUILD_GIT_COMMIT/" "$APPLICATION_FILE"
+perl -pi -e "s/$GIT_COMMIT/BUILD_GIT_COMMIT/" "$APPLICATION_FILE"
 
 echo ""
 echo "Build complete!"

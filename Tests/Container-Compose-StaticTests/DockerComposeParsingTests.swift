@@ -546,8 +546,64 @@ struct DockerComposeParsingTests {
             return
         }
         
-        #expect(dbIdx < apiIdx)
-        #expect(cacheIdx < apiIdx)
-        #expect(apiIdx < frontendIdx)
-    }
+  #expect(dbIdx < apiIdx)
+  #expect(cacheIdx < apiIdx)
+  #expect(apiIdx < frontendIdx)
+  }
+
+  @Test("Parse command string with quoted arguments - shell quoting respected")
+  func parseCommandStringWithQuotedArguments() throws {
+    let yaml = """
+    version: '3.8'
+    services:
+      app:
+        image: alpine:latest
+        command: sh -c "echo hello world"
+    """
+
+    let decoder = YAMLDecoder()
+    let compose = try decoder.decode(DockerCompose.self, from: yaml)
+
+    // Should be ["sh", "-c", "echo hello world"] - the quoted part stays together
+    #expect(compose.services["app"]??.command?.count == 3)
+    #expect(compose.services["app"]??.command?[0] == "sh")
+    #expect(compose.services["app"]??.command?[1] == "-c")
+    #expect(compose.services["app"]??.command?[2] == "echo hello world")
+  }
+
+  @Test("Parse command string with single quotes - shell quoting respected")
+  func parseCommandStringWithSingleQuotes() throws {
+    let yaml = """
+    version: '3.8'
+    services:
+      app:
+        image: alpine:latest
+        command: sh -c 'echo hello world'
+    """
+
+    let decoder = YAMLDecoder()
+    let compose = try decoder.decode(DockerCompose.self, from: yaml)
+
+    // Should be ["sh", "-c", "echo hello world"] - the quoted part stays together
+    #expect(compose.services["app"]??.command?.count == 3)
+    #expect(compose.services["app"]??.command?[2] == "echo hello world")
+  }
+
+  @Test("Parse command string with escaped quotes")
+  func parseCommandStringWithEscapedQuotes() throws {
+    let yaml = """
+    version: '3.8'
+    services:
+      app:
+        image: alpine:latest
+        command: sh -c \"echo \\\"hello world\\\"\"
+    """
+
+    let decoder = YAMLDecoder()
+    let compose = try decoder.decode(DockerCompose.self, from: yaml)
+
+  // Escaped quotes should be preserved
+  #expect(compose.services["app"]??.command?.count == 3)
+  #expect(compose.services["app"]??.command?[2] == "echo \"hello world\"")
+  }
 }

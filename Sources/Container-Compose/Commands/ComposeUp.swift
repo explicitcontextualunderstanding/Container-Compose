@@ -144,14 +144,16 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             throw YamlError.composeFileNotFound(path)
         }
 
-        // Decode the YAML file into the DockerCompose struct
-        let dockerComposeString = String(data: yamlData, encoding: .utf8)!
+    // Decode the YAML file into the DockerCompose struct
+    guard let dockerComposeString = String(data: yamlData, encoding: .utf8) else {
+      throw YamlError.invalidYamlEncoding
+    }
 
         // Load .env file early so vars are available for pre-decode substitution
         environmentVariables = (try? loadEnvFile(path: envFilePath)) ?? [:]
 
         // Pre-decode ${VAR} substitution (Docker Compose compatible with $$ escaping)
-        let resolvedYaml = resolveYamlVariables(dockerComposeString, with: environmentVariables)
+        let resolvedYaml = try resolveYamlVariables(dockerComposeString, with: environmentVariables)
         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: resolvedYaml)
 
         // Handle 'version' field
@@ -448,20 +450,18 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
     // Use streamCommand to create volume via engine
     let exitCode = try await ContainerComposeCore.streamCommand("container", args: ["volume", "create"] + volumeCreateArgs, cwd: self.cwd, onStdout: { print($0) }, onStderr: { output in
-      // Check for already exists message and handle gracefully
-      if output.contains("already exists") {
-        print("Volume '\(actualVolumeName)' already exists")
-      } else {
-        print(output)
-      }
+      print(output)
     })
 
-    // Exit code 0 (success) or assume already exists if non-zero and stderr indicated it
-    // Note: We can't easily distinguish between "already exists" and other errors here
-    // due to Sendable closure constraints, so we accept any exit code as potentially OK
-    // and rely on subsequent operations to fail if there's a real problem
-    if exitCode != 0 {
-      print("Note: Volume create exited with code \(exitCode) - volume may already exist")
+    // Only accept exit code 0 (success) - any other exit code is treated as an error
+    // Previously we accepted non-zero codes assuming "already exists", but this masks
+    // real errors like permission denied, disk full, etc.
+    guard exitCode == 0 else {
+      throw VolumeConfigError.createFailed(
+        name: actualVolumeName,
+        exitCode: exitCode,
+        stderr: "Volume create failed with exit code \(exitCode). See output above for details."
+      )
     }
 
         let volumeUrl = URL.homeDirectory.appending(path: ".containers/Volumes/\(projectName)/\(actualVolumeName)")
@@ -640,7 +640,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
         // Resolve any remaining variables (safety net for edge cases; idempotent for already-resolved values)
         combinedEnv = combinedEnv.mapValues({ value in
-            resolveVariable(value, with: combinedEnv)
+            (try? resolveVariable(value, with: combinedEnv)) ?? value
         })
 
         // Fill in IPs
@@ -722,7 +722,15 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             print("Starting \(serviceName)")
             print("----------------------------------------\n")
             // Disambiguate to call the global helper, passing the explicit `cwd`
-            return try await ContainerComposeCore.streamCommand("container", args: ["run"] + runCommandArgs, cwd: cwd, onStdout: handleOutput, onStderr: handleOutput)
+            let exitCode = try await ContainerComposeCore.streamCommand("container", args: ["run"] + runCommandArgs, cwd: cwd, onStdout: handleOutput, onStderr: handleOutput)
+
+            // If this task was cancelled while waiting, clean up the container
+            if Task.isCancelled {
+                let _ = try? await ContainerComposeCore.streamCommand("container", args: ["stop", containerName], cwd: cwd, onStdout: { _ in }, onStderr: { _ in })
+                throw CancellationError()
+            }
+
+            return exitCode
         }
 
         // Wait for container to start and validate it succeeded
@@ -780,7 +788,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         
         // Add build arguments
         for (key, value) in buildConfig.args ?? [:] {
-            commands.append(contentsOf: ["--build-arg", "\(key)=\(resolveVariable(value, with: environmentVariables))"])
+            commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
         }
         
         // Add Dockerfile path
@@ -828,7 +836,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     }
 
     private func configVolume(_ volume: String) async throws -> [String] {
-        let resolvedVolume = resolveVariable(volume, with: environmentVariables)
+        let resolvedVolume = try resolveVariable(volume, with: environmentVariables)
 
         var runCommandArgs: [String] = []
 
@@ -850,6 +858,15 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             var isDirectory: ObjCBool = false
             // Ensure the path is absolute or relative to the current directory for FileManager
             let fullHostPath = (source.starts(with: "/") || source.starts(with: "~")) ? source : (cwd + "/" + source)
+
+            // Resolve to canonical path and validate against traversal
+            let resolvedHostPath = (fullHostPath as NSString).standardizingPath
+            let canonicalCwd = (cwd as NSString).standardizingPath
+
+            guard resolvedHostPath.hasPrefix(canonicalCwd + "/") || resolvedHostPath == canonicalCwd else {
+                print("Warning: Volume source '\(source)' resolves to '\(resolvedHostPath)' which is outside the project directory '\(canonicalCwd)'. Skipping for security.")
+                return []
+            }
 
             if fileManager.fileExists(atPath: fullHostPath, isDirectory: &isDirectory) {
                 if isDirectory.boolValue {
@@ -1028,7 +1045,7 @@ extension ComposeUp {
         if let ports = service.ports {
             for portMapping in ports {
                 runArgs.append("--publish")
-                runArgs.append(resolveVariable(portMapping, with: environmentVariables))
+                runArgs.append(try resolveVariable(portMapping, with: environmentVariables))
             }
         }
 

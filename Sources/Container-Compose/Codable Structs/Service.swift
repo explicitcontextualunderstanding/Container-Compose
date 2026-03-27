@@ -14,6 +14,43 @@
 // limitations under the License.
 //===----------------------------------------------------------------------===//
 
+/// Shell-like argument splitting that respects single quotes, double quotes,
+/// and backslash escapes. Handles commands like: `sh -c 'echo hello world'`
+/// and `echo "foo bar" baz`.
+func shellSplit(_ string: String) -> [String] {
+    var args: [String] = []
+    var current = ""
+    var chars = string.makeIterator()
+    var inSingleQuote = false
+    var inDoubleQuote = false
+
+    while let char = chars.next() {
+        if char == "\\" && !inSingleQuote {
+            // Backslash escape: take next char literally
+            if let escaped = chars.next() {
+                current.append(escaped)
+            }
+        } else if char == "'" && !inDoubleQuote {
+            inSingleQuote.toggle()
+        } else if char == "\"" && !inSingleQuote {
+            inDoubleQuote.toggle()
+        } else if char == " " && !inSingleQuote && !inDoubleQuote {
+            if !current.isEmpty {
+                args.append(current)
+                current = ""
+            }
+        } else {
+            current.append(char)
+        }
+    }
+
+    if !current.isEmpty {
+        args.append(current)
+    }
+
+    return args
+}
+
 //
 //  Service.swift
 //  container-compose-app
@@ -40,7 +77,8 @@ public struct DependsOnEntry: Codable, Hashable {
 }
 
 /// Represents a single service definition within the `services` section.
-public struct Service: Codable, Hashable {
+/// NOTE: Changed from struct to class to enable proper mutation of dependedBy during topological sort.
+public final class Service: Codable, Hashable {
     /// Docker image name
     public let image: String?
 
@@ -300,8 +338,7 @@ public struct Service: Codable, Hashable {
     if let cmdArray = try? container.decodeIfPresent([String].self, forKey: .command) {
       command = cmdArray
     } else if let cmdString = try? container.decodeIfPresent(String.self, forKey: .command) {
-      // Split string command by whitespace to properly separate executable and arguments
-      command = cmdString.split(separator: " ").map(String.init)
+      command = shellSplit(cmdString)
     } else {
       command = nil
     }
@@ -324,8 +361,7 @@ public struct Service: Codable, Hashable {
     if let entrypointArray = try? container.decodeIfPresent([String].self, forKey: .entrypoint) {
       entrypoint = entrypointArray
     } else if let entrypointString = try? container.decodeIfPresent(String.self, forKey: .entrypoint) {
-      // Split string entrypoint by whitespace to properly separate executable and arguments
-      entrypoint = entrypointString.split(separator: " ").map(String.init)
+      entrypoint = shellSplit(entrypointString)
     } else {
       entrypoint = nil
     }
@@ -381,8 +417,13 @@ public struct Service: Codable, Hashable {
         var visiting = Set<String>()
         var sorted: [(String, Service)] = []
 
-        func visit(_ name: String, from service: String? = nil) throws {
-            guard var serviceTuple = services.first(where: { $0.serviceName == name }) else { return }
+  func visit(_ name: String, from service: String? = nil) throws {
+    guard let serviceTupleIndex = services.firstIndex(where: { $0.serviceName == name }) else {
+      throw NSError(domain: "ComposeError", code: 2, userInfo: [
+        NSLocalizedDescriptionKey: "Service '\(name)' not found in services."
+      ])
+    }
+    var serviceTuple = services[serviceTupleIndex]
             if let service {
                 serviceTuple.service.dependedBy.append(service)
             }
@@ -444,5 +485,69 @@ public struct Service: Codable, Hashable {
     try container.encodeIfPresent(runtime, forKey: .runtime)
     try container.encodeIfPresent(init_image, forKey: .init_image)
     try container.encodeIfPresent(dns_search, forKey: .dns_search)
+  }
+
+  // MARK: - Hashable Conformance (class requires explicit implementation)
+
+  public static func == (lhs: Service, rhs: Service) -> Bool {
+    lhs.image == rhs.image &&
+    lhs.build == rhs.build &&
+    lhs.deploy == rhs.deploy &&
+    lhs.restart == rhs.restart &&
+    lhs.healthcheck == rhs.healthcheck &&
+    lhs.volumes == rhs.volumes &&
+    lhs.environment == rhs.environment &&
+    lhs.env_file == rhs.env_file &&
+    lhs.ports == rhs.ports &&
+    lhs.command == rhs.command &&
+    lhs.depends_on == rhs.depends_on &&
+    lhs.user == rhs.user &&
+    lhs.container_name == rhs.container_name &&
+    lhs.networks == rhs.networks &&
+    lhs.hostname == rhs.hostname &&
+    lhs.entrypoint == rhs.entrypoint &&
+    lhs.privileged == rhs.privileged &&
+    lhs.read_only == rhs.read_only &&
+    lhs.working_dir == rhs.working_dir &&
+    lhs.platform == rhs.platform &&
+    lhs.`init` == rhs.`init` &&
+    lhs.configs == rhs.configs &&
+    lhs.secrets == rhs.secrets &&
+    lhs.stdin_open == rhs.stdin_open &&
+    lhs.tty == rhs.tty &&
+    lhs.dns_search == rhs.dns_search &&
+    lhs.runtime == rhs.runtime &&
+    lhs.init_image == rhs.init_image
+  }
+
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(image)
+    hasher.combine(build)
+    hasher.combine(deploy)
+    hasher.combine(restart)
+    hasher.combine(healthcheck)
+    hasher.combine(volumes)
+    hasher.combine(environment)
+    hasher.combine(env_file)
+    hasher.combine(ports)
+    hasher.combine(command)
+    hasher.combine(depends_on)
+    hasher.combine(user)
+    hasher.combine(container_name)
+    hasher.combine(networks)
+    hasher.combine(hostname)
+    hasher.combine(entrypoint)
+    hasher.combine(privileged)
+    hasher.combine(read_only)
+    hasher.combine(working_dir)
+    hasher.combine(platform)
+    hasher.combine(`init`)
+    hasher.combine(configs)
+    hasher.combine(secrets)
+    hasher.combine(stdin_open)
+    hasher.combine(tty)
+    hasher.combine(dns_search)
+    hasher.combine(runtime)
+    hasher.combine(init_image)
   }
 }

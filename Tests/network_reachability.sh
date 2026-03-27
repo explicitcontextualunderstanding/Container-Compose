@@ -5,7 +5,8 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TMP_COMPOSE="/tmp/apple-container-network-test.yml"
+TMP_COMPOSE=$(mktemp /tmp/apple-container-network-test.XXXXXX.yml)
+trap 'rm -f "$TMP_COMPOSE"' EXIT
 SOCAT_IP="192.168.64.1"
 RUN=${1:-}
 

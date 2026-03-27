@@ -84,9 +84,11 @@ public struct ComposeDown: AsyncParsableCommand {
             throw YamlError.composeFileNotFound(path)
         }
 
-        // Decode the YAML file into the DockerCompose struct
-        let dockerComposeString = String(data: yamlData, encoding: .utf8)!
-        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: dockerComposeString)
+    // Decode the YAML file into the DockerCompose struct
+    guard let dockerComposeString = String(data: yamlData, encoding: .utf8) else {
+      throw YamlError.invalidYamlEncoding
+    }
+    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: dockerComposeString)
 
         // Determine project name for container naming
         if let name = dockerCompose.name {

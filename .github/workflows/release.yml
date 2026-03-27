@@ -112,7 +112,7 @@ jobs:
       if: github.event_name == 'workflow_dispatch'
       run: |
         # Create release if it doesn't exist
-        VERSION="${{ github.inputs.version || 'latest' }}"
+        VERSION="${{ inputs.version || 'latest' }}"
         TAG="v${VERSION#v}"
 
         # Create or get release ID
