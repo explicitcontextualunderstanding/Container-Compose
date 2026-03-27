@@ -315,4 +315,97 @@ final class ComposeUpMappingTests: XCTestCase {
         XCTAssertTrue(args.contains("my-custom-name"), "Expected explicit container name 'my-custom-name' in args: \(args)")
         XCTAssertFalse(args.contains("myproject-app"), "Should NOT contain generated name when explicit name is set")
     }
+
+    // MARK: - __SERVICE_HOST__ / __SERVICE_PORT__ placeholder resolution
+
+    private func resolve(
+        _ value: String,
+        ips: [String: String] = [:],
+        ports: [String: String] = [:],
+        services: [String] = []
+    ) -> String {
+        ComposeUp.resolveServicePlaceholder(value, containerIps: ips, containerPorts: ports, knownServiceNames: services)
+    }
+
+    func testServiceHostResolvesToKnownIP() {
+        let result = resolve(
+            "__HONCHO_DB_HOST__",
+            ips: ["honcho-db": "192.168.64.5"],
+            services: ["honcho-db", "honcho-hub"]
+        )
+        XCTAssertEqual(result, "192.168.64.5")
+    }
+
+    func testServicePortResolvesToContainerPort() {
+        let result = resolve(
+            "__HONCHO_DB_PORT__",
+            ports: ["honcho-db": "5432"],
+            services: ["honcho-db", "honcho-hub"]
+        )
+        XCTAssertEqual(result, "5432")
+    }
+
+    func testUnknownServiceHostLeftUntouched() {
+        let result = resolve(
+            "__FOO_HOST__",
+            ips: ["honcho-db": "192.168.64.5"],
+            services: ["honcho-db", "honcho-hub"]
+        )
+        XCTAssertEqual(result, "__FOO_HOST__")
+    }
+
+    func testDialecticLevelsNotTreatedAsPlaceholder() {
+        // DIALECTIC__LEVELS__minimal__PROVIDER has consecutive __ but doesn't
+        // match the __{NAME}_(HOST|PORT)__ pattern, so it must be left alone.
+        let result = resolve(
+            "DIALECTIC__LEVELS__minimal__PROVIDER",
+            ips: ["minimal": "10.0.0.1"],
+            services: ["minimal"]
+        )
+        XCTAssertEqual(result, "DIALECTIC__LEVELS__minimal__PROVIDER")
+    }
+
+    func testMixedPlaceholdersAndVarRef() {
+        let result = resolve(
+            "postgresql://__HONCHO_DB_HOST__:__HONCHO_DB_PORT__/mydb",
+            ips: ["honcho-db": "192.168.64.5"],
+            ports: ["honcho-db": "5432"],
+            services: ["honcho-db"]
+        )
+        XCTAssertEqual(result, "postgresql://192.168.64.5:5432/mydb")
+    }
+
+    func testFuzzyMatchingCaseInsensitive() {
+        // Lowercase input should still match service "honcho-db"
+        let result = resolve(
+            "__honcho_db_host__",
+            ips: ["honcho-db": "192.168.64.5"],
+            services: ["honcho-db"]
+        )
+        XCTAssertEqual(result, "192.168.64.5")
+    }
+
+    func testFuzzyMatchingStripsHyphensAndUnderscores() {
+        // HONCHODB (no separator) should match service "honcho-db"
+        let result = resolve(
+            "__HONCHODB_HOST__",
+            ips: ["honcho-db": "192.168.64.5"],
+            services: ["honcho-db"]
+        )
+        XCTAssertEqual(result, "192.168.64.5")
+    }
+
+    func testNoPlaceholderLeftAsIs() {
+        let result = resolve("plain_value", ips: ["db": "10.0.0.1"], services: ["db"])
+        XCTAssertEqual(result, "plain_value")
+    }
+
+    func testUnknownPortLeftUntouched() {
+        let result = resolve(
+            "__FOO_PORT__",
+            ports: ["bar": "8080"],
+            services: ["bar"]
+        )
+        XCTAssertEqual(result, "__FOO_PORT__")
+    }
 }

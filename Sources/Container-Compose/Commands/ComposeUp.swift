@@ -98,6 +98,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     private var projectName: String?
     private var environmentVariables: [String: String] = [:]
     private var containerIps: [String: String] = [:]
+    private var containerPorts: [String: String] = [:]
     private var containerConsoleColors: [String: NamedColor] = [:]
 
     private static let availableContainerConsoleColors: Set<NamedColor> = [
@@ -239,7 +240,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
     private func getIPForContainer(_ containerName: String) async throws -> String? {
         let container = try await ClientContainer.get(id: containerName)
-        let ip = container.networks.compactMap { $0.ipv4Gateway.description }.first
+        let ip = container.networks.compactMap { $0.ipv4Address.address.description }.first
 
         return ip
     }
@@ -398,9 +399,16 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
     // MARK: Compose Top Level Functions
 
-    private mutating func updateEnvironmentWithServiceIP(_ serviceName: String, containerName: String) async throws {
+    private mutating func updateEnvironmentWithServiceIP(_ serviceName: String, containerName: String, ports: [String]?) async throws {
         let ip = try await getIPForContainer(containerName)
         self.containerIps[serviceName] = ip
+
+        // Extract the first container port from "hostPort:containerPort" mappings
+        if let firstPort = ports?.first, firstPort.contains(":") {
+            let containerPort = firstPort.split(separator: ":").last.map(String.init)
+            self.containerPorts[serviceName] = containerPort
+        }
+
         for (key, value) in environmentVariables.map({ ($0, $1) }) where value == serviceName {
             self.environmentVariables[key] = ip ?? value
         }
@@ -520,6 +528,65 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         return volumeCreateArgs
     }
 
+    // MARK: Placeholder Resolution
+
+    /// Normalizes a service name for fuzzy matching: lowercased, hyphens and underscores stripped.
+    private static func normalizeServiceName(_ name: String) -> String {
+        name.lowercased().filter { !$0.isWhitespace && $0 != "-" && $0 != "_" }
+    }
+
+    /// Resolves `__{SERVICE}_HOST__` and `__{SERVICE}_PORT__` placeholders in env var values.
+    /// Uses fuzzy matching on service names (case-insensitive, strips hyphens/underscores).
+    /// Unknown placeholders are left untouched (e.g. `DIALECTIC__LEVELS__*`).
+    static func resolveServicePlaceholder(
+        _ value: String,
+        containerIps: [String: String],
+        containerPorts: [String: String],
+        knownServiceNames: [String]
+    ) -> String {
+        let pattern = #"__([A-Za-z0-9_-]+)_(HOST|PORT)__"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return value }
+
+        let range = NSRange(value.startIndex..., in: value)
+        let matches = regex.matches(in: value, range: range)
+
+        guard !matches.isEmpty else { return value }
+
+        // Build a lookup from normalized service name → actual service name
+        let normalizedLookup: [String: String] = Dictionary(
+            knownServiceNames.map { (normalizeServiceName($0), $0) },
+            uniquingKeysWith: { $1 }
+        )
+
+        var result = value
+        for match in matches.reversed() {
+            guard
+                let nameRange = Range(match.range(at: 1), in: value),
+                let typeRange = Range(match.range(at: 2), in: value),
+                let fullRange = Range(match.range, in: value)
+            else { continue }
+
+            let rawName = String(value[nameRange])
+            let placeholderType = String(value[typeRange]).uppercased()
+            let normalizedName = normalizeServiceName(rawName)
+
+            let resolved: String? = if let actualServiceName = normalizedLookup[normalizedName] {
+                switch placeholderType {
+                case "HOST": containerIps[actualServiceName]
+                case "PORT": containerPorts[actualServiceName]
+                default: nil
+                }
+            } else {
+                nil
+            }
+
+            if let resolved {
+                result.replaceSubrange(fullRange, with: resolved)
+            }
+        }
+        return result
+    }
+
     // MARK: Compose Service Level Functions
     private mutating func configService(_ service: Service, serviceName: String, from dockerCompose: DockerCompose, noRecreate: Bool = false) async throws {
         guard let projectName else { throw ComposeError.invalidProjectName }
@@ -576,6 +643,12 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             containerIps[value] ?? value
         })
 
+        // Resolve __SERVICE_HOST__ and __SERVICE_PORT__ placeholders
+        let knownServiceNames = Array(dockerCompose.services.keys)
+        combinedEnv = combinedEnv.mapValues { value in
+            Self.resolveServicePlaceholder(value, containerIps: containerIps, containerPorts: containerPorts, knownServiceNames: knownServiceNames)
+        }
+
         // Build the `container run` argument list using the standardized helper
         let runCommandArgs = try Self.makeRunArgs(
             service: service,
@@ -615,7 +688,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       if let existingContainer = try? await ClientContainer.get(id: containerName) {
           if existingContainer.status == .running {
               print("Container '\(containerName)' is already running.")
-              try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName)
+              try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
               return
           } else {
               // Container exists but is not running
@@ -627,7 +700,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
               let startCommand = try Application.ContainerStart.parse([containerName])
               try await startCommand.run()
               try await waitUntilContainerIsRunning(containerName)
-              try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName)
+              try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
               return
           }
       }
@@ -654,7 +727,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
                 throw ContainerRunError("Container run failed with exit code \(exitCode)")
             }
             try await waitUntilContainerIsRunning(containerName)
-            try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName)
+            try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
         } catch {
             print("Error starting service \(serviceName): \(error)")
             throw error
