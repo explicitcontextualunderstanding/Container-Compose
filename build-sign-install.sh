@@ -23,6 +23,7 @@ source "$SCRIPT_DIR/scripts/env-setup.sh"
 
 BINARY_PATH=".build/arm64-apple-macosx/release/Container-Compose"
 TARGET="$HOME/bin/container-compose"
+SYSTEM_SYMLINK="/usr/local/bin/container-compose"
 
 # Build
 echo "Building container-compose..."
@@ -96,6 +97,24 @@ if [ -f "$TARGET" ]; then
 else
   echo "Error: Installation failed - binary not found at $TARGET"
   exit 1
+fi
+
+# Update system symlink so container runtime trusts the binary
+# macOS security annotates locally-built binaries, but /usr/local/bin is trusted
+BINARY_ABSOLUTE="$SCRIPT_DIR/$BINARY_PATH"
+if [ -L "$SYSTEM_SYMLINK" ]; then
+  echo ""
+  echo "Updating system symlink..."
+  sudo ln -sf "$BINARY_ABSOLUTE" "$SYSTEM_SYMLINK"
+  echo "  $SYSTEM_SYMLINK -> $BINARY_PATH"
+elif [ -f "$SYSTEM_SYMLINK" ]; then
+  echo ""
+  echo "Warning: $SYSTEM_SYMLINK exists but is not a symlink (skip or back it up manually)"
+else
+  echo ""
+  echo "Creating system symlink (requires sudo)..."
+  sudo ln -sf "$BINARY_ABSOLUTE" "$SYSTEM_SYMLINK"
+  echo "  $SYSTEM_SYMLINK -> $BINARY_PATH"
 fi
 
 echo ""
