@@ -110,6 +110,23 @@ public func resolveVariable(_ value: String, with envVars: [String: String]) -> 
     return resolvedValue
 }
 
+/// Resolves `${VAR}` substitutions in raw YAML text with Docker Compose-compatible `$$` escaping.
+/// - `$$` is replaced with a sentinel before resolution, then restored as a literal `$` afterward.
+/// - Supports `${VAR}`, `${VAR:-default}`, and `${VAR:?error}` syntax.
+/// - Parameters:
+///   - yaml: The raw YAML string potentially containing variable references.
+///   - envVars: A dictionary of environment variables to use for resolution.
+/// - Returns: The YAML string with all variable references resolved.
+public func resolveYamlVariables(_ yaml: String, with envVars: [String: String]) -> String {
+    // 1. Replace $$ with sentinel to preserve literal $ for shell interpreters
+    var yaml = yaml.replacingOccurrences(of: "$$", with: "\u{0000}DOLLAR\u{0000}")
+    // 2. Resolve all ${VAR} / ${VAR:-default} / ${VAR:?error}
+    yaml = resolveVariable(yaml, with: envVars)
+    // 3. Restore sentinel → single $
+    yaml = yaml.replacingOccurrences(of: "\u{0000}DOLLAR\u{0000}", with: "$")
+    return yaml
+}
+
 /// Error thrown when project name derivation fails
 public struct ProjectNameError: Error, CustomStringConvertible {
     public let message: String

@@ -231,6 +231,100 @@ struct EnvironmentVariableTests {
 
         #expect(combinedEnv["API_KEY"] == "actual-secret-value")
     }
+
+    // MARK: Pre-decode YAML Variable Resolution Tests ($$ escaping)
+
+    @Test("$$ escaping preserves literal $ through substitution")
+    func dollarDollarEscapingPreservesLiteralDollar() {
+        let envVars: [String: String] = [:]
+        let input = "value: $$HOME"
+        let result = resolveYamlVariables(input, with: envVars)
+
+        #expect(result == "value: $HOME")
+    }
+
+    @Test("$${VAR} produces literal ${VAR} (Docker Compose compatible)")
+    func dollarDollarVarProducesLiteralBraces() {
+        let envVars = ["VAR": "resolved"]
+        let input = "value: $${VAR}"
+        let result = resolveYamlVariables(input, with: envVars)
+
+        // $$ → sentinel → removes the $, leaving {VAR} which is not a valid ${VAR} ref
+        // So $${VAR} → literal ${VAR}
+        #expect(result == "value: ${VAR}")
+    }
+
+    @Test("${VAR} in image field gets resolved")
+    func varInImageFieldResolved() {
+        let envVars = ["HERMES_REGISTRY": "192.168.1.86:30500"]
+        let input = "image: ${HERMES_REGISTRY:-host:port}/hermes:latest"
+        let result = resolveYamlVariables(input, with: envVars)
+
+        #expect(result == "image: 192.168.1.86:30500/hermes:latest")
+    }
+
+    @Test("${VAR:-default} in image field uses default when var missing")
+    func varWithDefaultInImageField() {
+        let envVars: [String: String] = [:]
+        let input = "image: ${REGISTRY:-localhost:5000}/app:latest"
+        let result = resolveYamlVariables(input, with: envVars)
+
+        #expect(result == "image: localhost:5000/app:latest")
+    }
+
+    @Test("${VAR} in volumes field gets resolved")
+    func varInVolumesFieldResolved() {
+        let envVars = ["ISAAC_ROS_CUSTOM_DIR": "/opt/isaac_ros"]
+        let input = "- ${ISAAC_ROS_CUSTOM_DIR:-/path}:/workspace"
+        let result = resolveYamlVariables(input, with: envVars)
+
+        #expect(result == "- /opt/isaac_ros:/workspace")
+    }
+
+    @Test("${VAR} in command gets resolved (Compose-correct behavior)")
+    func varInCommandResolved() {
+        let envVars = ["DATA_DIR": "/data"]
+        let input = "command: [\"sh\", \"-c\", \"echo ${DATA_DIR}\"]"
+        let result = resolveYamlVariables(input, with: envVars)
+
+        #expect(result == "command: [\"sh\", \"-c\", \"echo /data\"]")
+    }
+
+    @Test("$$VAR in command preserves $VAR (shell-correct behavior)")
+    func dollarDollarVarInCommand() {
+        let envVars = ["VAR": "should-not-expand"]
+        let input = "command: [\"sh\", \"-c\", \"echo $$VAR\"]"
+        let result = resolveYamlVariables(input, with: envVars)
+
+        #expect(result == "command: [\"sh\", \"-c\", \"echo $VAR\"]")
+    }
+
+    @Test("Multiple $$ in single value all preserved")
+    func multipleDollarDollarEscaping() {
+        let envVars = ["HOME": "/root", "USER": "admin"]
+        let input = "cmd: echo $$HOME and $$USER"
+        let result = resolveYamlVariables(input, with: envVars)
+
+        #expect(result == "cmd: echo $HOME and $USER")
+    }
+
+    @Test("Mixed $$ and ${VAR} in same value")
+    func mixedDollarDollarAndVar() {
+        let envVars = ["REGISTRY": "ghcr.io", "TAG": "v1.2"]
+        let input = "image: ${REGISTRY}/app:${TAG:-latest} $$NPM_TOKEN"
+        let result = resolveYamlVariables(input, with: envVars)
+
+        #expect(result == "image: ghcr.io/app:v1.2 $NPM_TOKEN")
+    }
+
+    @Test("No variables returns original string including $$ untouched")
+    func noVarsReturnsOriginal() {
+        let envVars: [String: String] = [:]
+        let input = "image: nginx:latest\nports:\n  - 8080:80"
+        let result = resolveYamlVariables(input, with: envVars)
+
+        #expect(result == "image: nginx:latest\nports:\n  - 8080:80")
+    }
 }
 
 // Test helper function that mimics the actual implementation

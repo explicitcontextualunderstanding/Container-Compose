@@ -136,10 +136,13 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
         // Decode the YAML file into the DockerCompose struct
         let dockerComposeString = String(data: yamlData, encoding: .utf8)!
-        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: dockerComposeString)
 
-        // Load environment variables from .env file (non-strict: optional file)
+        // Load .env file early so vars are available for pre-decode substitution
         environmentVariables = (try? loadEnvFile(path: envFilePath)) ?? [:]
+
+        // Pre-decode ${VAR} substitution (Docker Compose compatible with $$ escaping)
+        let resolvedYaml = resolveYamlVariables(dockerComposeString, with: environmentVariables)
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: resolvedYaml)
 
         // Handle 'version' field
         if let version = dockerCompose.version {
@@ -625,7 +628,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             combinedEnv.merge(serviceEnv) { (_, new) in new }  // Service env overrides .env files
         }
 
-        // Fill in variables (${VAR}, ${VAR:-default}, ${VAR:?error})
+        // Resolve any remaining variables (safety net for edge cases; idempotent for already-resolved values)
         combinedEnv = combinedEnv.mapValues({ value in
             resolveVariable(value, with: combinedEnv)
         })
