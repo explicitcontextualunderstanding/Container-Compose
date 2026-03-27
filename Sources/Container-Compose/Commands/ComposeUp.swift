@@ -445,23 +445,24 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
     print("Ensuring volume: \(actualVolumeName)")
 
-    // Try to create the volume - if it already exists, that's OK
-    print("Executing container volume create: container volume create \(volumeCreateArgs.joined(separator: " "))")
+    // Check if volume already exists before attempting create
+    let volumeCheck = try await ContainerComposeCore.streamCommand("container", args: ["volume", "inspect", actualVolumeName], cwd: self.cwd, onStdout: { _ in }, onStderr: { _ in })
+    let volumeAlreadyExists = volumeCheck == 0
 
-    // Use streamCommand to create volume via engine
-    let exitCode = try await ContainerComposeCore.streamCommand("container", args: ["volume", "create"] + volumeCreateArgs, cwd: self.cwd, onStdout: { print($0) }, onStderr: { output in
-      print(output)
-    })
+    if !volumeAlreadyExists {
+      print("Executing container volume create: container volume create \(volumeCreateArgs.joined(separator: " "))")
 
-    // Only accept exit code 0 (success) - any other exit code is treated as an error
-    // Previously we accepted non-zero codes assuming "already exists", but this masks
-    // real errors like permission denied, disk full, etc.
-    guard exitCode == 0 else {
-      throw VolumeConfigError.createFailed(
-        name: actualVolumeName,
-        exitCode: exitCode,
-        stderr: "Volume create failed with exit code \(exitCode). See output above for details."
-      )
+      let exitCode = try await ContainerComposeCore.streamCommand("container", args: ["volume", "create"] + volumeCreateArgs, cwd: self.cwd, onStdout: { print($0) }, onStderr: { print($0) })
+
+      guard exitCode == 0 else {
+        throw VolumeConfigError.createFailed(
+          name: actualVolumeName,
+          exitCode: exitCode,
+          stderr: "Volume create failed with exit code \(exitCode). See output above for details."
+        )
+      }
+    } else {
+      print("Volume '\(actualVolumeName)' already exists, skipping create")
     }
 
         let volumeUrl = URL.homeDirectory.appending(path: ".containers/Volumes/\(projectName)/\(actualVolumeName)")

@@ -125,15 +125,15 @@ struct ServiceDependencyTests {
         #expect(sorted[0].serviceName == "web")
     }
 
-    @Test("Service depends on non-existent service - should not crash")
-    func dependsOnNonExistentService() throws {
+    @Test("Service depends on non-existent service - throws descriptive error")
+    func dependsOnNonExistentService() {
         let web = Service(image: "nginx", depends_on: ["nonexistent": DependsOnEntry(condition: nil)])
 
         let services: [(String, Service)] = [("web", web)]
-        let sorted = try Service.topoSortConfiguredServices(services)
 
-        // Should complete without crashing
-        #expect(sorted.count == 1)
+        #expect(throws: NSError.self) {
+            try Service.topoSortConfiguredServices(services)
+        }
     }
 
     // MARK: - Long-form depends_on parsing tests
