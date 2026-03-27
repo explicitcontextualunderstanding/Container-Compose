@@ -22,49 +22,46 @@ There is a clinical 64-character limit for guest process labels in the macOS con
 - **Recommended Names:** `wp`, `db`, `web`.
 - **Avoid:** Long descriptive names like `wordpress-application-service` if the combined length exceeds ~63 characters.
 
-### New Files (Fork-Only)
-| File | Purpose |
-|------|---------|
-| `.github/workflows/release.yml` | Automated release workflow |
-| `CHANGELOG.md` | Version changelog |
-| `FORK_CHANGES.md` | This file — fork change tracking |
-| `VERIFICATION.md` | Verification procedures and testing guidelines |
-| `build-release.sh` | Release build script with conda/xattr cleanup |
-| `build-sign-install.sh` | Build, sign, install with auto git hash injection and `/usr/local/bin` symlink |
-| `install.sh` | Installation script with macOS provenance handling |
-| `run-tests.sh` | Test runner with conda environment cleanup |
-| `scripts/env-setup.sh` | Shared conda environment cleanup for build and test scripts |
-| `Sources/Container-Compose/Commands/CheckpointCommand.swift` | New checkpoint command using `container commit` |
-| `Tests/Container-Compose-StaticTests/CheckpointCommandTests.swift` | Unit tests for checkpoint command |
-| `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift` | Mapping tests for makeRunArgs flag generation, `-f` path resolution |
-| `Tests/Container-Compose-StaticTests/NetworkVolumeMappingTests.swift` | Network and volume synchronization tests |
-| `Tests/compose_static_checks.sh` | Static validation script for compose files |
-| `Tests/network_reachability.sh` | Network connectivity testing script |
-| `docs/checkpoint.md` | Documentation for checkpoint feature |
+### All Changed Files
 
-### Modified Files
-| File | Change Summary |
-|------|--------------|
-| `.github/workflows/tests.yml` | Enhanced CI workflow, added static test filtering |
-| `Sources/Container-Compose/Application.swift` | Added checkpoint command registration, git hash in version string |
-| `Sources/Container-Compose/Codable Structs/Build.swift` | Added `target` field for multi-stage builds |
-| `Sources/Container-Compose/Codable Structs/Network.swift` | Enhanced network synchronization |
-| `Sources/Container-Compose/Codable Structs/Service.swift` | Added `dns_search` array support, validation for restart/platform/runtime/volumes/ports |
-| `Sources/Container-Compose/Commands/ComposeUp.swift` | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation, pre-decode `${VAR}` substitution, `--force-recreate`/`--no-recreate`, `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution, `-f` flag with absolute/relative path handling |
-| `Sources/Container-Compose/Commands/ComposeDown.swift` | Added try/throw support for deriveProjectName, `-f` flag with absolute/relative path handling |
-| `Sources/Container-Compose/Commands/Version.swift` | Version display with git commit hash |
-| `Sources/Container-Compose/Errors.swift` | Added `invalidResourceConfig` error case |
-| `Sources/Container-Compose/Helper Functions.swift` | P0/P2 fixes: safe regex handling, VariableResolutionError, deriveProjectName sanitization, env_file error handling, `resolveYamlVariables()` with `$$` escaping |
-| `Tests/TestHelpers/DockerComposeYamlFiles.swift` | Configurable test ports via environment variables |
-| `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift` | Updated for 3-container WordPress setup |
-| `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift` | Updated for WordPress FPM variant, port-agnostic assertions, Feature 1 & 2 integration tests |
-| `Tests/Container-Compose-StaticTests/BuildConfigurationTests.swift` | Added build target tests |
-| `Tests/Container-Compose-StaticTests/DockerComposeParsingTests.swift` | Replaced force unwraps with guard statements |
-| `Tests/Container-Compose-StaticTests/EnvFileLoadingTests.swift` | .env file loading tests |
-| `Tests/Container-Compose-StaticTests/EnvironmentVariableTests.swift` | Environment variable tests |
-| `Tests/Container-Compose-StaticTests/HealthcheckConfigurationTests.swift` | Healthcheck configuration tests |
-| `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift` | deriveProjectName tests |
-| `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift` | Service dependency tests |
+| Status | File | Change Summary |
+|--------|------|----------------|
+| Added | `.github/workflows/release.yml` | Automated release workflow |
+| Modified | `.github/workflows/tests.yml` | Enhanced CI workflow, added static test filtering |
+| Added+Modified | `CHANGELOG.md` | Version changelog |
+| Added | `FORK_CHANGES.md` | This file — fork change tracking |
+| Added | `VERIFICATION.md` | Verification procedures and testing guidelines |
+| Added+Modified | `build-release.sh` | Release build script with conda/xattr cleanup |
+| Added+Modified | `build-sign-install.sh` | Build, sign, install with auto git hash injection and `/usr/local/bin` symlink |
+| Added+Modified | `install.sh` | Installation script with macOS provenance handling |
+| Added+Modified | `run-tests.sh` | Test runner with conda environment cleanup |
+| Added+Modified | `scripts/env-setup.sh` | Shared conda environment cleanup for build and test scripts |
+| Modified | `Sources/Container-Compose/Application.swift` | Added checkpoint command registration, git hash in version string |
+| Modified | `Sources/Container-Compose/Codable Structs/Build.swift` | Added `target` field for multi-stage builds |
+| Modified | `Sources/Container-Compose/Codable Structs/Network.swift` | Enhanced network synchronization |
+| Modified | `Sources/Container-Compose/Codable Structs/Service.swift` | Added `dns_search` array support, validation for restart/platform/runtime/volumes/ports |
+| Added+Modified | `Sources/Container-Compose/Commands/CheckpointCommand.swift` | Checkpoint command using `container commit`; post-creation P0 error handling fixes |
+| Modified | `Sources/Container-Compose/Commands/ComposeDown.swift` | Added try/throw support for deriveProjectName, `-f` flag with absolute/relative path handling |
+| Modified | `Sources/Container-Compose/Commands/ComposeUp.swift` | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation, pre-decode `${VAR}` substitution, `--force-recreate`/`--no-recreate`, `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution, `-f` flag with absolute/relative path handling |
+| Modified | `Sources/Container-Compose/Commands/Version.swift` | Version display with git commit hash |
+| Modified | `Sources/Container-Compose/Errors.swift` | Added `invalidResourceConfig` error case |
+| Modified | `Sources/Container-Compose/Helper Functions.swift` | P0/P2 fixes: safe regex handling, VariableResolutionError, deriveProjectName sanitization, env_file error handling, `resolveYamlVariables()` with `$$` escaping |
+| Added | `Tests/Container-Compose-StaticTests/CheckpointCommandTests.swift` | Unit tests for checkpoint command |
+| Added+Modified | `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift` | Mapping tests for makeRunArgs flag generation, `-f` path resolution |
+| Added | `Tests/Container-Compose-StaticTests/NetworkVolumeMappingTests.swift` | Network and volume synchronization tests |
+| Modified | `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift` | Updated for 3-container WordPress setup |
+| Modified | `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift` | Updated for WordPress FPM variant, port-agnostic assertions, Feature 1 & 2 integration tests |
+| Modified | `Tests/Container-Compose-StaticTests/BuildConfigurationTests.swift` | Added build target tests |
+| Modified | `Tests/Container-Compose-StaticTests/DockerComposeParsingTests.swift` | Replaced force unwraps with guard statements |
+| Modified | `Tests/Container-Compose-StaticTests/EnvFileLoadingTests.swift` | .env file loading tests |
+| Modified | `Tests/Container-Compose-StaticTests/EnvironmentVariableTests.swift` | Environment variable tests |
+| Modified | `Tests/Container-Compose-StaticTests/HealthcheckConfigurationTests.swift` | Healthcheck configuration tests |
+| Modified | `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift` | deriveProjectName tests |
+| Modified | `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift` | Service dependency tests |
+| Modified | `Tests/TestHelpers/DockerComposeYamlFiles.swift` | Configurable test ports via environment variables |
+| Added | `Tests/compose_static_checks.sh` | Static validation script for compose files |
+| Added | `Tests/network_reachability.sh` | Network connectivity testing script |
+| Added | `docs/checkpoint.md` | Documentation for checkpoint feature |
 
 ### Deleted Files (existed in fork history, now removed)
 | File | Reason |
