@@ -238,6 +238,7 @@ Features currently worked around in external orchestrator scripts (e.g., `apple-
 | Gap | Current Workaround | Impact | Priority |
 |-----|-------------------|--------|----------|
 | **`container restart`** | External watchdog scripts | No native restart policy enforcement after crashes; `restart: always/on-failure` is parsed but cannot be delegated to runtime | High |
+| **Digest-pinned images** | Zot mirror with stable tag (`honcho-hub:stable`) | `container-compose` strips `@sha256:...` suffix from image references and pulls `:latest` instead, defeating digest-based pinning. Workaround: copy pinned image to local Zot with a stable tag and reference that tag. This breaks on Zot registries that return HTTP 400 for Docker v2 pull API. | **High** |
 | **`container cp`** | Volume mounts for all file sharing | No hot-reload or file sync capability; limits dev workflow | High |
 | **`container wait`** | Polling with `container list` | Cannot efficiently block until a container exits; adds latency to shutdown orchestration | Medium |
 
