@@ -13,6 +13,12 @@
 - **Idempotent `compose up`**: Added `--force-recreate` and `--no-recreate` flags to control whether running containers are recreated.
 - **Integration tests for Feature 1 and Feature 2**: Static tests verify pre-decode substitution through the full YAML decode pipeline; dynamic tests verify `${VAR}` resolution in running containers and `service_healthy` dependency enforcement.
 - **Volume mapping tests**: Added `testBindMountMapping`, `testNamedVolumeMapping`, `testAbsolutePathBindMountMappingWithinCwd`, `testOutsidePathSecuritySkipped` to verify `-v` flag generation.
+- **Container polling helpers**: New `TestHelpers` module with `ContainerPollingHelpers` for async container state verification:
+  - `waitForNetworks()` - polls until container networks populate (Apple Container networks are async)
+  - `waitForAllNetworks()` - waits for all project containers to have networks
+  - `waitForContainers()` - waits for containers to be created
+  - `ContainerTestHelpers.assertHasNetworks()` - safe network assertions without force unwraps
+- **Three-tier web application test**: Re-enabled `testThreeTierWebApp()` (formerly commented) using postgres:14-alpine, nginx:alpine, node:18-alpine, redis:alpine with network polling validation.
 
 ### Fixed
 

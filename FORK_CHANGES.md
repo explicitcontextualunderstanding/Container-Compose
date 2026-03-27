@@ -59,6 +59,7 @@ There is a clinical 64-character limit for guest process labels in the macOS con
 | Modified | `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift` | deriveProjectName tests |
 | Modified | `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift` | Service dependency tests |
 | Modified | `Tests/TestHelpers/DockerComposeYamlFiles.swift` | Configurable test ports via environment variables |
+| Added | `Tests/TestHelpers/ContainerPollingHelpers.swift` | Async container state polling helpers for robust network validation |
 | Added | `Tests/compose_static_checks.sh` | Static validation script for compose files |
 | Added | `Tests/network_reachability.sh` | Network connectivity testing script |
 | Added | `docs/checkpoint.md` | Documentation for checkpoint feature |
@@ -134,8 +135,9 @@ There is a clinical 64-character limit for guest process labels in the macOS con
   - **`${VAR}` pipeline fix**: Replaced naive `${` stripping with `resolveVariable()` for proper default/error syntax.
 
 - **v0.10.2 Fixes:**
-  - **Service-level volume mapping**: Fixed critical bug where `service.volumes` entries were parsed from YAML but never generated `-v` flags for `container run`. Integrated volume handling into `makeRunArgs()` with support for bind mounts and named volumes. Removed dead `configVolume()` function. Added 4 new mapping tests.
-  - **Healthcheck-aware depends_on**: Implemented `waitForHealthy()` in `ComposeUp.swift` that polls a dependency's healthcheck command via `container exec` before starting dependent services. Supports CMD, CMD-SHELL, and NONE formats with configurable interval/timeout/retries/start_period.
+- **Service-level volume mapping**: Fixed critical bug where `service.volumes` entries were parsed from YAML but never generated `-v` flags for `container run`. Integrated volume handling into `makeRunArgs()` with support for bind mounts and named volumes. Removed dead `configVolume()` function. Added 4 new mapping tests.
+- **Healthcheck-aware depends_on**: Implemented `waitForHealthy()` in `ComposeUp.swift` that polls a dependency's healthcheck command via `container exec` before starting dependent services. Supports CMD, CMD-SHELL, and NONE formats with configurable interval/timeout/retries/start_period.
+- **Container polling helpers**: Added `ContainerPollingHelpers.swift` to `TestHelpers` module providing async polling for container state verification (networks, status) with proper error handling and timeouts. Re-enabled `testThreeTierWebApp()` with safe network assertions replacing force unwraps.
   - **Fixed `container exec` syntax**: Apple's `container exec` does not use `--` separator (unlike Docker). Updated exec arg construction to match Apple CLI format.
   - **Shorthand `env:` Key Support**: Fixed critical bug where `env:` shorthand was not decoded. Now properly recognized as alias for `environment:` (env takes precedence when both present)
   - **Environment Variable Test Fix**: Fixed `HOST` variable conflict in tests by using unique names (`DB_HOST`, `DB_PORT`, `DB_NAME`)
@@ -310,6 +312,7 @@ The orchestrator script works around several features that container-compose alr
 | **Lifecycle** | Checkpoint export/import, container restart | High |
 | **Orchestration** | healthcheck-aware `depends_on` | High |
 | **Registry** | Authentication, push/pull | Medium |
+| **Test Infrastructure** | Container polling helpers, async state verification | High |
 
 ---
 

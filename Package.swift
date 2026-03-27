@@ -43,8 +43,14 @@ let package = Package(
             path: "Sources/ContainerComposeApp"
         ),
         
-        // Test Helper
-        .target(name: "TestHelpers", path: "Tests/TestHelpers"),
+// Test Helper
+.target(
+    name: "TestHelpers",
+    dependencies: [
+        .product(name: "ContainerAPIClient", package: "container")
+    ],
+    path: "Tests/TestHelpers"
+),
         
         // Tests
         .testTarget(
