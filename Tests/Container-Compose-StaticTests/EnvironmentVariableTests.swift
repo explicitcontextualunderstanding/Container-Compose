@@ -16,6 +16,7 @@
 
 import Testing
 import Foundation
+import Yams
 @testable import ContainerComposeCore
 
 @Suite("Environment Variable Resolution Tests")
@@ -324,6 +325,122 @@ struct EnvironmentVariableTests {
         let result = resolveYamlVariables(input, with: envVars)
 
         #expect(result == "image: nginx:latest\nports:\n  - 8080:80")
+    }
+
+    // MARK: Pre-decode Integration: resolveYamlVariables → YAMLDecoder → struct fields
+
+    @Test("Integration: ${VAR} in image field resolves to correct struct value")
+    func integrationImageVarResolved() throws {
+        let envVars = ["REGISTRY": "ghcr.io", "TAG": "v1.2.3"]
+        let yaml = """
+        services:
+          app:
+            image: ${REGISTRY}/myapp:${TAG:-latest}
+        """
+        let resolved = resolveYamlVariables(yaml, with: envVars)
+        let compose = try YAMLDecoder().decode(DockerCompose.self, from: resolved)
+
+        #expect(compose.services["app"]??.image == "ghcr.io/myapp:v1.2.3")
+    }
+
+    @Test("Integration: ${VAR:-default} in image uses default when var missing")
+    func integrationImageVarDefault() throws {
+        let yaml = """
+        services:
+          app:
+            image: ${REGISTRY:-localhost:5000}/myapp:${TAG:-latest}
+        """
+        let resolved = resolveYamlVariables(yaml, with: [:])
+        let compose = try YAMLDecoder().decode(DockerCompose.self, from: resolved)
+
+        #expect(compose.services["app"]??.image == "localhost:5000/myapp:latest")
+    }
+
+    @Test("Integration: ${VAR} in volumes resolves to correct struct value")
+    func integrationVolumesVarResolved() throws {
+        let envVars = ["DATA_DIR": "/opt/data", "CONFIG_DIR": "/etc/app"]
+        let yaml = """
+        services:
+          app:
+            image: nginx:alpine
+            volumes:
+              - ${DATA_DIR:-/tmp/data}:/data
+              - ${CONFIG_DIR}:/config:ro
+        """
+        let resolved = resolveYamlVariables(yaml, with: envVars)
+        let compose = try YAMLDecoder().decode(DockerCompose.self, from: resolved)
+
+        let vols = compose.services["app"]??.volumes ?? []
+        #expect(vols.contains("${DATA_DIR:-/tmp/data}:/data") == false)
+        #expect(vols.contains("/opt/data:/data"))
+        #expect(vols.contains("/etc/app:/config:ro"))
+    }
+
+    @Test("Integration: $$VAR in command preserves literal $VAR after decode")
+    func integrationCommandDollarDollarPreserved() throws {
+        let yaml = """
+        services:
+          app:
+            image: busybox:latest
+            command: ["sh", "-c", "echo $$HOME $$USER"]
+        """
+        let resolved = resolveYamlVariables(yaml, with: [:])
+        let compose = try YAMLDecoder().decode(DockerCompose.self, from: resolved)
+
+        let cmd = compose.services["app"]??.command ?? []
+        let cmdString = cmd.joined(separator: " ")
+        // After resolveYamlVariables: $$ → $, so command should have $HOME and $USER
+        #expect(cmdString.contains("echo $HOME $USER"))
+    }
+
+    @Test("Integration: ${VAR} in command resolves but $$VAR does not")
+    func integrationCommandMixedVarAndEscaping() throws {
+        let envVars = ["DATA_DIR": "/app/data"]
+        let yaml = """
+        services:
+          app:
+            image: busybox:latest
+            command: ["sh", "-c", "export DATA=${DATA_DIR} && echo $$PATH"]
+        """
+        let resolved = resolveYamlVariables(yaml, with: envVars)
+        let compose = try YAMLDecoder().decode(DockerCompose.self, from: resolved)
+
+        let cmd = compose.services["app"]??.command ?? []
+        let cmdString = cmd.joined(separator: " ")
+        #expect(cmdString.contains("export DATA=/app/data"))
+        #expect(cmdString.contains("echo $PATH"))
+    }
+
+    @Test("Integration: honcho-style image with registry default and $$ in command")
+    func integrationHonchoStyleCompose() throws {
+        let envVars = [
+            "HERMES_REGISTRY": "192.168.1.86:30500",
+            "ISAAC_ROS_CUSTOM_DIR": "/Users/dev/workspace",
+        ]
+        let yaml = """
+        services:
+          hermes:
+            image: ${HERMES_REGISTRY:-192.168.1.86:30500}/hermes:latest
+            volumes:
+              - ${ISAAC_ROS_CUSTOM_DIR:-/tmp}/config:/config:ro
+            command:
+              - "/bin/bash"
+              - "-lc"
+              - |
+                set -euo pipefail
+                echo "[hermes] pid=$$$$ PPID=$$$$"
+                kubectl config get-contexts
+        """
+        let resolved = resolveYamlVariables(yaml, with: envVars)
+        let compose = try YAMLDecoder().decode(DockerCompose.self, from: resolved)
+
+        let hermes = try #require(compose.services["hermes"] ?? nil)
+        #expect(hermes.image == "192.168.1.86:30500/hermes:latest")
+        let vols = hermes.volumes ?? []
+        #expect(vols.contains("/Users/dev/workspace/config:/config:ro"))
+        let cmd = hermes.command ?? []
+        // $$$$ → $$ → $ after resolveYamlVariables, so we get $$
+        #expect(cmd.joined(separator: " ").contains("pid=$$"))
     }
 }
 

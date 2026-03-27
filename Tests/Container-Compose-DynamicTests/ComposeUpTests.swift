@@ -346,6 +346,91 @@ struct ComposeUpTests {
                 var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
                 try await composeDown.run()
         }
+
+    @Test("Feature 1: Pre-decode ${VAR} substitution in image and volumes")
+    func testPreDecodeVarSubstitution() async throws {
+        // Use environment variables that will be resolved before YAML decode
+        let yaml = """
+        services:
+          app:
+            image: ${REGISTRY:-docker.io/library}/nginx:${TAG:-alpine}
+            volumes:
+              - ${DATA_DIR:-/tmp}/data:/data
+            ports:
+              - "18083:80"
+        """
+        let resolvedYaml = resolveYamlVariables(yaml, with: [:])
+
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try resolvedYaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp.run()
+
+        let containers = try await ClientContainer.list()
+            .filter { $0.configuration.id.contains(folderName) }
+
+        guard let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
+            throw Errors.containerNotFound
+        }
+
+        // Verify image was resolved from defaults: ${REGISTRY:-docker.io/library}/nginx:${TAG:-alpine}
+        #expect(appContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
+
+        // Cleanup
+        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        _ = try? await composeDown.run()
+    }
+
+    @Test("Feature 2: service_healthy dependency waits for healthcheck to pass")
+    func testServiceHealthyDependency() async throws {
+        let yaml = """
+        services:
+          db:
+            image: busybox:latest
+            command: ["sh", "-c", "echo ready > /tmp/health && sleep 3600"]
+            healthcheck:
+              test: ["CMD-SHELL", "cat /tmp/health"]
+              interval: 1s
+              timeout: 2s
+              retries: 10
+              start_period: 0s
+
+          app:
+            image: busybox:latest
+            depends_on:
+              db:
+                condition: service_healthy
+            command: ["sh", "-c", "echo 'app started after db healthy' && sleep 3600"]
+        """
+
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp.run()
+
+        let containers = try await ClientContainer.list()
+            .filter { $0.configuration.id.contains(folderName) }
+
+        guard let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" }),
+              let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" })
+        else {
+            throw Errors.containerNotFound
+        }
+
+        // Both should be running — db first (healthcheck passes immediately), then app
+        #expect(dbContainer.status == .running)
+        #expect(appContainer.status == .running)
+
+        // Cleanup
+        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        _ = try? await composeDown.run()
+    }
     
     enum Errors: Error {
         case containerNotFound
