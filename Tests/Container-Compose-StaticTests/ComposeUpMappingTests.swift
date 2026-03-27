@@ -441,4 +441,100 @@ final class ComposeUpMappingTests: XCTestCase {
         XCTAssertNotNil(cmd.composeFile, "composeFile should be set when -f is provided")
         XCTAssertEqual(cmd.composePath, "/custom/path.yml")
     }
+
+    // MARK: - Volume Mapping Tests
+
+    func testBindMountMapping() throws {
+        let yaml = """
+            services:
+              app:
+                image: busybox:latest
+                volumes:
+                  - ./data:/app/data
+            """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+
+        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+
+        // Find -v flag and its argument
+        guard let vIndex = args.firstIndex(of: "-v") else {
+            return XCTFail("Expected -v flag in args: \(args)")
+        }
+        guard vIndex + 1 < args.count else {
+            return XCTFail("Expected volume argument after -v flag")
+        }
+        let volumeArg = args[vIndex + 1]
+        XCTAssertEqual(volumeArg, "./data:/app/data", "Expected bind mount volume argument")
+    }
+
+    func testNamedVolumeMapping() throws {
+        let yaml = """
+            services:
+              app:
+                image: busybox:latest
+                volumes:
+                  - mydata:/app/data
+            """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+
+        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+
+        // Find -v flag and its argument
+        guard let vIndex = args.firstIndex(of: "-v") else {
+            return XCTFail("Expected -v flag in args: \(args)")
+        }
+        guard vIndex + 1 < args.count else {
+            return XCTFail("Expected volume argument after -v flag")
+        }
+        let volumeArg = args[vIndex + 1]
+        // Named volumes should be mapped to ~/.containers/Volumes/{projectName}/{source}
+        XCTAssertTrue(volumeArg.contains("mydata"), "Expected named volume path to contain 'mydata': \(volumeArg)")
+        XCTAssertTrue(volumeArg.contains("/app/data"), "Expected named volume destination '/app/data': \(volumeArg)")
+    }
+
+    func testAbsolutePathBindMountMappingWithinCwd() throws {
+        // Absolute paths within the project directory should work
+        // Using /tmp as cwd, so /tmp/var/log is within the project directory
+        let yaml = """
+            services:
+              app:
+                image: busybox:latest
+                volumes:
+                  - /tmp/var/log:/app/logs
+            """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+
+        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+
+        // Find -v flag and its argument
+        guard let vIndex = args.firstIndex(of: "-v") else {
+            return XCTFail("Expected -v flag in args: \(args)")
+        }
+        guard vIndex + 1 < args.count else {
+            return XCTFail("Expected volume argument after -v flag")
+        }
+        let volumeArg = args[vIndex + 1]
+        XCTAssertEqual(volumeArg, "/tmp/var/log:/app/logs", "Expected absolute path bind mount within cwd")
+    }
+
+    func testOutsidePathSecuritySkipped() throws {
+        // Absolute paths outside the project directory should be skipped for security
+        let yaml = """
+            services:
+              app:
+                image: busybox:latest
+                volumes:
+                  - /var/log:/app/logs
+            """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+
+        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+
+        // Should NOT have -v flag because /var/log is outside /tmp
+        XCTAssertNil(args.firstIndex(of: "-v"), "Should skip volumes outside project directory")
+    }
 }

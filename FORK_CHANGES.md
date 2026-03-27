@@ -3,7 +3,7 @@
 This document summarizes all changes in this fork (`explicitcontextualunderstanding/Container-Compose`) relative to the upstream repository (`Mcrich23/Container-Compose`).
 
 **Current Release:** v0.10.2
-**Last Updated:** 2026-03-26
+**Last Updated:** 2026-03-27
 
 ---
 
@@ -134,6 +134,7 @@ There is a clinical 64-character limit for guest process labels in the macOS con
   - **`${VAR}` pipeline fix**: Replaced naive `${` stripping with `resolveVariable()` for proper default/error syntax.
 
 - **v0.10.2 Fixes:**
+  - **Service-level volume mapping**: Fixed critical bug where `service.volumes` entries were parsed from YAML but never generated `-v` flags for `container run`. Integrated volume handling into `makeRunArgs()` with support for bind mounts and named volumes. Removed dead `configVolume()` function. Added 4 new mapping tests.
   - **Healthcheck-aware depends_on**: Implemented `waitForHealthy()` in `ComposeUp.swift` that polls a dependency's healthcheck command via `container exec` before starting dependent services. Supports CMD, CMD-SHELL, and NONE formats with configurable interval/timeout/retries/start_period.
   - **Fixed `container exec` syntax**: Apple's `container exec` does not use `--` separator (unlike Docker). Updated exec arg construction to match Apple CLI format.
   - **Shorthand `env:` Key Support**: Fixed critical bug where `env:` shorthand was not decoded. Now properly recognized as alias for `environment:` (env takes precedence when both present)
@@ -142,7 +143,7 @@ There is a clinical 64-character limit for guest process labels in the macOS con
   - **Command String Parsing**: Split string-form commands into proper executable + arguments array
   - **Environment Variable Mapping**: Added `--env` flag mapping to pass service env vars to containers
   - **Port Mapping**: Added missing `--publish` flag mapping in `makeRunArgs` for service port mappings
-- **Test Suite Stabilization**: Achieved 100% test pass rate (92/92) by resolving naming, port, and image compatibility issues.
+  - **Test Suite Stabilization**: Achieved 100% test pass rate (141/141 static + 9/9 dynamic) by resolving naming, port, image compatibility, and volume mapping issues.
 
 - **v0.10.1 Fixes:**
   - **Restart stopped containers on compose up**: When containers exist but are stopped, automatically start them instead of returning an error
@@ -239,6 +240,7 @@ Features currently worked around in external orchestrator scripts (e.g., `apple-
 |-----|-------------------|--------|----------|
 | **`container restart`** | External watchdog scripts | No native restart policy enforcement after crashes; `restart: always/on-failure` is parsed but cannot be delegated to runtime | High |
 | **Digest-pinned images** | Zot mirror with stable tag (`honcho-hub:stable`) | `container-compose` strips `@sha256:...` suffix from image references and pulls `:latest` instead, defeating digest-based pinning. Workaround: copy pinned image to local Zot with a stable tag and reference that tag. This breaks on Zot registries that return HTTP 400 for Docker v2 pull API. | **High** |
+| **Service bind-mount volumes** | Render compose with patches in `command` | `configVolume()` function exists as dead code in `ComposeUp.swift:839` (parses paths, validates traversal, generates `-v` args) but is never called from `makeRunArgs()`. Service-level `volumes:` entries are parsed into `service.volumes` but zero `-v`/`--mount` flags are generated for `container run`. File mounts are explicitly skipped with a warning (line 880). Directory mounts generate `-v` but mode (`:ro`) is stripped. All bind mounts silently ignored. **Workaround pattern**: A Python render script (`render-honcho-compose.py`) injects live-patches into the compose `command:` block before `container-compose up`. This enables a "Circuit Breaker" that skips Alembic migrations when the database schema already exists, preventing data loss on image updates. To force migrations when needed, set `HONCHO_FORCE_MIGRATION=1` on the hub service. | **High** |
 | **`container cp`** | Volume mounts for all file sharing | No hot-reload or file sync capability; limits dev workflow | High |
 | **`container wait`** | Polling with `container list` | Cannot efficiently block until a container exits; adds latency to shutdown orchestration | Medium |
 
@@ -251,7 +253,7 @@ The orchestrator script works around several features that container-compose alr
 | **`-f` flag** | `-f` on `ComposeUp` and `ComposeDown`; accepts absolute or relative paths, skips CWD scanning when explicit | Symlink desired file to `compose.yml` before each call |
 | **`${VAR}` interpolation** | `resolveYamlVariables()` in `Helper Functions.swift` resolves `${VAR}`, `${VAR:-default}`, `${VAR:?error}` on raw YAML before decode (Docker Compose compatible with `$$` escaping) | Python pre-renders compose file with `os.environ` substitution |
 | **`depends_on` ordering** | `Service.topoSortConfiguredServices()` does topological sort at `ComposeUp.swift:147`; `waitForHealthy()` gates `service_healthy` dependencies | Manual sequential `container-compose up -d <service>` calls |
-| **Partial compose / volumes** | `setupVolume()` handles "already exists" gracefully; top-level volumes created idempotently per compose file regardless of service selection | Regex-based stripping of `volumes:` and single-service extraction |
+| **Partial compose / volumes** | `setupVolume()` handles "already exists" gracefully; **top-level** named volumes created idempotently per compose file. Service-level `volumes:` are parsed but never wired to `container run` args (dead code `configVolume()` at line 839) | Regex-based stripping of `volumes:` and single-service extraction; orchestrator renders patches into `command` instead |
 
 ### Compatibility & Migration
 

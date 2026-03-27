@@ -1,9 +1,10 @@
 # CHANGELOG
 
-## Unreleased (explicitcontextualunderstanding) - 2026-03-26
+## Unreleased (explicitcontextualunderstanding) - 2026-03-27
 
 ### Added
 
+- **Service-level volume mapping**: `service.volumes` entries now generate `-v` flags in `container run` commands. Bind mounts (paths with `/` or starting with `.`) and named volumes are supported.
 - **Pre-decode `${VAR}` substitution**: Environment variables (`${VAR}`, `${VAR:-default}`, `${VAR:?error}`) are now resolved in raw YAML before decode, matching Docker Compose behavior. This resolves `${VAR}` in `image:`, `volumes:`, `command:`, and all other compose fields — not just `environment:` values.
 - **`$$` escaping support**: Users can write `$$` in compose YAML to produce a literal `$` for shell interpreters (e.g., `command: ["sh", "-c", "echo $$HOME"]` → shell sees `$HOME`).
 - **`resolveYamlVariables()` function**: New helper in `Helper Functions.swift` that wraps `resolveVariable()` with `$$` sentinel escaping for safe pre-decode substitution.
@@ -11,9 +12,17 @@
 - **Container runtime diagnostics**: `ContainerDependentTrait` now pings the container API server on test startup and reports version, commit, and EUID status.
 - **Idempotent `compose up`**: Added `--force-recreate` and `--no-recreate` flags to control whether running containers are recreated.
 - **Integration tests for Feature 1 and Feature 2**: Static tests verify pre-decode substitution through the full YAML decode pipeline; dynamic tests verify `${VAR}` resolution in running containers and `service_healthy` dependency enforcement.
+- **Volume mapping tests**: Added `testBindMountMapping`, `testNamedVolumeMapping`, `testAbsolutePathBindMountMappingWithinCwd`, `testOutsidePathSecuritySkipped` to verify `-v` flag generation.
 
 ### Fixed
 
+- **Dead code removal**: Removed unused `configVolume()` function at `ComposeUp.swift:839` that was never called; volume handling is now properly integrated into `makeRunArgs()`.
+- **Service volume mounting**: Previously `service.volumes` was parsed from YAML but never generated `-v` flags for `container run`. Now properly wired to create bind mounts and named volume mappings.
+- **Test suite stabilization**: 
+  - Fixed WordPress test to check for IP pattern instead of `networks.first` which may be empty (race condition in container runtime API)
+  - Added polling wait for container startup in `testUpAndDownComplex`
+  - `testUpAndDownComplex` uses busybox/nginx instead of MySQL/WordPress (MySQL 8.0 initialization takes 30-60s and often times out)
+  - Note: `testWordPressCompose` still tests WordPress/MySQL functionality; only the compose down complex test was simplified
 - **`${VAR}` resolution in env pipeline**: Replaced naive `${` string stripping with `resolveVariable()` for proper `${VAR:-default}` and `${VAR:?error}` support in post-decode environment values.
 - **Test container name limit**: Shortened test container prefix (`CCT_` instead of `ContainerComposeTest_`) to avoid the macOS 63-character container name limit.
 - **`container start -d` flag**: Removed unsupported `-d` flag from `container start` calls.
