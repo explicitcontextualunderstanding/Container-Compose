@@ -25,9 +25,18 @@ BINARY_PATH=".build/arm64-apple-macosx/release/Container-Compose"
 TARGET="$HOME/bin/container-compose"
 SYSTEM_SYMLINK="/usr/local/bin/container-compose"
 
+# Inject git commit hash into Application.swift
+APPLICATION_FILE="Sources/Container-Compose/Application.swift"
+GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+echo "Injecting git commit: $GIT_COMMIT"
+sed -i '' "s/BUILD_GIT_COMMIT/$GIT_COMMIT/" "$APPLICATION_FILE"
+
 # Build
 echo "Building container-compose..."
 swift build -c release
+
+# Restore placeholder so it's not accidentally committed
+sed -i '' "s/$GIT_COMMIT/BUILD_GIT_COMMIT/" "$APPLICATION_FILE"
 
 echo ""
 echo "Build complete!"
