@@ -166,7 +166,7 @@ struct EnvironmentVariableTests {
         let dotEnvVars: [String: String] = [:]
         let serviceEnv: [String: String] = [
             "REGISTRY": "${HERMES_REGISTRY:-192.168.1.86:30500}",
-            "IMAGE": "${REGISTRY}/hermes:latest",
+            "IMAGE": "${HERMES_REGISTRY:-192.168.1.86:30500}/hermes:latest",
         ]
 
         var combinedEnv = dotEnvVars
