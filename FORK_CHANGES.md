@@ -9,14 +9,6 @@ This document summarizes all changes in this fork (`explicitcontextualunderstand
 
 ## Index of Changed Files
 
-### New Files (Fork-Only)
-| File | Purpose |
-|------|---------|
-| `.github/workflows/release.yml` | Automated release workflow |
-| `CHANGELOG.md` | Version changelog |
-| `ADVERSARIAL_REVIEW_FIXES.md` | Comprehensive security audit and fix documentation |
-| `DYNAMIC_TEST_ANALYSIS.md` | Analysis of dynamic test failures |
-
 ### Known Runtime Limitations
 
 #### Service Name Length
@@ -30,26 +22,22 @@ There is a clinical 64-character limit for guest process labels in the macOS con
 - **Recommended Names:** `wp`, `db`, `web`.
 - **Avoid:** Long descriptive names like `wordpress-application-service` if the combined length exceeds ~63 characters.
 
+### New Files (Fork-Only)
 | File | Purpose |
 |------|---------|
+| `.github/workflows/release.yml` | Automated release workflow |
+| `CHANGELOG.md` | Version changelog |
+| `FORK_CHANGES.md` | This file — fork change tracking |
 | `VERIFICATION.md` | Verification procedures and testing guidelines |
 | `build-release.sh` | Release build script with conda/xattr cleanup |
-| `build-and-install.sh` | Combined build+install script with codesign |
 | `build-sign-install.sh` | Build, sign, install with auto git hash injection and `/usr/local/bin` symlink |
 | `install.sh` | Installation script with macOS provenance handling |
 | `run-tests.sh` | Test runner with conda environment cleanup |
+| `scripts/env-setup.sh` | Shared conda environment cleanup for build and test scripts |
 | `Sources/Container-Compose/Commands/CheckpointCommand.swift` | New checkpoint command using `container commit` |
-| `Sources/Container-Compose/Errors.swift` | Centralized error types and definitions |
 | `Tests/Container-Compose-StaticTests/CheckpointCommandTests.swift` | Unit tests for checkpoint command |
-| `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift` | Mapping tests for restart/init/entrypoint flags |
+| `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift` | Mapping tests for makeRunArgs flag generation, `-f` path resolution |
 | `Tests/Container-Compose-StaticTests/NetworkVolumeMappingTests.swift` | Network and volume synchronization tests |
-| `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift` | Tests for helper functions like deriveProjectName |
-| `Tests/Container-Compose-StaticTests/EnvironmentVariableTests.swift` | Environment variable parsing tests |
-| `Tests/Container-Compose-StaticTests/EnvFileLoadingTests.swift` | .env file loading tests |
-| `Tests/Container-Compose-StaticTests/NetworkConfigurationTests.swift` | Network configuration parsing tests |
-| `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift` | Service dependency graph tests |
-| `Tests/Container-Compose-StaticTests/HealthcheckConfigurationTests.swift` | Healthcheck configuration tests |
-| `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift` | Dynamic tests for compose down command |
 | `Tests/compose_static_checks.sh` | Static validation script for compose files |
 | `Tests/network_reachability.sh` | Network connectivity testing script |
 | `docs/checkpoint.md` | Documentation for checkpoint feature |
@@ -62,26 +50,29 @@ There is a clinical 64-character limit for guest process labels in the macOS con
 | `Sources/Container-Compose/Codable Structs/Build.swift` | Added `target` field for multi-stage builds |
 | `Sources/Container-Compose/Codable Structs/Network.swift` | Enhanced network synchronization |
 | `Sources/Container-Compose/Codable Structs/Service.swift` | Added `dns_search` array support, validation for restart/platform/runtime/volumes/ports |
-| `Sources/Container-Compose/Commands/CheckpointCommand.swift` | P0 fixes: error handling, pre-flight checks, exit code validation |
-| `Sources/Container-Compose/Commands/ComposeUp.swift` | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation, pre-decode `${VAR}` substitution, `--force-recreate`/`--no-recreate`, `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution |
-| `Sources/Container-Compose/Commands/ComposeDown.swift` | Added try/throw support for deriveProjectName |
+| `Sources/Container-Compose/Commands/ComposeUp.swift` | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation, pre-decode `${VAR}` substitution, `--force-recreate`/`--no-recreate`, `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution, `-f` flag with absolute/relative path handling |
+| `Sources/Container-Compose/Commands/ComposeDown.swift` | Added try/throw support for deriveProjectName, `-f` flag with absolute/relative path handling |
 | `Sources/Container-Compose/Commands/Version.swift` | Version display with git commit hash |
 | `Sources/Container-Compose/Errors.swift` | Added `invalidResourceConfig` error case |
 | `Sources/Container-Compose/Helper Functions.swift` | P0/P2 fixes: safe regex handling, VariableResolutionError, deriveProjectName sanitization, env_file error handling, `resolveYamlVariables()` with `$$` escaping |
 | `Tests/TestHelpers/DockerComposeYamlFiles.swift` | Configurable test ports via environment variables |
-| `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift` | Updated for WordPress FPM variant, port-agnostic assertions, Feature 1 & 2 integration tests |
 | `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift` | Updated for 3-container WordPress setup |
+| `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift` | Updated for WordPress FPM variant, port-agnostic assertions, Feature 1 & 2 integration tests |
 | `Tests/Container-Compose-StaticTests/BuildConfigurationTests.swift` | Added build target tests |
 | `Tests/Container-Compose-StaticTests/DockerComposeParsingTests.swift` | Replaced force unwraps with guard statements |
-| `Tests/Container-Compose-StaticTests/CheckpointCommandTests.swift` | Checkpoint command tests |
-| `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift` | Mapping tests for restart/init/entrypoint flags |
 | `Tests/Container-Compose-StaticTests/EnvFileLoadingTests.swift` | .env file loading tests |
 | `Tests/Container-Compose-StaticTests/EnvironmentVariableTests.swift` | Environment variable tests |
-| `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift` | deriveProjectName tests |
-| `Tests/Container-Compose-StaticTests/NetworkConfigurationTests.swift` | Network configuration tests |
-| `Tests/Container-Compose-StaticTests/NetworkVolumeMappingTests.swift` | Network and volume mapping tests |
-| `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift` | Service dependency tests |
 | `Tests/Container-Compose-StaticTests/HealthcheckConfigurationTests.swift` | Healthcheck configuration tests |
+| `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift` | deriveProjectName tests |
+| `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift` | Service dependency tests |
+
+### Deleted Files (existed in fork history, now removed)
+| File | Reason |
+|------|--------|
+| `ADVERSARIAL_REVIEW_FIXES.md` | Audit findings resolved, folded into codebase |
+| `DYNAMIC_TEST_ANALYSIS.md` | Analysis superseded by stabilized test suite |
+| `build-and-install.sh` | Consolidated into `build-sign-install.sh` |
+| `docs/FORK_README_UPDATE.md` | Merged into `FORK_CHANGES.md` |
 
 ---
 
@@ -259,7 +250,7 @@ The orchestrator script works around several features that container-compose alr
 
 | Feature | Container-Compose Support | Orchestrator Workaround (unnecessary) |
 |---------|--------------------------|--------------------------------------|
-| **`-f` flag** | `@Option` on `ComposeUp` and `ComposeDown`; accepts filename relative to cwd | Symlink desired file to `compose.yml` before each call |
+| **`-f` flag** | `-f` on `ComposeUp` and `ComposeDown`; accepts absolute or relative paths, skips CWD scanning when explicit | Symlink desired file to `compose.yml` before each call |
 | **`${VAR}` interpolation** | `resolveYamlVariables()` in `Helper Functions.swift` resolves `${VAR}`, `${VAR:-default}`, `${VAR:?error}` on raw YAML before decode (Docker Compose compatible with `$$` escaping) | Python pre-renders compose file with `os.environ` substitution |
 | **`depends_on` ordering** | `Service.topoSortConfiguredServices()` does topological sort at `ComposeUp.swift:147`; `waitForHealthy()` gates `service_healthy` dependencies | Manual sequential `container-compose up -d <service>` calls |
 | **Partial compose / volumes** | `setupVolume()` handles "already exists" gracefully; top-level volumes created idempotently per compose file regardless of service selection | Regex-based stripping of `volumes:` and single-service extraction |
