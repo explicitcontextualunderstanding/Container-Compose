@@ -2,8 +2,8 @@
 
 This document summarizes all changes in this fork (`explicitcontextualunderstanding/Container-Compose`) relative to the upstream repository (`Mcrich23/Container-Compose`).
 
-**Current Release:** v0.10.2
-**Last Updated:** 2026-03-25 (Stabilized)
+**Current Release:** v0.10.3
+**Last Updated:** 2026-03-26
 
 ---
 
@@ -35,6 +35,7 @@ There is a clinical 64-character limit for guest process labels in the macOS con
 | `VERIFICATION.md` | Verification procedures and testing guidelines |
 | `build-release.sh` | Release build script with conda/xattr cleanup |
 | `build-and-install.sh` | Combined build+install script with codesign |
+| `build-sign-install.sh` | Build, sign, install with auto git hash injection and `/usr/local/bin` symlink |
 | `install.sh` | Installation script with macOS provenance handling |
 | `run-tests.sh` | Test runner with conda environment cleanup |
 | `Sources/Container-Compose/Commands/CheckpointCommand.swift` | New checkpoint command using `container commit` |
@@ -62,13 +63,13 @@ There is a clinical 64-character limit for guest process labels in the macOS con
 | `Sources/Container-Compose/Codable Structs/Network.swift` | Enhanced network synchronization |
 | `Sources/Container-Compose/Codable Structs/Service.swift` | Added `dns_search` array support, validation for restart/platform/runtime/volumes/ports |
 | `Sources/Container-Compose/Commands/CheckpointCommand.swift` | P0 fixes: error handling, pre-flight checks, exit code validation |
-| `Sources/Container-Compose/Commands/ComposeUp.swift` | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation |
+| `Sources/Container-Compose/Commands/ComposeUp.swift` | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation, pre-decode `${VAR}` substitution, `--force-recreate`/`--no-recreate`, `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution |
 | `Sources/Container-Compose/Commands/ComposeDown.swift` | Added try/throw support for deriveProjectName |
 | `Sources/Container-Compose/Commands/Version.swift` | Version display with git commit hash |
 | `Sources/Container-Compose/Errors.swift` | Added `invalidResourceConfig` error case |
-| `Sources/Container-Compose/Helper Functions.swift` | P0/P2 fixes: safe regex handling, VariableResolutionError, deriveProjectName sanitization, env_file error handling |
+| `Sources/Container-Compose/Helper Functions.swift` | P0/P2 fixes: safe regex handling, VariableResolutionError, deriveProjectName sanitization, env_file error handling, `resolveYamlVariables()` with `$$` escaping |
 | `Tests/TestHelpers/DockerComposeYamlFiles.swift` | Configurable test ports via environment variables |
-| `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift` | Updated for WordPress FPM variant, port-agnostic assertions |
+| `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift` | Updated for WordPress FPM variant, port-agnostic assertions, Feature 1 & 2 integration tests |
 | `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift` | Updated for 3-container WordPress setup |
 | `Tests/Container-Compose-StaticTests/BuildConfigurationTests.swift` | Added build target tests |
 | `Tests/Container-Compose-StaticTests/DockerComposeParsingTests.swift` | Replaced force unwraps with guard statements |
@@ -135,6 +136,15 @@ There is a clinical 64-character limit for guest process labels in the macOS con
   - **Mapping Tests**: Added `ComposeUpMappingTests` for flag generation validation
   - **Network/Volume Sync**: Improved synchronization of network and volume definitions
 
+- **v0.10.3 Features & Fixes:**
+  - **Pre-decode `${VAR}` substitution**: `resolveYamlVariables()` resolves environment variables in raw YAML before decode, enabling `${VAR}` in `image:`, `volumes:`, `command:`, etc. Supports `${VAR:-default}` and `${VAR:?error}` with Docker Compose-compatible `$$` escaping for literal `$`.
+  - **`__SERVICE_HOST__` / `__SERVICE_PORT__` resolution**: Runtime container IPs and ports resolved for `__{NAME}_HOST__` and `__{NAME}_PORT__` patterns in env values with fuzzy matching.
+  - **Container runtime diagnostics**: Test trait reports API server version, commit, and EUID.
+  - **Idempotent compose up**: `--force-recreate` and `--no-recreate` flags.
+  - **Build tooling**: Auto git hash injection in `build-sign-install.sh`, `/usr/local/bin` symlink maintenance.
+  - **Test improvements**: Shortened container prefix, 128 static tests + 9 dynamic tests passing.
+  - **`${VAR}` pipeline fix**: Replaced naive `${` stripping with `resolveVariable()` for proper default/error syntax.
+
 - **v0.10.2 Fixes:**
   - **Healthcheck-aware depends_on**: Implemented `waitForHealthy()` in `ComposeUp.swift` that polls a dependency's healthcheck command via `container exec` before starting dependent services. Supports CMD, CMD-SHELL, and NONE formats with configurable interval/timeout/retries/start_period.
   - **Fixed `container exec` syntax**: Apple's `container exec` does not use `--` separator (unlike Docker). Updated exec arg construction to match Apple CLI format.
@@ -183,6 +193,9 @@ Based on analysis of `apple/container` v0.11.0 upcoming features and current for
 | Restart stopped containers | ✅ Complete | v0.10.1 |
 | Multi-stage build target | ✅ Complete | Fork-only |
 | `dns_search` support | ✅ Complete | Fork-only |
+| Pre-decode `${VAR}` substitution | ✅ Complete | v0.10.3 |
+| `service_healthy` dependency enforcement | ✅ Complete | v0.10.3 |
+| `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution | ✅ Complete | v0.10.3 |
 
 ### Upcoming Release v0.11.0 (Target: Q2 2026)
 
@@ -247,8 +260,8 @@ The orchestrator script works around several features that container-compose alr
 | Feature | Container-Compose Support | Orchestrator Workaround (unnecessary) |
 |---------|--------------------------|--------------------------------------|
 | **`-f` flag** | `@Option` on `ComposeUp` and `ComposeDown`; accepts filename relative to cwd | Symlink desired file to `compose.yml` before each call |
-| **`${VAR}` interpolation** | `resolveVariable()` in `Helper Functions.swift` handles `${VAR}`, `${VAR:-default}`, `${VAR:?error}` | Python pre-renders compose file with `os.environ` substitution |
-| **`depends_on` ordering** | `Service.topoSortConfiguredServices()` does topological sort at `ComposeUp.swift:147` | Manual sequential `container-compose up -d <service>` calls |
+| **`${VAR}` interpolation** | `resolveYamlVariables()` in `Helper Functions.swift` resolves `${VAR}`, `${VAR:-default}`, `${VAR:?error}` on raw YAML before decode (Docker Compose compatible with `$$` escaping) | Python pre-renders compose file with `os.environ` substitution |
+| **`depends_on` ordering** | `Service.topoSortConfiguredServices()` does topological sort at `ComposeUp.swift:147`; `waitForHealthy()` gates `service_healthy` dependencies | Manual sequential `container-compose up -d <service>` calls |
 | **Partial compose / volumes** | `setupVolume()` handles "already exists" gracefully; top-level volumes created idempotently per compose file regardless of service selection | Regex-based stripping of `volumes:` and single-service extraction |
 
 ### Compatibility & Migration

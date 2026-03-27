@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## v0.10.3 - Fork release (explicitcontextualunderstanding) - 2026-03-26
+
+### Added
+
+- **Pre-decode `${VAR}` substitution**: Environment variables (`${VAR}`, `${VAR:-default}`, `${VAR:?error}`) are now resolved in raw YAML before decode, matching Docker Compose behavior. This resolves `${VAR}` in `image:`, `volumes:`, `command:`, and all other compose fields — not just `environment:` values.
+- **`$$` escaping support**: Users can write `$$` in compose YAML to produce a literal `$` for shell interpreters (e.g., `command: ["sh", "-c", "echo $$HOME"]` → shell sees `$HOME`).
+- **`resolveYamlVariables()` function**: New helper in `Helper Functions.swift` that wraps `resolveVariable()` with `$$` sentinel escaping for safe pre-decode substitution.
+- **`__SERVICE_HOST__` / `__SERVICE_PORT__` placeholder resolution**: Runtime container IPs and ports are resolved for `__{SERVICE_NAME}_HOST__` and `__{SERVICE_NAME}_PORT__` patterns in environment variable values, with fuzzy matching (case-insensitive, strips hyphens/underscores).
+- **Container runtime diagnostics**: `ContainerDependentTrait` now pings the container API server on test startup and reports version, commit, and EUID status.
+- **Idempotent `compose up`**: Added `--force-recreate` and `--no-recreate` flags to control whether running containers are recreated.
+- **Integration tests for Feature 1 and Feature 2**: Static tests verify pre-decode substitution through the full YAML decode pipeline; dynamic tests verify `${VAR}` resolution in running containers and `service_healthy` dependency enforcement.
+
+### Fixed
+
+- **`${VAR}` resolution in env pipeline**: Replaced naive `${` string stripping with `resolveVariable()` for proper `${VAR:-default}` and `${VAR:?error}` support in post-decode environment values.
+- **Test container name limit**: Shortened test container prefix (`CCT_` instead of `ContainerComposeTest_`) to avoid the macOS 63-character container name limit.
+- **`container start -d` flag**: Removed unsupported `-d` flag from `container start` calls.
+- **Build tooling**: Updated `build-sign-install.sh` to maintain `/usr/local/bin` symlink and auto-inject git commit hash during build.
+
+### Changed
+
+- **`.env` loading order**: `.env` file is now loaded before YAML decode (moved up in pipeline) so environment variables are available for pre-decode substitution.
+- **Post-decode `resolveVariable()`**: Retained as idempotent safety net; no longer the primary resolution point.
+
 ## v0.10.2 - Fork release (explicitcontextualunderstanding) - 2026-03-24
 
 ### Fixed
