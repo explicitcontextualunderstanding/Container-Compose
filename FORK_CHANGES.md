@@ -2,7 +2,7 @@
 
 This document summarizes all changes in this fork (`explicitcontextualunderstanding/Container-Compose`) relative to the upstream repository (`Mcrich23/Container-Compose`).
 
-**Current Release:** v0.10.3
+**Current Release:** v0.10.2
 **Last Updated:** 2026-03-26
 
 ---
@@ -136,7 +136,7 @@ There is a clinical 64-character limit for guest process labels in the macOS con
   - **Mapping Tests**: Added `ComposeUpMappingTests` for flag generation validation
   - **Network/Volume Sync**: Improved synchronization of network and volume definitions
 
-- **v0.10.3 Features & Fixes:**
+- **Unreleased Features & Fixes:**
   - **Pre-decode `${VAR}` substitution**: `resolveYamlVariables()` resolves environment variables in raw YAML before decode, enabling `${VAR}` in `image:`, `volumes:`, `command:`, etc. Supports `${VAR:-default}` and `${VAR:?error}` with Docker Compose-compatible `$$` escaping for literal `$`.
   - **`__SERVICE_HOST__` / `__SERVICE_PORT__` resolution**: Runtime container IPs and ports resolved for `__{NAME}_HOST__` and `__{NAME}_PORT__` patterns in env values with fuzzy matching.
   - **Container runtime diagnostics**: Test trait reports API server version, commit, and EUID.
@@ -193,9 +193,9 @@ Based on analysis of `apple/container` v0.11.0 upcoming features and current for
 | Restart stopped containers | ✅ Complete | v0.10.1 |
 | Multi-stage build target | ✅ Complete | Fork-only |
 | `dns_search` support | ✅ Complete | Fork-only |
-| Pre-decode `${VAR}` substitution | ✅ Complete | v0.10.3 |
-| `service_healthy` dependency enforcement | ✅ Complete | v0.10.3 |
-| `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution | ✅ Complete | v0.10.3 |
+| Pre-decode `${VAR}` substitution | ✅ Complete | Unreleased |
+| `service_healthy` dependency enforcement | ✅ Complete | Unreleased |
+| `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution | ✅ Complete | Unreleased |
 
 ### Upcoming Release v0.11.0 (Target: Q2 2026)
 

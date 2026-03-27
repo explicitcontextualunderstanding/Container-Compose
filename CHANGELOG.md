@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.10.3 - Fork release (explicitcontextualunderstanding) - 2026-03-26
+## Unreleased (explicitcontextualunderstanding) - 2026-03-26
 
 ### Added
 
