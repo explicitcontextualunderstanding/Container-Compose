@@ -50,15 +50,34 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
     public static let configuration: CommandConfiguration = .init(
         commandName: "up",
-        abstract: "Start containers with compose (Keep PROJECT-SERVICE under 64 characters)",
+        abstract: "Start containers with compose",
         discussion: """
-            NOTE ON MACOS LIMITATIONS:
-            The macOS Virtualization.framework has a hard limit of 63 characters for container labels (names).
-            Container-Compose generates names in the format 'PROJECT-SERVICE' (or uses the explicit 'container_name').
-            If this combined name exceeds 63 characters, the container will fail to start with 'Invalid argument' (Code 22).
+        ENVIRONMENT VARIABLE SUBSTITUTION:
+        • ${VAR}, ${VAR:-default}, ${VAR:?error} are resolved in all YAML values
+        • Use $$ for literal $ (e.g., command: "echo $$HOME")
+        • Variables are resolved from .env file and host environment
 
-            Please keep your service names and project directory names short.
-            """
+        SERVICE DISCOVERY:
+        • __{SERVICE_NAME}_HOST__ resolves to container IP at runtime
+        • __{SERVICE_NAME}_PORT__ resolves to first exposed port
+        • Supports fuzzy matching (case-insensitive, strips hyphens/underscores)
+
+        DEPENDS_ON HEALTHCHECKS:
+        • condition: service_healthy waits for dependency healthchecks
+        • Supports test: ["CMD-SHELL", "command"] format
+        • Configurable interval, timeout, retries, start_period
+
+        VOLUME MAPPING:
+        • service.volumes generates -v flags automatically
+        • Named volumes: volume_name:/container/path
+        • Bind mounts: /host/path:/container/path or ./relative:/container/path
+
+        MACOS LIMITATIONS:
+        • Virtualization.framework has 63-character limit for container labels
+        • Container names are PROJECT-SERVICE (or explicit container_name)
+        • Exceeding limit causes 'Invalid argument' (Code 22)
+        • Keep service and project names short
+        """
     )
 
     @Argument(help: "Specify the services to start")
@@ -83,10 +102,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     @Flag(name: [.customShort("b"), .customLong("build")])
     var rebuild: Bool = false
 
-    @Flag(name: .long, help: "Stop and recreate all containers even if already running")
+    @Flag(name: .long, help: "Stop and recreate all containers, removing existing ones first. Use for clean startup after code changes.")
     var forceRecreate: Bool = false
 
-    @Flag(name: .long, help: "If containers already exist, don't recreate them")
+    @Flag(name: .long, help: "If containers already exist and are running, don't recreate them")
     var noRecreate: Bool = false
 
     @Flag(name: .long, help: "Do not use cache")

@@ -24,10 +24,29 @@ public struct Main: AsyncParsableCommand {
     public static var versionString: String {
         "\(commandName) version \(version) (git: \(gitCommit))"
     }
-  public static let configuration: CommandConfiguration = .init(
-    commandName: Self.commandName,
-    abstract: "A tool to manage Docker Compose files using Apple Container. v0.10.2 includes: env: shorthand key support (alias for environment:), command string parsing, volume idempotency, --env and --publish flag mapping. Also supports: --user, --hostname, --workdir, --privileged, --read-only, --network, -i, -t, checkpointing, network sync, volume management, dnsSearch, multi-stage builds.",
-    version: Self.versionString,
+    public static let configuration: CommandConfiguration = .init(
+        commandName: Self.commandName,
+        abstract: "A tool to manage Docker Compose files using Apple Container.",
+        discussion: """
+        VERSION 0.10.2 FEATURES:
+        • env: shorthand (alias for environment:) with ${VAR} interpolation
+        • Pre-decode ${VAR} / ${VAR:-default} / ${VAR:?error} substitution in all YAML values
+        • $$ escaping for literal $ in shell commands
+        • __SERVICE_HOST__ / __SERVICE_PORT__ runtime service discovery
+        • service_healthy condition for depends_on with automatic healthcheck polling
+        • Service-level volume mapping (-v flags for bind mounts and named volumes)
+        • Restart stopped containers on compose up
+        • --force-recreate and --no-recreate for idempotent orchestration
+        • -f flag for alternate compose file paths
+        • --user, --hostname, --workdir, --privileged, --read-only, --network, -i, -t
+        • dnsSearch support for custom DNS domains
+        • Multi-stage Docker build target support
+        • Checkpoint subcommand for container commit/export
+        • Network and volume synchronization
+
+        NOTE: Keep PROJECT-SERVICE names under 64 characters (macOS Virtualization.framework limit)
+        """,
+        version: Self.versionString,
         subcommands: [
             ComposeUp.self,
             ComposeDown.self,
