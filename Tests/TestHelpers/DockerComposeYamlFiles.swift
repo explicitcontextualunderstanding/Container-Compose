@@ -17,6 +17,50 @@
 import Foundation
 
 public struct DockerComposeYamlFiles {
+    /// Finds an available port on the local machine.
+    /// - Returns: An available port number
+    public static func getAvailablePort() -> UInt16 {
+        // Create a socket, bind to port 0 (let OS assign), get the port, then close
+        let socket = Darwin.socket(AF_INET, SOCK_STREAM, 0)
+        guard socket != -1 else {
+            // Fallback to a high port if socket creation fails
+            return UInt16.random(in: 18080...19000)
+        }
+        defer { Darwin.close(socket) }
+        
+        var addr = sockaddr_in()
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = 0  // Let OS assign
+        addr.sin_addr.s_addr = INADDR_ANY
+        
+        let bindResult = withUnsafePointer(to: &addr) { addrPtr in
+            addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
+                Darwin.bind(socket, sockPtr, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        
+        guard bindResult == 0 else {
+            return UInt16.random(in: 18080...19000)
+        }
+        
+        // Get the assigned port
+        var addrLen = socklen_t(MemoryLayout<sockaddr_in>.size)
+        var assignedAddr = sockaddr_in()
+        let result = withUnsafeMutablePointer(to: &assignedAddr) { addrPtr in
+            addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
+                Darwin.getsockname(socket, sockPtr, &addrLen)
+            }
+        }
+        
+        guard result == 0 else {
+            return UInt16.random(in: 18080...19000)
+        }
+        
+        let port = assignedAddr.sin_port
+        return port
+    }
+    
     public static let dockerComposeYaml1 = """
 version: '3.8'
 
