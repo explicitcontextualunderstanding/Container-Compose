@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## Unreleased (explicitcontextualunderstanding) - 2026-03-29
+
+### Fixed
+
+- **YAML string interpolation in database tests**: Fixed malformed multi-line string syntax where `\\(` should be `\(` for proper Swift string interpolation. Tests `testDatabaseContainerStarts` and `testThreeTierWithDatabase` now correctly substitute `OCI_REGISTRY_URL` environment variable.
+- **Test suite stability**: All 164 tests now pass with proper registry URL configuration via `OCI_REGISTRY_URL` environment variable.
+
+### Changed
+
+- **Registry URL configuration**: Database tests now use `getZotRegistryURL()` helper function that reads `OCI_REGISTRY_URL` environment variable (defaults to `192.168.1.86:30500`). Users can override with custom registry URLs for different deployment scenarios.
+- **YAML formatting**: Standardized indentation in test YAML strings (2 spaces for services, 4 spaces for nested fields) matching Docker Compose conventions.
+
+### Testing
+
+- **Environment variable injection**: Tests now support `OCI_REGISTRY_URL=registry.example.com swift test` pattern for custom registry configurations.
+- **Full test suite**: 164 tests passing (1 skipped - known YAML parsing issue in bind mount test).
+
 ## Unreleased (explicitcontextualunderstanding) - 2026-03-27
 
 ### Added

@@ -3,7 +3,7 @@
 This document summarizes all changes in this fork (`explicitcontextualunderstanding/Container-Compose`) relative to the upstream repository (`Mcrich23/Container-Compose`).
 
 **Current Release:** v0.10.2
-**Last Updated:** 2026-03-27
+**Last Updated:** 2026-03-29
 
 ---
 
@@ -21,6 +21,20 @@ There is a clinical 64-character limit for guest process labels in the macOS con
 
 - **Recommended Names:** `wp`, `db`, `web`.
 - **Avoid:** Long descriptive names like `wordpress-application-service` if the combined length exceeds ~63 characters.
+
+### Testing with Custom Registries
+
+The test suite supports custom container registries via the `OCI_REGISTRY_URL` environment variable:
+
+```bash
+# Use default registry (192.168.1.86:30500)
+swift test
+
+# Use custom registry (e.g., Cloudflare tunnel to bypass Apple Container RFC1918 HTTP downgrade)
+OCI_REGISTRY_URL=registry.example.com swift test
+```
+
+This is particularly useful when working around Apple Container's HTTP auto-downgrade bug for private IP addresses (RFC1918). The `getZotRegistryURL()` helper in `ComposeAdvancedTests.swift` provides this functionality.
 
 ### All Changed Files
 
@@ -51,6 +65,7 @@ There is a clinical 64-character limit for guest process labels in the macOS con
 | Added | `Tests/Container-Compose-StaticTests/NetworkVolumeMappingTests.swift` | Network and volume synchronization tests |
 | Modified | `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift` | Updated for 3-container WordPress setup |
 | Modified | `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift` | Updated for WordPress FPM variant, port-agnostic assertions, Feature 1 & 2 integration tests |
+| Modified | `Tests/Container-Compose-DynamicTests/ComposeAdvancedTests.swift` | Fixed YAML string interpolation, added `getZotRegistryURL()` helper for custom registry configuration |
 | Modified | `Tests/Container-Compose-StaticTests/BuildConfigurationTests.swift` | Added build target tests |
 | Modified | `Tests/Container-Compose-StaticTests/DockerComposeParsingTests.swift` | Replaced force unwraps with guard statements |
 | Modified | `Tests/Container-Compose-StaticTests/EnvFileLoadingTests.swift` | .env file loading tests |

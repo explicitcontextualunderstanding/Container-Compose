@@ -458,17 +458,16 @@ final class ComposeAdvancedTests {
  // Available in Zot registry, no volume mount needed for in-memory operation
  let yaml = """
  version: '3.8'
-
  services:
- db:
- image: \(registryURL)/pgvector/pgvector:pg15
- ports:
- - "\(testPort):5432"
- environment:
- POSTGRES_DB: testdb
- POSTGRES_USER: testuser
- POSTGRES_PASSWORD: testpass
- POSTGRES_HOST_AUTH_METHOD: trust
+   db:
+     image: \(registryURL)/pgvector/pgvector:pg15
+     ports:
+       - "\(testPort):5432"
+     environment:
+       POSTGRES_DB: testdb
+       POSTGRES_USER: testuser
+       POSTGRES_PASSWORD: testpass
+       POSTGRES_HOST_AUTH_METHOD: trust
  """
 
  let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
@@ -506,32 +505,29 @@ final class ComposeAdvancedTests {
  // Three-tier architecture: db -> app -> nginx
  let yaml = """
  version: '3.8'
-
  services:
- db:
- image: \(registryURL)/pgvector/pgvector:pg15
- environment:
- POSTGRES_DB: appdb
- POSTGRES_USER: appuser
- POSTGRES_PASSWORD: apppass
- POSTGRES_HOST_AUTH_METHOD: trust
-
- app:
- image: node:18-alpine
- working_dir: /
- command: ["sh", "-c", "while true; do sleep 30; done"]
- environment:
- NODE_ENV: production
- DATABASE_URL: postgres://appuser:apppass@db:5432/appdb
- depends_on:
- - db
-
- nginx:
- image: nginx:alpine
- ports:
- - "\(testPort):80"
- depends_on:
- - app
+   db:
+     image: \(registryURL)/pgvector/pgvector:pg15
+     environment:
+       POSTGRES_DB: appdb
+       POSTGRES_USER: appuser
+       POSTGRES_PASSWORD: apppass
+       POSTGRES_HOST_AUTH_METHOD: trust
+   app:
+     image: node:18-alpine
+     working_dir: /
+     command: ["sh", "-c", "while true; do sleep 30; done"]
+     environment:
+       NODE_ENV: production
+       DATABASE_URL: postgres://appuser:apppass@db:5432/appdb
+     depends_on:
+       - db
+   nginx:
+     image: nginx:alpine
+     ports:
+       - "\(testPort):80"
+     depends_on:
+       - app
  """
 
  let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
