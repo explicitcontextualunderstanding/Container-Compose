@@ -433,125 +433,143 @@ final class ComposeAdvancedTests {
         _ = try? await composeDown.run()
     }
     
- // MARK: - pgmicro Tests (In-Process PostgreSQL)
- // NOTE: pgmicro image (ghcr.io/glommer/pgmicro:latest) is not publicly available
- // These tests are disabled until the image is made public or a replacement is found
- 
- @Test("Test pgmicro container starts without volume mount issues", .disabled("pgmicro image not publicly available"))
-    func testPgmicroContainerStarts() async throws {
-        let testPort = DockerComposeYamlFiles.getAvailablePort()
-        
-        // pgmicro: PostgreSQL-compatible database that uses SQLite storage
-        // No volume mount needed - avoids Virtualization.framework permission issues
-        let yaml = """
-        version: '3.8'
-        
-        services:
-          db:
-            image: ghcr.io/glommer/pgmicro:latest
-            ports:
-              - "\(testPort):5432"
-            environment:
-              DATABASE: ":memory:"
-            command: ["--server", "0.0.0.0:5432"]
-        """
-        
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
-        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
-        
-        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        try await composeUp.run()
-        
-        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
-        let containers = try await TestHelpers.ContainerPollingHelpers.waitForContainers(
-            projectName: folderName,
-            expectedCount: 1,
-            timeout: 30
-        )
-        
-        guard let dbContainer = containers.first(where: { $0.configuration.id.hasSuffix("-db") }) else {
-            throw Errors.containerNotFound
-        }
-        
-        // Verify container is running (no volume mount permission issues)
-        #expect(dbContainer.status == .running, "pgmicro should start without volume mount issues")
-        #expect(dbContainer.configuration.image.reference.contains("pgmicro"))
-        
-        // Cleanup
-        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        _ = try? await composeDown.run()
-    }
-    
-    @Test("Test three-tier app with pgmicro database", .disabled("pgmicro image not publicly available"))
-    func testThreeTierWithPgmicro() async throws {
-        let testPort = DockerComposeYamlFiles.getAvailablePort()
-        
-        // Using pgmicro instead of postgres:14-alpine to avoid volume mount permissions
-        let yaml = """
-        version: '3.8'
-        
-        services:
-          db:
-            image: ghcr.io/glommer/pgmicro:latest
-            environment:
-              DATABASE: "app.db"
-            command: ["--server", "0.0.0.0:5432"]
-          
-          app:
-            image: node:18-alpine
-            working_dir: /
-            command: ["sh", "-c", "while true; do sleep 30; done"]
-            environment:
-              NODE_ENV: production
-              DATABASE_URL: postgres://db:5432/app
-            depends_on:
-              - db
-          
-          nginx:
-            image: nginx:alpine
-            ports:
-              - "\(testPort):80"
-            depends_on:
-              - app
-        """
-        
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
-        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
-        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
-        
-        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        try await composeUp.run()
-        
-        let containers = try await TestHelpers.ContainerPollingHelpers.waitForContainers(
-            projectName: folderName,
-            expectedCount: 3,
-            timeout: 30
-        )
-        
-        // Verify all containers started without volume mount issues
-        #expect(containers.count == 3)
-        
-        let dbContainer = containers.first { $0.configuration.id.hasSuffix("-db") }
-        let appContainer = containers.first { $0.configuration.id.hasSuffix("-app") }
-        let nginxContainer = containers.first { $0.configuration.id.hasSuffix("-nginx") }
-        
-        #expect(dbContainer?.status == .running, "pgmicro database should be running")
-        #expect(appContainer?.status == .running, "app should be running")
-        #expect(nginxContainer?.status == .running, "nginx should be running")
-        
-        // Verify app environment
-        if let app = appContainer {
-            let env = parseEnvToDict(app.configuration.initProcess.environment)
-            #expect(env["NODE_ENV"] == "production")
-            #expect(env["DATABASE_URL"]?.contains("postgres://") == true)
-        }
-        
-        // Cleanup
-        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        _ = try? await composeDown.run()
-    }
+ // MARK: - Database Container Tests
+ // Registry URL is configured via OCI_REGISTRY_URL environment variable
+ // Default: 192.168.1.86:30500 (direct IP for local development)
+ // For tunnel access: Set OCI_REGISTRY_URL=registry.example.com
+ //
+ // Currently using pgvector/pgvector:pg15 (available in Zot)
+ // TODO: Switch to pgmicro once built (Plan 55)
+
+ private func getZotRegistryURL() -> String {
+ if let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] {
+ return registryURL
+ }
+ // Default to direct IP access
+ return "192.168.1.86:30500"
+ }
+
+ @Test("Test database container starts without volume mount issues")
+ func testDatabaseContainerStarts() async throws {
+ let testPort = DockerComposeYamlFiles.getAvailablePort()
+ let registryURL = getZotRegistryURL()
+
+ // Using pgvector/pgvector (PostgreSQL with pgvector extension)
+ // Available in Zot registry, no volume mount needed for in-memory operation
+ let yaml = """
+ version: '3.8'
+
+ services:
+ db:
+ image: \(registryURL)/pgvector/pgvector:pg15
+ ports:
+ - "\(testPort):5432"
+ environment:
+ POSTGRES_DB: testdb
+ POSTGRES_USER: testuser
+ POSTGRES_PASSWORD: testpass
+ POSTGRES_HOST_AUTH_METHOD: trust
+ """
+
+ let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+ try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+ try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+
+ var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+ try await composeUp.run()
+
+ let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+ let containers = try await TestHelpers.ContainerPollingHelpers.waitForContainers(
+ projectName: folderName,
+ expectedCount: 1,
+ timeout: 30
+ )
+
+ guard let dbContainer = containers.first(where: { $0.configuration.id.hasSuffix("-db") }) else {
+ throw Errors.containerNotFound
+ }
+
+ // Verify container is running
+ #expect(dbContainer.status == .running, "Database should start successfully")
+ #expect(dbContainer.configuration.image.reference.contains("pgvector"))
+
+ // Cleanup
+ var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+ _ = try? await composeDown.run()
+ }
+
+ @Test("Test three-tier app with database")
+ func testThreeTierWithDatabase() async throws {
+ let testPort = DockerComposeYamlFiles.getAvailablePort()
+ let registryURL = getZotRegistryURL()
+
+ // Three-tier architecture: db -> app -> nginx
+ let yaml = """
+ version: '3.8'
+
+ services:
+ db:
+ image: \(registryURL)/pgvector/pgvector:pg15
+ environment:
+ POSTGRES_DB: appdb
+ POSTGRES_USER: appuser
+ POSTGRES_PASSWORD: apppass
+ POSTGRES_HOST_AUTH_METHOD: trust
+
+ app:
+ image: node:18-alpine
+ working_dir: /
+ command: ["sh", "-c", "while true; do sleep 30; done"]
+ environment:
+ NODE_ENV: production
+ DATABASE_URL: postgres://appuser:apppass@db:5432/appdb
+ depends_on:
+ - db
+
+ nginx:
+ image: nginx:alpine
+ ports:
+ - "\(testPort):80"
+ depends_on:
+ - app
+ """
+
+ let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+ try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+ try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+ let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+
+ var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+ try await composeUp.run()
+
+ let containers = try await TestHelpers.ContainerPollingHelpers.waitForContainers(
+ projectName: folderName,
+ expectedCount: 3,
+ timeout: 30
+ )
+
+ // Verify all containers started without volume mount issues
+ #expect(containers.count == 3)
+
+ let dbContainer = containers.first { $0.configuration.id.hasSuffix("-db") }
+ let appContainer = containers.first { $0.configuration.id.hasSuffix("-app") }
+ let nginxContainer = containers.first { $0.configuration.id.hasSuffix("-nginx") }
+
+ #expect(dbContainer?.status == .running, "pgmicro database should be running")
+ #expect(appContainer?.status == .running, "app should be running")
+ #expect(nginxContainer?.status == .running, "nginx should be running")
+
+ // Verify app environment
+ if let app = appContainer {
+ let env = parseEnvToDict(app.configuration.initProcess.environment)
+ #expect(env["NODE_ENV"] == "production")
+ #expect(env["DATABASE_URL"]?.contains("postgres://") == true)
+ }
+
+ // Cleanup
+ var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+ _ = try? await composeDown.run()
+ }
     
     // MARK: - WAL-G Backup Integration Tests (Plan 52)
     
