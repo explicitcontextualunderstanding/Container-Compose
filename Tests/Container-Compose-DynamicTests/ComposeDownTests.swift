@@ -127,9 +127,9 @@ struct ComposeDownTests {
 
     @Test("What goes up must come down - container_name")
     func testUpAndDownContainerName() async throws {
-        // Create a new temporary UUID to use as a container name, otherwise we might conflict with
-        // existing containers on the system
-        let containerName = UUID().uuidString
+ // Create a new temporary UUID to use as a container name, otherwise we might conflict with
+ // existing containers on the system
+ let containerName = "CCT_\(UUID().uuidString)"
 
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
