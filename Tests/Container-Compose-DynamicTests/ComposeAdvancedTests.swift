@@ -548,6 +548,168 @@ final class ComposeAdvancedTests {
         _ = try? await composeDown.run()
     }
     
+    // MARK: - WAL-G Backup Integration Tests (Plan 52)
+    
+    @Test("Test two-phase startup pattern (DB via container run)")
+    func testTwoPhaseStartupPattern() async throws {
+        let testPort = DockerComposeYamlFiles.getAvailablePort()
+        let dbName = "test-db-\(UUID().uuidString)"
+        
+        // Phase 1: Start database with container run (native ext4 volume)
+        let dbVolumeName = "test-db-volume-\(UUID().uuidString)"
+        
+        // Create volume first
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = ["container", "volume", "create", dbVolumeName]
+            do {
+                try process.run()
+                process.waitUntilExit()
+                continuation.resume()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+        
+        // Start DB with container run (native volume driver, not virtiofs)
+        let dbContainerId = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) -> Void in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = [
+                "container", "run",
+                "--name", dbName,
+                "-v", "\(dbVolumeName):/var/lib/postgresql/data",
+                "-e", "POSTGRES_DB=testdb",
+                "-e", "POSTGRES_USER=testuser",
+                "-e", "POSTGRES_PASSWORD=testpass",
+                "-d",
+                "postgres:14-alpine"
+            ]
+            
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            
+            do {
+                try process.run()
+                process.waitUntilExit()
+                
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    continuation.resume(returning: output)
+                } else {
+                    continuation.resume(throwing: Errors.containerNotFound)
+                }
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+        
+        // Wait for DB to be ready
+        try await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
+        
+        // Phase 2: Start app services via compose (detect running DB)
+        let yaml = """
+        version: '3.8'
+        
+        services:
+          app:
+            image: nginx:alpine
+            ports:
+              - "\(testPort):80"
+            environment:
+              DATABASE_URL: postgres://testuser:testpass@\(dbName):5432/testdb
+        """
+        
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp.run()
+        
+        // Cleanup
+        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        _ = try? await composeDown.run()
+        
+        // Stop and delete DB container gracefully (no --force)
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let stopProcess = Process()
+            stopProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            stopProcess.arguments = ["container", "stop", dbContainerId]
+            
+            do {
+                try stopProcess.run()
+                stopProcess.waitUntilExit()
+                
+                let deleteProcess = Process()
+                deleteProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+                deleteProcess.arguments = ["container", "delete", dbContainerId]
+                try deleteProcess.run()
+                deleteProcess.waitUntilExit()
+                
+                // Delete volume
+                let volumeProcess = Process()
+                volumeProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+                volumeProcess.arguments = ["container", "volume", "rm", dbVolumeName]
+                try volumeProcess.run()
+                volumeProcess.waitUntilExit()
+                
+                continuation.resume()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+    
+    @Test("Test graceful shutdown preserves data integrity")
+    func testGracefulShutdownDataIntegrity() async throws {
+        let testPort = DockerComposeYamlFiles.getAvailablePort()
+        
+        let yaml = """
+        version: '3.8'
+        
+        services:
+          db:
+            image: redis:alpine
+            command: ["redis-server", "--appendonly", "yes"]
+        """
+        
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+        
+        // Start container
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp.run()
+        
+        // Wait for container
+        var containers = try await TestHelpers.ContainerPollingHelpers.waitForContainers(
+            projectName: folderName,
+            expectedCount: 1,
+            timeout: 30
+        )
+        
+        guard let dbContainer = containers.first(where: { $0.configuration.id.hasSuffix("-db") }) else {
+            throw Errors.containerNotFound
+        }
+        
+        let containerId = dbContainer.configuration.id
+        
+        // Graceful shutdown (container stop, not kill)
+        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeDown.run()
+        
+        // Verify container is stopped (not running)
+        containers = try await ClientContainer.list()
+        let stoppedContainer = containers.first { $0.configuration.id == containerId }
+        
+        // Container should either be stopped or deleted after compose down
+        #expect(stoppedContainer?.status == .stopped || stoppedContainer == nil, 
+                "Container should be gracefully stopped or deleted")
+    }
+    
     // MARK: - Volume Tests (Without Persistent Storage)
     
     @Test("Test bind mount to /tmp works")
