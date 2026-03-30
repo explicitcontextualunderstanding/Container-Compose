@@ -24,6 +24,26 @@ The original Argo workflow built the wrong package:
 - ✅ All 164 Container-Compose tests pass
 - ✅ No PostgreSQL environment variables required (`POSTGRES_DB`, `POSTGRES_USER`, etc.)
 
+## ⚠️ Cannot Replace Honcho Database
+
+**Honcho requires pgvector extension** — pgmicro is NOT a suitable replacement.
+
+### Reason
+- Honcho has **6,123 existing embeddings** (430 documents + 5,693 messages)
+- Uses **pgvector extension** for semantic search over 1536-dimensional vectors
+- pgmicro does **NOT support pgvector extension**
+- Embeddings are core to Honcho's memory retrieval system
+
+### Honcho Database Requirements
+| Requirement | pgmicro | Honcho Needs |
+|-------------|---------|--------------|
+| pgvector extension | ❌ Not supported | ✅ Required |
+| Vector similarity search | ❌ No | ✅ Yes (semantic search) |
+| Existing embeddings | ❌ Cannot migrate | ✅ 6,123 vectors |
+| WAL-G backup integration | ❌ Not tested | ✅ Required (Plan 52) |
+
+**Honcho must continue using** `walg-db:latest` (PostgreSQL 15 + pgvector + WAL-G).
+
 ## Usage in Container-Compose
 
 ### Docker Compose Syntax
@@ -208,8 +228,26 @@ OCI_REGISTRY_URL=192.168.1.86:30500 swift test
 | Views | ✅ Full |
 | Triggers | ⚠️ Partial |
 | Stored Procedures | ❌ Not supported |
-| pgvector extension | ❌ Not supported |
+| **pgvector extension** | ❌ **Not supported** |
+| **Vector similarity search** | ❌ **Not supported** |
 | PostGIS | ❌ Not supported |
+
+## Suitable Use Cases
+
+### ✅ Recommended for:
+- Container-Compose testing (current use)
+- CI/CD pipelines without vector requirements
+- Lightweight PostgreSQL protocol testing
+- Edge deployments without semantic search
+- Short-lived containers with in-memory databases
+- Test environments where pgvector is not needed
+
+### ❌ NOT Suitable for:
+- **Honcho memory hub** (requires pgvector for embeddings)
+- Applications using semantic search
+- Vector embeddings storage and retrieval
+- Similarity matching workloads
+- Any workload requiring PostgreSQL extensions
 
 ## Troubleshooting
 
