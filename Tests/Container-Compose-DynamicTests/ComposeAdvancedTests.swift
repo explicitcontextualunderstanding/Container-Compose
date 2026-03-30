@@ -454,13 +454,14 @@ final class ComposeAdvancedTests {
  let testPort = DockerComposeYamlFiles.getAvailablePort()
  let registryURL = getZotRegistryURL()
 
- // Using pgvector/pgvector (PostgreSQL with pgvector extension)
- // Available in Zot registry, no volume mount needed for in-memory operation
+ // Using pgmicro (PostgreSQL-compatible database with wire protocol server)
+ // Built locally, available in Zot registry
  let yaml = """
  version: '3.8'
  services:
    db:
-     image: \(registryURL)/pgvector/pgvector:pg15
+     image: \(registryURL)/pgmicro:latest
+     command: ["--server", "0.0.0.0:5432", ":memory:"]
      ports:
        - "\(testPort):5432"
      environment:
@@ -490,7 +491,7 @@ final class ComposeAdvancedTests {
 
  // Verify container is running
  #expect(dbContainer.status == .running, "Database should start successfully")
- #expect(dbContainer.configuration.image.reference.contains("pgvector"))
+ #expect(dbContainer.configuration.image.reference.contains("pgmicro"), "Should use pgmicro image")
 
  // Cleanup
  var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
@@ -502,12 +503,13 @@ final class ComposeAdvancedTests {
  let testPort = DockerComposeYamlFiles.getAvailablePort()
  let registryURL = getZotRegistryURL()
 
- // Three-tier architecture: db (pgvector) -> app -> nginx
+ // Three-tier architecture: db (pgmicro) -> app -> nginx
  let yaml = """
  version: '3.8'
  services:
    db:
-     image: \(registryURL)/pgvector/pgvector:pg15
+     image: \(registryURL)/pgmicro:latest
+     command: ["--server", "0.0.0.0:5432", ":memory:"]
      environment:
        POSTGRES_DB: appdb
        POSTGRES_USER: appuser
