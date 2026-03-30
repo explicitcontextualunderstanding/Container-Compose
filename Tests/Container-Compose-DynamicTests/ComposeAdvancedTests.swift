@@ -502,7 +502,7 @@ final class ComposeAdvancedTests {
  let testPort = DockerComposeYamlFiles.getAvailablePort()
  let registryURL = getZotRegistryURL()
 
- // Three-tier architecture: db -> app -> nginx
+ // Three-tier architecture: db (pgvector) -> app -> nginx
  let yaml = """
  version: '3.8'
  services:
