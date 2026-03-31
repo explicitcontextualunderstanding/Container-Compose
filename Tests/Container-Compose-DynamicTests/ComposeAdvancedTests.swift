@@ -10,6 +10,27 @@ final class ComposeAdvancedTests {
     
     enum Errors: Error {
         case containerNotFound
+        case registryNotConfigured(String)
+    }
+    
+    /// Validates that OCI_REGISTRY_URL is set and accessible.
+    /// Returns the registry URL if valid, throws otherwise.
+    private func requireRegistryURL() throws -> String {
+        guard let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] else {
+            throw Errors.registryNotConfigured("""
+                OCI_REGISTRY_URL environment variable is not set.
+                
+                Database tests require an OCI container registry accessible via HTTPS.
+                Apple Container does not support HTTP for RFC1918 private IPs.
+                
+                Options:
+                1. Set OCI_REGISTRY_URL to your registry (e.g., registry.example.com orregistry.example.com)
+                2. Use a public registry like docker.io
+                
+                Example: OCI_REGISTRY_URL=registry.example.com swift test
+                """)
+        }
+        return registryURL
     }
     
     private func parseEnvToDict(_ envArray: [String]) -> [String: String] {
@@ -433,29 +454,17 @@ final class ComposeAdvancedTests {
         _ = try? await composeDown.run()
     }
     
- // MARK: - Database Container Tests
- // Registry URL is configured via OCI_REGISTRY_URL environment variable
- // Default: 192.168.1.86:30500 (direct IP for local development)
- // For tunnel access: Set OCI_REGISTRY_URL=registry.example.com
- //
- // Currently using pgvector/pgvector:pg15 (available in Zot)
- // TODO: Switch to pgmicro once built (Plan 55)
-
- private func getZotRegistryURL() -> String {
- if let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] {
- return registryURL
- }
- // Default to direct IP access
- return "192.168.1.86:30500"
- }
+// MARK: - Database Container Tests
+ // Requires OCI_REGISTRY_URL environment variable (Apple Container doesn't support HTTP for RFC1918 IPs)
+ // Example: OCI_REGISTRY_URL=registry.example.com swift test
 
  @Test("Test database container starts without volume mount issues")
  func testDatabaseContainerStarts() async throws {
  let testPort = DockerComposeYamlFiles.getAvailablePort()
- let registryURL = getZotRegistryURL()
+ let registryURL = try requireRegistryURL()
 
  // Using pgmicro (PostgreSQL-compatible database with wire protocol server)
- // Built locally, available in Zot registry
+ // Image must be available in OCI_REGISTRY_URL
  let yaml = """
  version: '3.8'
  services:
@@ -480,9 +489,9 @@ final class ComposeAdvancedTests {
 
  let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
  let containers = try await TestHelpers.ContainerPollingHelpers.waitForContainers(
- projectName: folderName,
- expectedCount: 1,
- timeout: 30
+     projectName: folderName,
+     expectedCount: 1,
+     timeout: 30
  )
 
  guard let dbContainer = containers.first(where: { $0.configuration.id.hasSuffix("-db") }) else {
@@ -498,10 +507,10 @@ final class ComposeAdvancedTests {
  _ = try? await composeDown.run()
  }
 
- @Test("Test three-tier app with database")
+@Test("Test three-tier app with database")
  func testThreeTierWithDatabase() async throws {
  let testPort = DockerComposeYamlFiles.getAvailablePort()
- let registryURL = getZotRegistryURL()
+ let registryURL = try requireRegistryURL()
 
  // Three-tier architecture: db (pgmicro) -> app -> nginx
  let yaml = """
@@ -541,8 +550,8 @@ final class ComposeAdvancedTests {
  try await composeUp.run()
 
  let containers = try await TestHelpers.ContainerPollingHelpers.waitForContainers(
- projectName: folderName,
- expectedCount: 3,
+     projectName: folderName,
+     expectedCount: 3,
  timeout: 30
  )
 

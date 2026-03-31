@@ -27,14 +27,11 @@ There is a clinical 64-character limit for guest process labels in the macOS con
 The test suite supports custom container registries via the `OCI_REGISTRY_URL` environment variable:
 
 ```bash
-# Use default registry (192.168.1.86:30500)
-swift test
-
 # Use custom registry (e.g., Cloudflare tunnel to bypass Apple Container RFC1918 HTTP downgrade)
 OCI_REGISTRY_URL=registry.example.com swift test
 ```
 
-This is particularly useful when working around Apple Container's HTTP auto-downgrade bug for private IP addresses (RFC1918). The `getZotRegistryURL()` helper in `ComposeAdvancedTests.swift` provides this functionality.
+This is particularly useful when working around Apple Container's HTTP auto-downgrade bug for private IP addresses (RFC1918). Database tests require `OCI_REGISTRY_URL` to be set because Apple Container does not support HTTP for private IPs.
 
 ### All Changed Files
 

@@ -7,6 +7,11 @@
 - **Container dependency health check for missing containers**: `waitForHealthy()` now fails fast with `ContainerNotFoundError` when a dependency container doesn't exist, instead of hanging indefinitely. Provides clear error message explaining the issue and suggesting either removing `depends_on: condition: service_healthy` or ensuring the container exists with the expected name.
 - **Documentation**: Clarified that `service_healthy` dependencies should only be used for containers managed by compose. For externally managed dependencies, use short-form `depends_on: [service_name]` instead.
 
+### Changed
+
+- **Registry environment variable**: Database tests now require `OCI_REGISTRY_URL` environment variable (was `OCI_REGISTRY_URL`). Tests fail fast with clear instructions if not set. Apple Container does not support HTTP for RFC1918 private IPs, so an HTTPS-accessible registry is required for container image tests.
+- **Test documentation**: Added `docs/DYNAMIC_TEST_PATTERNS.md` documenting container orchestration challenges discovered through dynamic testing.
+
 ## Unreleased (explicitcontextualunderstanding) - 2026-03-29
 
 ### Fixed
