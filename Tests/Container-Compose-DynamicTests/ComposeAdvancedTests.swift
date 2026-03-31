@@ -491,7 +491,7 @@ final class ComposeAdvancedTests {
 // MARK: - Database Container Tests
  // Requires OCI_REGISTRY_URL environment variable (Apple Container doesn't support HTTP for RFC1918 IPs)
  // Example: OCI_REGISTRY_URL=ghcr.io swift test
-
+ 
  @Test("Test database container starts without volume mount issues")
  func testDatabaseContainerStarts() async throws {
  let registryURL = try requireRegistryURL()
@@ -820,12 +820,164 @@ final class ComposeAdvancedTests {
  throw Errors.containerNotFound
  }
 
- // Note: /tmp bind mounts may be skipped due to security restrictions
- // The container should still start successfully
- #expect(appContainer.status == .running, "Container should be running even if mount was skipped")
+  // Note: /tmp bind mounts may be skipped due to security restrictions
+  // The container should still start successfully
+  #expect(appContainer.status == .running, "Container should be running even if mount was skipped")
 
- // Cleanup
- var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
- _ = try? await composeDown.run()
- }
+  // Cleanup
+  var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+  _ = try? await composeDown.run()
+  }
+
+    // MARK: - Externally Managed Container Tests (v0.10.3 fail-fast)
+
+    @Test("Test fail-fast when service_healthy dependency container doesn't exist")
+    func testServiceHealthyFailFastMissingContainer() async throws {
+        // This tests the v0.10.3 fix: waitForHealthy() should fail fast with ContainerNotFoundError
+        // instead of hanging indefinitely when a dependency container doesn't exist.
+        //
+        // Scenario: A compose file references a container with condition: service_healthy,
+        // but that container was started outside compose and doesn't exist.
+        let yaml = """
+        services:
+          app:
+            image: busybox:latest
+            depends_on:
+              external-db:
+                condition: service_healthy
+            command: ["sh", "-c", "echo 'app started' && sleep 3600"]
+        """
+
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+
+        // This should throw quickly (not hang) - either ContainerNotFoundError or a service resolution error
+        do {
+            try await composeUp.run()
+            // If we get here, the test failed - should have thrown
+            Issue.record("Expected error for missing dependency container")
+        } catch {
+            // Should be an error about the missing container/service
+            let errorDesc = "\(error)"
+            #expect(
+                errorDesc.contains("not found") || errorDesc.contains("ContainerNotFound") || errorDesc.contains("external-db"),
+                "Expected error about missing dependency, got: \(errorDesc)"
+            )
+        }
+
+        // Cleanup (in case any containers were created)
+        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        _ = try? await composeDown.run()
+    }
+
+    @Test("Test short-form depends_on with externally managed container")
+    func testShortFormWithExternalContainer() async throws {
+        // This tests the recommended pattern for externally managed dependencies:
+        // Start a container via raw 'container run', then reference it with short-form depends_on.
+        // Short-form does NOT trigger waitForHealthy(), so it won't hang on external containers.
+        //
+        // Note: Compose requires the service to be defined in YAML even for external containers.
+        // We define a stub service that matches the external container name.
+        let externalDbName = "CCT_external_db_\(UUID().uuidString)"
+
+        // Phase 1: Start database container outside compose
+        let dbContainerId = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) -> Void in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = [
+                "container", "run",
+                "--name", externalDbName,
+                "-d",
+                "busybox:latest",
+                "sh", "-c", "sleep 3600"
+            ]
+
+            let pipe = Pipe()
+            process.standardOutput = pipe
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    continuation.resume(returning: output)
+                } else {
+                    continuation.resume(throwing: ComposeAdvancedTests.Errors.containerNotFound)
+                }
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+
+        // Wait for container to be running
+        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+
+        // Phase 2: Start app via compose with short-form depends_on
+        // Note: external-db service is defined as a stub - compose detects the running container by name
+        let testPort = DockerComposeYamlFiles.getAvailablePort()
+        let yaml = """
+        services:
+          external-db:
+            image: busybox:latest
+            command: ["sh", "-c", "sleep 3600"]
+          app:
+            image: busybox:latest
+            depends_on:
+              - external-db
+            ports:
+              - "\(testPort):80"
+            command: ["sh", "-c", "echo 'app started after external-db' && sleep 3600"]
+        """
+
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp.run()
+
+        // Verify app container was created
+        let containers = try await TestHelpers.ContainerPollingHelpers.waitForContainers(
+            projectName: folderName,
+            expectedCount: 2,
+            timeout: 30
+        )
+
+        guard let appContainer = containers.first(where: { $0.configuration.id.hasSuffix("-app") }) else {
+            throw ComposeAdvancedTests.Errors.containerNotFound
+        }
+
+        #expect(appContainer.status == .running, "App container should be running")
+
+        // Cleanup
+        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        _ = try? await composeDown.run()
+
+        // Stop and delete external container gracefully
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let stopProcess = Process()
+            stopProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            stopProcess.arguments = ["container", "stop", dbContainerId]
+
+            do {
+                try stopProcess.run()
+                stopProcess.waitUntilExit()
+
+                let deleteProcess = Process()
+                deleteProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+                deleteProcess.arguments = ["container", "delete", dbContainerId]
+                try deleteProcess.run()
+                deleteProcess.waitUntilExit()
+
+                continuation.resume()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
 }

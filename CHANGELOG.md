@@ -12,6 +12,10 @@
 - **Registry environment variable**: Database tests now require `OCI_REGISTRY_URL` environment variable (was `OCI_REGISTRY_URL`). Tests fail fast with clear instructions if not set. Apple Container does not support HTTP for RFC1918 private IPs, so an HTTPS-accessible registry is required for container image tests.
 - **Test documentation**: Added `docs/DYNAMIC_TEST_PATTERNS.md` documenting container orchestration challenges discovered through dynamic testing.
 
+### Documentation
+
+- **Registry access via Cloudflare tunnel**: Documented workaround for Apple Container's inability to pull from IP-address registries. Private Zot registry now accessible via Cloudflare tunnel with IP-based bypass authentication. See `managing-container-registry` skill for Cloudflare Access configuration details.
+
 ## Unreleased (explicitcontextualunderstanding) - 2026-03-29
 
 ### Fixed

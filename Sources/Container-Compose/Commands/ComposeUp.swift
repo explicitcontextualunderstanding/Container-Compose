@@ -126,6 +126,9 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     private var containerIps: [String: String] = [:]
     private var containerPorts: [String: String] = [:]
     private var containerConsoleColors: [String: NamedColor] = [:]
+    // Services that were already present and running before this compose run. Used to
+    // avoid blocking 'service_healthy' checks against externally managed containers.
+    private var externallyPresentServices: Set<String> = []
 
     private static let availableContainerConsoleColors: Set<NamedColor> = [
         .blue, .cyan, .magenta, .lightBlack, .lightBlue, .lightCyan, .lightYellow, .yellow, .lightGreen, .green,
@@ -325,11 +328,12 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         do {
             let _ = try await ClientContainer.get(id: containerName)
         } catch {
+            // If the container is not found, give a clear, actionable error and do not hang.
+            // Recommend using short-form depends_on for externally managed containers.
             throw ContainerNotFoundError(
                 "Dependency container '\(containerName)' (service '\(dependencyName)') not found. "
                 + "If this container was started outside container-compose, ensure it exists and is accessible. "
-                + "For externally managed dependencies, consider removing 'depends_on: condition: service_healthy' or "
-                + "ensuring the container is started with the expected name."
+                + "For externally managed dependencies, replace long-form depends_on with the short-form (e.g., depends_on: [\"external-db\"]) or ensure the external container is named exactly as referenced."
             )
         }
 

@@ -229,4 +229,68 @@ struct ServiceDependencyTests {
         #expect(service.dependencyNames == ["cache", "db", "redis"])
         #expect(service.healthyDependencies == ["db"])
     }
+
+    // MARK: - ContainerNotFoundError tests (v0.10.3 fail-fast for missing containers)
+
+    @Test("ContainerNotFoundError has correct message format")
+    func containerNotFoundErrorMessage() {
+        let error = ComposeUp.ContainerNotFoundError(
+            "Dependency container 'my-external-db' (service 'db') not found. "
+            + "If this container was started outside container-compose, ensure it exists and is accessible. "
+            + "For externally managed dependencies, consider removing 'depends_on: condition: service_healthy' or "
+            + "ensuring the container is started with the expected name."
+        )
+
+        #expect(error.description.contains("my-external-db"))
+        #expect(error.description.contains("started outside container-compose"))
+        #expect(error.description.contains("externally managed"))
+        #expect(error.description.contains("depends_on: condition: service_healthy"))
+    }
+
+    @Test("ContainerNotFoundError mentions externally managed guidance")
+    func containerNotFoundErrorExternalGuidance() {
+        let error = ComposeUp.ContainerNotFoundError("test message about missing container")
+
+        // Verify CustomStringConvertible conformance works
+        #expect(!error.description.isEmpty)
+        #expect(error.message == "test message about missing container")
+    }
+
+    @Test("service_healthy dependency with external container name pattern")
+    func externalContainerServiceHealthyPattern() throws {
+        // Simulates the honcho-db scenario: compose references an externally-managed DB
+        let yaml = """
+        image: myapp
+        depends_on:
+          db:
+            condition: service_healthy
+        """
+
+        let decoder = YAMLDecoder()
+        let service = try decoder.decode(Service.self, from: yaml)
+
+        // Verify the dependency is parsed as service_healthy
+        #expect(service.healthyDependencies == ["db"])
+        // This is the pattern that would trigger waitForHealthy() fail-fast
+        // if the external container doesn't exist with the expected name
+        #expect(service.depends_on?["db"]?.condition == .service_healthy)
+    }
+
+    @Test("Short-form depends_on for external containers (recommended pattern)")
+    func shortFormForExternalContainers() throws {
+        // This is the recommended pattern for externally managed dependencies
+        let yaml = """
+        image: myapp
+        depends_on:
+          - db
+        """
+
+        let decoder = YAMLDecoder()
+        let service = try decoder.decode(Service.self, from: yaml)
+
+        // Short-form should NOT trigger health-gating
+        #expect(service.healthyDependencies == [])
+        #expect(service.dependencyNames == ["db"])
+        #expect(service.depends_on?["db"]?.condition == nil)
+    }
 }

@@ -33,6 +33,40 @@ OCI_REGISTRY_URL=registry.example.com swift test
 
 This is particularly useful when working around Apple Container's HTTP auto-downgrade bug for private IP addresses (RFC1918). Database tests require `OCI_REGISTRY_URL` to be set because Apple Container does not support HTTP for private IPs.
 
+#### Apple Container IP Address Bug Workaround
+
+Apple Container cannot pull images from registries using IP addresses (RFC1918 private IPs). It only supports domain names. This fork uses a Cloudflare tunnel with IP-based bypass authentication to route a domain to the local Zot registry:
+
+```
+Apple Container → registry.example.com → Cloudflare Tunnel → Zot (internal IP)
+```
+
+**Cloudflare Access Configuration:**
+
+| Setting | Value |
+|---------|-------|
+| Application | Zot Registry Secure (your domain) |
+| Policy | Service Token Bypass |
+| Action | BYPASS |
+| IP Ranges | Your local network ranges (e.g., `192.168.1.0/24`, IPv6 prefix) |
+
+**Usage:**
+
+```bash
+# Set registry URL for database tests
+OCI_REGISTRY_URL=your-registry.example.com swift test --filter ComposeAdvancedTests
+
+# Pull images via domain (works with Apple Container)
+container run your-registry.example.com/your-image:latest echo "test"
+```
+
+**Troubleshooting 403 Errors:**
+
+1. Verify your public IP: `curl -s ifconfig.me`
+2. Check Cloudflare Access policy includes your IP range
+3. IPv6 users need `/64` prefix (not `/128` single address)
+4. Policy changes take 30-60 seconds to propagate
+
 ### All Changed Files
 
 | Status | File | Change Summary |
