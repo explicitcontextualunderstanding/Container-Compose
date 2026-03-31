@@ -24,11 +24,10 @@ final class ComposeAdvancedTests {
                 Database tests require an OCI container registry accessible via HTTPS.
                 Apple Container does not support HTTP for RFC1918 private IPs.
                 
-                Options:
-                1. Set OCI_REGISTRY_URL to your registry (e.g., registry.example.com or registry.example.com)
-                2. Use a public registry like docker.io
-                
-                Example: OCI_REGISTRY_URL=registry.example.com swift test
+                Examples:
+                - OCI_REGISTRY_URL=registry.example.com swift test
+                - OCI_REGISTRY_URL=ghcr.io swift test
+                - OCI_REGISTRY_URL=docker.io swift test
                 """)
         }
         return registryURL
@@ -491,7 +490,7 @@ final class ComposeAdvancedTests {
     
 // MARK: - Database Container Tests
  // Requires OCI_REGISTRY_URL environment variable (Apple Container doesn't support HTTP for RFC1918 IPs)
- // Example: OCI_REGISTRY_URL=registry.example.com swift test
+ // Example: OCI_REGISTRY_URL=ghcr.io swift test
 
  @Test("Test database container starts without volume mount issues")
  func testDatabaseContainerStarts() async throws {

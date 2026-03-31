@@ -226,7 +226,10 @@ Tests that depend on external images (like `pgmicro`) face:
 // ComposeAdvancedTests.swift
 private func requireRegistryURL() throws -> String {
     guard let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] else {
-        throw Errors.registryNotConfigured("...")
+        throw Errors.registryNotConfigured("""
+            OCI_REGISTRY_URL environment variable is not set.
+            ...
+            """)
     }
     return registryURL
 }
@@ -234,7 +237,7 @@ private func requireRegistryURL() throws -> String {
 
 Run with custom registry:
 ```bash
-OCI_REGISTRY_URL=registry.example.com swift test
+OCI_REGISTRY_URL=ghcr.io swift test
 ```
 
 ---
