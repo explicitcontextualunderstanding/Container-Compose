@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Unreleased (explicitcontextualunderstanding) - 2026-03-31
+
+### Fixed
+
+- **Container dependency health check for missing containers**: `waitForHealthy()` now fails fast with `ContainerNotFoundError` when a dependency container doesn't exist, instead of hanging indefinitely. Provides clear error message explaining the issue and suggesting either removing `depends_on: condition: service_healthy` or ensuring the container exists with the expected name.
+- **Documentation**: Clarified that `service_healthy` dependencies should only be used for containers managed by compose. For externally managed dependencies, use short-form `depends_on: [service_name]` instead.
+
 ## Unreleased (explicitcontextualunderstanding) - 2026-03-29
 
 ### Fixed

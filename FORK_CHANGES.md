@@ -2,8 +2,8 @@
 
 This document summarizes all changes in this fork (`explicitcontextualunderstanding/Container-Compose`) relative to the upstream repository (`Mcrich23/Container-Compose`).
 
-**Current Release:** v0.10.2
-**Last Updated:** 2026-03-29
+**Current Release:** v0.10.3
+**Last Updated:** 2026-03-31
 
 ---
 
@@ -189,7 +189,54 @@ These features are present in this fork but not in `apple/container` v0.10.0:
 
 Based on analysis of `apple/container` v0.11.0 upcoming features and current fork capabilities.
 
-### Current Status (v0.10.1)
+---
+
+## v0.11.x Architecture: External Dependency Contract
+
+### The Dependency Contract
+
+`container-compose` distinguishes dependencies by ownership:
+
+| Type | Ownership | Lifecycle | Gating | Pattern |
+|------|-----------|-----------|--------|---------|
+| **Internal** | Managed by compose | Create/Start/Destroy | `service_healthy` supported | Orchestrator verifies readiness |
+| **External** | Host/Another project/Hardware | Persistent, independent | Addressable-only | App-level retries |
+
+### Implementation Spec (v0.11.x Target)
+
+| Component | Change | UX Impact |
+|-----------|--------|-----------|
+| **Parser** | `external: true` strips `healthcheck` blocks | Prevents accidental hang |
+| **Dependency Engine** | `condition: service_healthy` → error/warning for externals | Fail-fast behavior |
+| **Resolver** | `__SERVICE_HOST__` resolved before runtime | Enables late-binding |
+| **CLI/Logs** | `[WARN] 'db' is external. Ignoring health-gate; ensure app-level retries.` | Educates user |
+
+### Best Practice: Render-Time Injection
+
+For external services, use pre-processing to resolve host-specific endpoints:
+
+```yaml
+# Before render (template)
+services:
+  app:
+    environment:
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@${EXTERNAL_DB_HOST}:${DB_PORT}/mydb
+    depends_on:
+      - db  # Short form only - no health gating
+
+# render-script.py resolves ${EXTERNAL_DB_HOST} before compose up
+```
+
+### Preflight TCP Check (Optional)
+
+Soft check with short timeout:
+- **Logic:** `nc -z ${HOST} ${PORT}` (500ms timeout)
+- **Result:** Log `[INFO] External service 'db' not reachable on port 15432. Proceeding anyway...`
+- **Rationale:** Don't block deployment for momentary network issues; app handles retries
+
+---
+
+### Current Status (v0.10.3)
 
 | Feature | Status | Upstream Version |
 |---------|--------|-----------------|
@@ -202,6 +249,7 @@ Based on analysis of `apple/container` v0.11.0 upcoming features and current for
 | Pre-decode `${VAR}` substitution | ✅ Complete | Unreleased |
 | `service_healthy` dependency enforcement | ✅ Complete | Unreleased |
 | `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution | ✅ Complete | Unreleased |
+| External dependency fail-fast | ✅ Complete | v0.10.3 |
 
 ### Upcoming Release v0.11.0 (Target: Q2 2026)
 
@@ -270,6 +318,7 @@ The orchestrator script works around several features that container-compose alr
 | **`-f` flag** | `-f` on `ComposeUp` and `ComposeDown`; accepts absolute or relative paths, skips CWD scanning when explicit | Symlink desired file to `compose.yml` before each call |
 | **`${VAR}` interpolation** | `resolveYamlVariables()` in `Helper Functions.swift` resolves `${VAR}`, `${VAR:-default}`, `${VAR:?error}` on raw YAML before decode (Docker Compose compatible with `$$` escaping) | Python pre-renders compose file with `os.environ` substitution |
 | **`depends_on` ordering** | `Service.topoSortConfiguredServices()` does topological sort at `ComposeUp.swift:147`; `waitForHealthy()` gates `service_healthy` dependencies | Manual sequential `container-compose up -d <service>` calls |
+| **`service_healthy` on externally managed containers** | `waitForHealthy()` now verifies container exists before health polling (v0.10.3) | **Mitigated**: Now fails fast with `ContainerNotFoundError` if dependency container doesn't exist. **Root cause remains**: For externally managed containers (started outside compose), use `depends_on: [service_name]` (short form) instead of `depends_on: { service_name: { condition: service_healthy } }`. The `service_healthy` condition assumes compose owns the dependency's lifecycle and healthcheck configuration. |
 | **Partial compose / volumes** | `setupVolume()` handles "already exists" gracefully; **top-level** named volumes created idempotently per compose file. Service-level `volumes:` are parsed but never wired to `container run` args (dead code `configVolume()` at line 839) | Regex-based stripping of `volumes:` and single-service extraction; orchestrator renders patches into `command` instead |
 
 ### Compatibility & Migration
@@ -338,6 +387,7 @@ The orchestrator script works around several features that container-compose alr
 - [ ] Audit tests for upstream compatibility
 - [ ] Consider upstreaming: dns_search, build.target, entrypoint fix, named-volume behavior
 - [x] Implement healthcheck-aware `depends_on` (wait for dependency healthy before starting dependents)
+- [ ] Fix `service_healthy` handling for externally managed existing containers, or fail fast with a clear error instead of hanging
 
 ---
 

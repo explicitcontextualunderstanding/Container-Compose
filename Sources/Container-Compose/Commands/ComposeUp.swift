@@ -308,10 +308,29 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             ])
     }
 
+/// Error thrown when a dependency container cannot be found.
+    public struct ContainerNotFoundError: Error, CustomStringConvertible {
+        public let message: String
+        public var description: String { message }
+        public init(_ message: String) { self.message = message }
+    }
+
     /// Waits for a container to pass its healthcheck by running the healthcheck command inside it.
     private func waitForHealthy(containerName: String, dependencyName: String, healthcheck: Healthcheck) async throws {
         guard let test = healthcheck.test, test.first != "NONE" else {
             return // No healthcheck or explicitly disabled
+        }
+
+        // Verify container exists before attempting health checks
+        do {
+            let _ = try await ClientContainer.get(id: containerName)
+        } catch {
+            throw ContainerNotFoundError(
+                "Dependency container '\(containerName)' (service '\(dependencyName)') not found. "
+                + "If this container was started outside container-compose, ensure it exists and is accessible. "
+                + "For externally managed dependencies, consider removing 'depends_on: condition: service_healthy' or "
+                + "ensuring the container is started with the expected name."
+            )
         }
 
         let startPeriodSeconds = Self.parseDuration(healthcheck.start_period) ?? 30
