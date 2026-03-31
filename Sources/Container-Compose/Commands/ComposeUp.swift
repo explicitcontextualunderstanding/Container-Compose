@@ -247,6 +247,14 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             let remainingServices = Array(services.dropFirst(services.firstIndex(where: { $0.serviceName == serviceName })! + 1))
             for (futureName, futureService) in remainingServices {
                 if futureService.healthyDependencies.contains(serviceName) {
+                    // External Dependency Health-Gating: Skip health check if the dependency
+                    // was already running before this compose invocation (crash recovery).
+                    // The container survived a crash and is presumed healthy — waiting for
+                    // its healthcheck would block startup unnecessarily (SO-07 variant).
+                    if externallyPresentServices.contains(serviceName) {
+                        print("Service '\(futureName)' depends on '\(serviceName)' being healthy, but it was already running — skipping health-gate.")
+                        continue
+                    }
                     // Find the healthcheck on the dependency (this service)
                     guard let healthcheck = service.healthcheck else {
                         print("Warning: Service '\(futureName)' depends on '\(serviceName)' with condition service_healthy, but '\(serviceName)' has no healthcheck configured.")
@@ -736,6 +744,9 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       if let existingContainer = try? await ClientContainer.get(id: containerName) {
           if existingContainer.status == .running {
               print("Container '\(containerName)' is already running.")
+              // External Dependency Health-Gating: Record this service as externally present
+              // so that dependent services skip their service_healthy wait (crash recovery).
+              externallyPresentServices.insert(serviceName)
               try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
               return
           } else {

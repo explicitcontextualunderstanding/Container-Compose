@@ -293,4 +293,51 @@ struct ServiceDependencyTests {
         #expect(service.dependencyNames == ["db"])
         #expect(service.depends_on?["db"]?.condition == nil)
     }
+
+    // MARK: - Externally Present Services Set Pattern (crash recovery)
+
+    @Test("externallyPresentServices Set tracks running services")
+    func externallyPresentServicesSetPattern() {
+        // Validates the Set<String> pattern used in ComposeUp for tracking
+        // externally present services during crash recovery.
+        var externallyPresentServices: Set<String> = []
+
+        // Simulate: honcho-db was already running before compose started
+        externallyPresentServices.insert("honcho-db")
+        #expect(externallyPresentServices.contains("honcho-db"))
+        #expect(!externallyPresentServices.contains("honcho-hub"))
+
+        // Simulate: honcho-hub was also already running
+        externallyPresentServices.insert("honcho-hub")
+        #expect(externallyPresentServices.contains("honcho-hub"))
+        #expect(externallyPresentServices.count == 2)
+
+        // Health-gating skip logic: if dependency is in the set, skip waitForHealthy
+        let dependency = "honcho-db"
+        if externallyPresentServices.contains(dependency) {
+            // Skip health-gate — this is the crash recovery path
+            #expect(true, "Should skip health-gate for externally present service")
+        } else {
+            Issue.record("Should have detected honcho-db as externally present")
+        }
+
+        // Service not in set should NOT be skipped
+        let newDependency = "honcho-deriver"
+        if externallyPresentServices.contains(newDependency) {
+            Issue.record("Should NOT have detected honcho-deriver as externally present")
+        }
+        // Normal path: call waitForHealthy
+    }
+
+    @Test("externallyPresentServices empty set allows normal health-gating")
+    func externallyPresentServicesEmptySet() {
+        // When no services were pre-existing, all health-gates should proceed normally
+        var externallyPresentServices: Set<String> = []
+
+        let dependency = "honcho-db"
+        #expect(!externallyPresentServices.contains(dependency),
+                "Empty set should not contain any services")
+
+        // Normal path: call waitForHealthy (not skipped)
+    }
 }

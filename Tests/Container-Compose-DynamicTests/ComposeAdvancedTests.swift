@@ -980,4 +980,77 @@ final class ComposeAdvancedTests {
             }
         }
     }
+
+    @Test("Test service_healthy skip for externally managed container (crash recovery)")
+    func testServiceHealthySkipForExternalContainer() async throws {
+        // This tests the External Dependency Health-Gating feature:
+        // When a container is already running before compose starts (e.g., survived a crash),
+        // compose should skip the service_healthy wait for dependents and emit a warning.
+        //
+        // Scenario: Run compose once to start db+app, then re-run compose.
+        // On second run, db is already running so health-gate should be skipped.
+        let yaml = """
+        services:
+          db:
+            image: busybox:latest
+            command: ["sh", "-c", "echo ready > /tmp/health && sleep 3600"]
+            healthcheck:
+              test: ["CMD-SHELL", "cat /tmp/health"]
+              interval: 1s
+              timeout: 2s
+              retries: 10
+              start_period: 0s
+          app:
+            image: busybox:latest
+            depends_on:
+              db:
+                condition: service_healthy
+            command: ["sh", "-c", "echo 'app started' && sleep 3600"]
+        """
+
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+        let cwd = tempLocation.deletingLastPathComponent().path(percentEncoded: false)
+
+        // Phase 1: First compose run — starts both containers normally
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", cwd])
+        try await composeUp.run()
+
+        // Wait for both containers
+        let containers = try await TestHelpers.ContainerPollingHelpers.waitForContainers(
+            projectName: folderName,
+            expectedCount: 2,
+            timeout: 30
+        )
+
+        guard let dbContainer = containers.first(where: { $0.configuration.id.hasSuffix("-db") }),
+              let appContainer = containers.first(where: { $0.configuration.id.hasSuffix("-app") }) else {
+            throw ComposeAdvancedTests.Errors.containerNotFound
+        }
+
+        #expect(dbContainer.status == .running, "DB should be running after first compose up")
+        #expect(appContainer.status == .running, "App should be running after first compose up")
+
+        // Phase 2: Re-run compose — db is already running, health-gate should be skipped
+        // Measure time — should complete quickly since db is already running
+        let startTime = Date()
+        composeUp = try ComposeUp.parse(["-d", "--cwd", cwd])
+        try await composeUp.run()
+        let elapsed = Date().timeIntervalSince(startTime)
+
+        // Verify containers are still running
+        let containersAfter = try await ClientContainer.list()
+            .filter { $0.configuration.id.contains(folderName) }
+        #expect(containersAfter.count == 2, "Should still have 2 containers after re-run")
+
+        // The key assertion: second compose run should complete quickly because
+        // db was already running and health-gating was skipped
+        #expect(elapsed < 10.0, "Second compose run should complete quickly (elapsed: \(String(format: "%.1f", elapsed))s). If this takes >10s, health-gating skip may not be working.")
+
+        // Cleanup
+        var composeDown = try ComposeDown.parse(["--cwd", cwd])
+        _ = try? await composeDown.run()
+    }
 }

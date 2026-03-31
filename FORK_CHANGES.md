@@ -12,6 +12,7 @@ This document summarizes all changes in this fork (`explicitcontextualunderstand
 ### Known Runtime Limitations
 
 #### Service Name Length
+
 There is a clinical 64-character limit for guest process labels in the macOS container runtime. When using long project names or UUID-based prefixes (common in test suites), service names must be kept short to avoid `Invalid argument (Code 22)` errors.
 
 - **Proactive Validation:** The orchestrator now warns users if a container name exceeds 63 characters during `up` and provides a detailed discussion in `--help`.
@@ -43,12 +44,12 @@ Apple Container → registry.example.com → Cloudflare Tunnel → Zot (internal
 
 **Cloudflare Access Configuration:**
 
-| Setting | Value |
-|---------|-------|
-| Application | Zot Registry Secure (your domain) |
-| Policy | Service Token Bypass |
-| Action | BYPASS |
-| IP Ranges | Your local network ranges (e.g., `192.168.1.0/24`, IPv6 prefix) |
+| Setting     | Value                                                           |
+| ----------- | --------------------------------------------------------------- |
+| Application | Zot Registry Secure (your domain)                               |
+| Policy      | Service Token Bypass                                            |
+| Action      | BYPASS                                                          |
+| IP Ranges   | Your local network ranges (e.g., `192.168.1.0/24`, IPv6 prefix) |
 
 **Usage:**
 
@@ -69,54 +70,55 @@ container run your-registry.example.com/your-image:latest echo "test"
 
 ### All Changed Files
 
-| Status | File | Change Summary |
-|--------|------|----------------|
-| Added | `.github/workflows/release.yml` | Automated release workflow |
-| Modified | `.github/workflows/tests.yml` | Enhanced CI workflow, added static test filtering |
-| Added+Modified | `CHANGELOG.md` | Version changelog |
-| Added | `FORK_CHANGES.md` | This file — fork change tracking |
-| Added | `VERIFICATION.md` | Verification procedures and testing guidelines |
-| Added+Modified | `build-release.sh` | Release build script with conda/xattr cleanup |
-| Added+Modified | `build-sign-install.sh` | Build, sign, install with auto git hash injection and `/usr/local/bin` symlink |
-| Added+Modified | `install.sh` | Installation script with macOS provenance handling |
-| Added+Modified | `run-tests.sh` | Test runner with conda environment cleanup |
-| Added+Modified | `scripts/env-setup.sh` | Shared conda environment cleanup for build and test scripts |
-| Modified | `Sources/Container-Compose/Application.swift` | Added checkpoint command registration, git hash in version string |
-| Modified | `Sources/Container-Compose/Codable Structs/Build.swift` | Added `target` field for multi-stage builds |
-| Modified | `Sources/Container-Compose/Codable Structs/Network.swift` | Enhanced network synchronization |
-| Modified | `Sources/Container-Compose/Codable Structs/Service.swift` | Added `dns_search` array support, validation for restart/platform/runtime/volumes/ports |
-| Added+Modified | `Sources/Container-Compose/Commands/CheckpointCommand.swift` | Checkpoint command using `container commit`; post-creation P0 error handling fixes |
-| Modified | `Sources/Container-Compose/Commands/ComposeDown.swift` | Added try/throw support for deriveProjectName, `-f` flag with absolute/relative path handling |
-| Modified | `Sources/Container-Compose/Commands/ComposeUp.swift` | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation, pre-decode `${VAR}` substitution, `--force-recreate`/`--no-recreate`, `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution, `-f` flag with absolute/relative path handling |
-| Modified | `Sources/Container-Compose/Commands/Version.swift` | Version display with git commit hash |
-| Modified | `Sources/Container-Compose/Errors.swift` | Added `invalidResourceConfig` error case |
-| Modified | `Sources/Container-Compose/Helper Functions.swift` | P0/P2 fixes: safe regex handling, VariableResolutionError, deriveProjectName sanitization, env_file error handling, `resolveYamlVariables()` with `$$` escaping |
-| Added | `Tests/Container-Compose-StaticTests/CheckpointCommandTests.swift` | Unit tests for checkpoint command |
-| Added+Modified | `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift` | Mapping tests for makeRunArgs flag generation, `-f` path resolution |
-| Added | `Tests/Container-Compose-StaticTests/NetworkVolumeMappingTests.swift` | Network and volume synchronization tests |
-| Modified | `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift` | Updated for 3-container WordPress setup |
-| Modified | `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift` | Updated for WordPress FPM variant, port-agnostic assertions, Feature 1 & 2 integration tests |
-| Modified | `Tests/Container-Compose-DynamicTests/ComposeAdvancedTests.swift` | Fixed YAML string interpolation, added `getZotRegistryURL()` helper for custom registry configuration |
-| Modified | `Tests/Container-Compose-StaticTests/BuildConfigurationTests.swift` | Added build target tests |
-| Modified | `Tests/Container-Compose-StaticTests/DockerComposeParsingTests.swift` | Replaced force unwraps with guard statements |
-| Modified | `Tests/Container-Compose-StaticTests/EnvFileLoadingTests.swift` | .env file loading tests |
-| Modified | `Tests/Container-Compose-StaticTests/EnvironmentVariableTests.swift` | Environment variable tests |
-| Modified | `Tests/Container-Compose-StaticTests/HealthcheckConfigurationTests.swift` | Healthcheck configuration tests |
-| Modified | `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift` | deriveProjectName tests |
-| Modified | `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift` | Service dependency tests |
-| Modified | `Tests/TestHelpers/DockerComposeYamlFiles.swift` | Configurable test ports via environment variables |
-| Added | `Tests/TestHelpers/ContainerPollingHelpers.swift` | Async container state polling helpers for robust network validation |
-| Added | `Tests/compose_static_checks.sh` | Static validation script for compose files |
-| Added | `Tests/network_reachability.sh` | Network connectivity testing script |
-| Added | `docs/checkpoint.md` | Documentation for checkpoint feature |
+| Status         | File                                                                      | Change Summary                                                                                                                                                                                                                                                                      |
+| -------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Added          | `.github/workflows/release.yml`                                           | Automated release workflow                                                                                                                                                                                                                                                          |
+| Modified       | `.github/workflows/tests.yml`                                             | Enhanced CI workflow, added static test filtering                                                                                                                                                                                                                                   |
+| Added+Modified | `CHANGELOG.md`                                                            | Version changelog                                                                                                                                                                                                                                                                   |
+| Added          | `FORK_CHANGES.md`                                                         | This file — fork change tracking                                                                                                                                                                                                                                                    |
+| Added          | `VERIFICATION.md`                                                         | Verification procedures and testing guidelines                                                                                                                                                                                                                                      |
+| Added+Modified | `build-release.sh`                                                        | Release build script with conda/xattr cleanup                                                                                                                                                                                                                                       |
+| Added+Modified | `build-sign-install.sh`                                                   | Build, sign, install with auto git hash injection and `/usr/local/bin` symlink                                                                                                                                                                                                      |
+| Added+Modified | `install.sh`                                                              | Installation script with macOS provenance handling                                                                                                                                                                                                                                  |
+| Added+Modified | `run-tests.sh`                                                            | Test runner with conda environment cleanup                                                                                                                                                                                                                                          |
+| Added+Modified | `scripts/env-setup.sh`                                                    | Shared conda environment cleanup for build and test scripts                                                                                                                                                                                                                         |
+| Modified       | `Sources/Container-Compose/Application.swift`                             | Added checkpoint command registration, git hash in version string                                                                                                                                                                                                                   |
+| Modified       | `Sources/Container-Compose/Codable Structs/Build.swift`                   | Added `target` field for multi-stage builds                                                                                                                                                                                                                                         |
+| Modified       | `Sources/Container-Compose/Codable Structs/Network.swift`                 | Enhanced network synchronization                                                                                                                                                                                                                                                    |
+| Modified       | `Sources/Container-Compose/Codable Structs/Service.swift`                 | Added `dns_search` array support, validation for restart/platform/runtime/volumes/ports                                                                                                                                                                                             |
+| Added+Modified | `Sources/Container-Compose/Commands/CheckpointCommand.swift`              | Checkpoint command using `container commit`; post-creation P0 error handling fixes                                                                                                                                                                                                  |
+| Modified       | `Sources/Container-Compose/Commands/ComposeDown.swift`                    | Added try/throw support for deriveProjectName, `-f` flag with absolute/relative path handling                                                                                                                                                                                       |
+| Modified       | `Sources/Container-Compose/Commands/ComposeUp.swift`                      | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation, pre-decode `${VAR}` substitution, `--force-recreate`/`--no-recreate`, `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution, `-f` flag with absolute/relative path handling |
+| Modified       | `Sources/Container-Compose/Commands/Version.swift`                        | Version display with git commit hash                                                                                                                                                                                                                                                |
+| Modified       | `Sources/Container-Compose/Errors.swift`                                  | Added `invalidResourceConfig` error case                                                                                                                                                                                                                                            |
+| Modified       | `Sources/Container-Compose/Helper Functions.swift`                        | P0/P2 fixes: safe regex handling, VariableResolutionError, deriveProjectName sanitization, env_file error handling, `resolveYamlVariables()` with `$$` escaping                                                                                                                     |
+| Added          | `Tests/Container-Compose-StaticTests/CheckpointCommandTests.swift`        | Unit tests for checkpoint command                                                                                                                                                                                                                                                   |
+| Added+Modified | `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift`         | Mapping tests for makeRunArgs flag generation, `-f` path resolution                                                                                                                                                                                                                 |
+| Added          | `Tests/Container-Compose-StaticTests/NetworkVolumeMappingTests.swift`     | Network and volume synchronization tests                                                                                                                                                                                                                                            |
+| Modified       | `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift`             | Updated for 3-container WordPress setup                                                                                                                                                                                                                                             |
+| Modified       | `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift`               | Updated for WordPress FPM variant, port-agnostic assertions, Feature 1 & 2 integration tests                                                                                                                                                                                        |
+| Modified       | `Tests/Container-Compose-DynamicTests/ComposeAdvancedTests.swift`         | Fixed YAML string interpolation, added `getZotRegistryURL()` helper for custom registry configuration                                                                                                                                                                               |
+| Modified       | `Tests/Container-Compose-StaticTests/BuildConfigurationTests.swift`       | Added build target tests                                                                                                                                                                                                                                                            |
+| Modified       | `Tests/Container-Compose-StaticTests/DockerComposeParsingTests.swift`     | Replaced force unwraps with guard statements                                                                                                                                                                                                                                        |
+| Modified       | `Tests/Container-Compose-StaticTests/EnvFileLoadingTests.swift`           | .env file loading tests                                                                                                                                                                                                                                                             |
+| Modified       | `Tests/Container-Compose-StaticTests/EnvironmentVariableTests.swift`      | Environment variable tests                                                                                                                                                                                                                                                          |
+| Modified       | `Tests/Container-Compose-StaticTests/HealthcheckConfigurationTests.swift` | Healthcheck configuration tests                                                                                                                                                                                                                                                     |
+| Modified       | `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift`          | deriveProjectName tests                                                                                                                                                                                                                                                             |
+| Modified       | `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift`        | Service dependency tests                                                                                                                                                                                                                                                            |
+| Modified       | `Tests/TestHelpers/DockerComposeYamlFiles.swift`                          | Configurable test ports via environment variables                                                                                                                                                                                                                                   |
+| Added          | `Tests/TestHelpers/ContainerPollingHelpers.swift`                         | Async container state polling helpers for robust network validation                                                                                                                                                                                                                 |
+| Added          | `Tests/compose_static_checks.sh`                                          | Static validation script for compose files                                                                                                                                                                                                                                          |
+| Added          | `Tests/network_reachability.sh`                                           | Network connectivity testing script                                                                                                                                                                                                                                                 |
+| Added          | `docs/checkpoint.md`                                                      | Documentation for checkpoint feature                                                                                                                                                                                                                                                |
 
 ### Deleted Files (existed in fork history, now removed)
-| File | Reason |
-|------|--------|
+
+| File                          | Reason                                        |
+| ----------------------------- | --------------------------------------------- |
 | `ADVERSARIAL_REVIEW_FIXES.md` | Audit findings resolved, folded into codebase |
-| `DYNAMIC_TEST_ANALYSIS.md` | Analysis superseded by stabilized test suite |
-| `build-and-install.sh` | Consolidated into `build-sign-install.sh` |
-| `docs/FORK_README_UPDATE.md` | Merged into `FORK_CHANGES.md` |
+| `DYNAMIC_TEST_ANALYSIS.md`    | Analysis superseded by stabilized test suite  |
+| `build-and-install.sh`        | Consolidated into `build-sign-install.sh`     |
+| `docs/FORK_README_UPDATE.md`  | Merged into `FORK_CHANGES.md`                 |
 
 ---
 
@@ -228,19 +230,19 @@ Based on analysis of `apple/container` v0.11.0 upcoming features and current for
 
 `container-compose` distinguishes dependencies by ownership:
 
-| Type | Ownership | Lifecycle | Gating | Pattern |
-|------|-----------|-----------|--------|---------|
-| **Internal** | Managed by compose | Create/Start/Destroy | `service_healthy` supported | Orchestrator verifies readiness |
-| **External** | Host/Another project/Hardware | Persistent, independent | Addressable-only | App-level retries |
+| Type         | Ownership                     | Lifecycle               | Gating                      | Pattern                         |
+| ------------ | ----------------------------- | ----------------------- | --------------------------- | ------------------------------- |
+| **Internal** | Managed by compose            | Create/Start/Destroy    | `service_healthy` supported | Orchestrator verifies readiness |
+| **External** | Host/Another project/Hardware | Persistent, independent | Addressable-only            | App-level retries               |
 
 ### Implementation Spec (v0.11.x Target)
 
-| Component | Change | UX Impact |
-|-----------|--------|-----------|
-| **Parser** | `external: true` strips `healthcheck` blocks | Prevents accidental hang |
-| **Dependency Engine** | `condition: service_healthy` → error/warning for externals | Fail-fast behavior |
-| **Resolver** | `__SERVICE_HOST__` resolved before runtime | Enables late-binding |
-| **CLI/Logs** | `[WARN] 'db' is external. Ignoring health-gate; ensure app-level retries.` | Educates user |
+| Component             | Change                                                                     | UX Impact                |
+| --------------------- | -------------------------------------------------------------------------- | ------------------------ |
+| **Parser**            | `external: true` strips `healthcheck` blocks                               | Prevents accidental hang |
+| **Dependency Engine** | `condition: service_healthy` → error/warning for externals                 | Fail-fast behavior       |
+| **Resolver**          | `__SERVICE_HOST__` resolved before runtime                                 | Enables late-binding     |
+| **CLI/Logs**          | `[WARN] 'db' is external. Ignoring health-gate; ensure app-level retries.` | Educates user            |
 
 ### Best Practice: Render-Time Injection
 
@@ -253,7 +255,8 @@ services:
     environment:
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@${EXTERNAL_DB_HOST}:${DB_PORT}/mydb
     depends_on:
-      - db  # Short form only - no health gating
+      - db # Short form only - no health gating
+
 
 # render-script.py resolves ${EXTERNAL_DB_HOST} before compose up
 ```
@@ -261,6 +264,7 @@ services:
 ### Preflight TCP Check (Optional)
 
 Soft check with short timeout:
+
 - **Logic:** `nc -z ${HOST} ${PORT}` (500ms timeout)
 - **Result:** Log `[INFO] External service 'db' not reachable on port 15432. Proceeding anyway...`
 - **Rationale:** Don't block deployment for momentary network issues; app handles retries
@@ -269,32 +273,36 @@ Soft check with short timeout:
 
 ### Current Status (v0.10.3)
 
-| Feature | Status | Upstream Version |
-|---------|--------|-----------------|
-| `init`/`init_image` support | ✅ Complete | v0.10.0 |
-| `runtime` flag | ✅ Complete | v0.10.0 |
-| Checkpoint command | ✅ Complete | v0.10.0 |
-| Restart stopped containers | ✅ Complete | v0.10.1 |
-| Multi-stage build target | ✅ Complete | Fork-only |
-| `dns_search` support | ✅ Complete | Fork-only |
-| Pre-decode `${VAR}` substitution | ✅ Complete | Unreleased |
-| `service_healthy` dependency enforcement | ✅ Complete | Unreleased |
-| `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution | ✅ Complete | Unreleased |
-| External dependency fail-fast | ✅ Complete | v0.10.3 |
+| Feature                                                 | Status      | Upstream Version |
+| ------------------------------------------------------- | ----------- | ---------------- |
+| `init`/`init_image` support                             | ✅ Complete | v0.10.0          |
+| `runtime` flag                                          | ✅ Complete | v0.10.0          |
+| Checkpoint command                                      | ✅ Complete | v0.10.0          |
+| Restart stopped containers                              | ✅ Complete | v0.10.1          |
+| Multi-stage build target                                | ✅ Complete | Fork-only        |
+| `dns_search` support                                    | ✅ Complete | Fork-only        |
+| Pre-decode `${VAR}` substitution                        | ✅ Complete | Unreleased       |
+| `service_healthy` dependency enforcement                | ✅ Complete | Unreleased       |
+| `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution        | ✅ Complete | Unreleased       |
+| External dependency fail-fast                           | ✅ Complete | v0.10.3          |
+| External dependency health-gating skip (crash recovery) | ✅ Complete | Unreleased       |
 
 ### Upcoming Release v0.11.0 (Target: Q2 2026)
 
 #### 1. Build Secrets Support
+
 - **Upstream:** #1300 - Add support for build secrets
 - **Compose Mapping:** Add `secrets:` to service `build:` configuration
 - **Implementation:** Extend `Build.swift` with secrets array, map to `container build --secret`
 
 #### 2. Network MTU Configuration
+
 - **Upstream:** #1267 - Add mtu option for network attachments
 - **Compose Mapping:** Add `mtu:` to network definitions
 - **Implementation:** Update `Network.swift` with MTU field
 
 #### 3. Resource Limits
+
 - **Upstream:** #1266, #1293 - Container and build resource tracking
 - **Compose Mapping:**
   - Services: `cpus:`, `mem_limit:`
@@ -302,29 +310,32 @@ Soft check with short timeout:
 - **Implementation:** Extend `Service.swift` and `Build.swift`
 
 #### 4. Registry Authentication
+
 - **Upstream:** #1195 - RegistryResource
 - **Compose Mapping:** Evaluate if native support replaces fork needs
 - **Action:** Spike to determine if fork registry handling can be deprecated
 
 #### 5. Checkpoint/Export Enhancement
+
 - **Upstream:** #1303 - Refactor container export as tar archive
 - **Compose Impact:** Update `CheckpointCommand.swift` for new export API
 - **Note:** Breaking change - checkpoint files may need migration
 
 #### 6. Robust Service Lifecycle (Restart Policies)
+
 - **Status:** Deferred to v0.12.0
 - **Depends on:** Upstream PR #1258 (not yet merged to main)
 - **Scope:** `restart: always/on-failure/unless-stopped`
 
 ### Future Releases (v0.12.0+)
 
-| Feature | Upstream PR | Notes |
-|---------|-------------|-------|
-| High-Performance File Transfer | #1190 | `container cp` for sync/hot-reload |
-| Rootfs Override | #1323 | Custom init filesystem per service |
-| Advanced Networking | #1151 | Multi-plugin network support |
-| Auto-Start (LaunchAgent) | #1176, #1201 | Boot service installation |
-| Container Prune on Start | #1290 | Reap auto-remove containers |
+| Feature                        | Upstream PR  | Notes                              |
+| ------------------------------ | ------------ | ---------------------------------- |
+| High-Performance File Transfer | #1190        | `container cp` for sync/hot-reload |
+| Rootfs Override                | #1323        | Custom init filesystem per service |
+| Advanced Networking            | #1151        | Multi-plugin network support       |
+| Auto-Start (LaunchAgent)       | #1176, #1201 | Boot service installation          |
+| Container Prune on Start       | #1290        | Reap auto-remove containers        |
 
 ### Compose Orchestration Gaps
 
@@ -332,63 +343,69 @@ Features currently worked around in external orchestrator scripts (e.g., `apple-
 
 #### Real Gap
 
-| Gap | Current Workaround | Impact | Priority |
-|-----|-------------------|--------|----------|
-| **`container restart`** | External watchdog scripts | No native restart policy enforcement after crashes; `restart: always/on-failure` is parsed but cannot be delegated to runtime | High |
-| **Digest-pinned images** | Zot mirror with stable tag (`honcho-hub:stable`) | `container-compose` strips `@sha256:...` suffix from image references and pulls `:latest` instead, defeating digest-based pinning. Workaround: copy pinned image to local Zot with a stable tag and reference that tag. This breaks on Zot registries that return HTTP 400 for Docker v2 pull API. | **High** |
-| **Service bind-mount volumes** | Render compose with patches in `command` | `configVolume()` function exists as dead code in `ComposeUp.swift:839` (parses paths, validates traversal, generates `-v` args) but is never called from `makeRunArgs()`. Service-level `volumes:` entries are parsed into `service.volumes` but zero `-v`/`--mount` flags are generated for `container run`. File mounts are explicitly skipped with a warning (line 880). Directory mounts generate `-v` but mode (`:ro`) is stripped. All bind mounts silently ignored. **Workaround pattern**: A Python render script (`render-honcho-compose.py`) injects live-patches into the compose `command:` block before `container-compose up`. This enables a "Circuit Breaker" that skips Alembic migrations when the database schema already exists, preventing data loss on image updates. To force migrations when needed, set `HONCHO_FORCE_MIGRATION=1` on the hub service. | **High** |
-| **`container cp`** | Volume mounts for all file sharing | No hot-reload or file sync capability; limits dev workflow | High |
-| **`container wait`** | Polling with `container list` | Cannot efficiently block until a container exits; adds latency to shutdown orchestration | Medium |
+| Gap                            | Current Workaround                               | Impact                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Priority |
+| ------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| **`container restart`**        | External watchdog scripts                        | No native restart policy enforcement after crashes; `restart: always/on-failure` is parsed but cannot be delegated to runtime                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | High     |
+| **Digest-pinned images**       | Zot mirror with stable tag (`honcho-hub:stable`) | `container-compose` strips `@sha256:...` suffix from image references and pulls `:latest` instead, defeating digest-based pinning. Workaround: copy pinned image to local Zot with a stable tag and reference that tag. This breaks on Zot registries that return HTTP 400 for Docker v2 pull API.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | **High** |
+| **Service bind-mount volumes** | Render compose with patches in `command`         | `configVolume()` function exists as dead code in `ComposeUp.swift:839` (parses paths, validates traversal, generates `-v` args) but is never called from `makeRunArgs()`. Service-level `volumes:` entries are parsed into `service.volumes` but zero `-v`/`--mount` flags are generated for `container run`. File mounts are explicitly skipped with a warning (line 880). Directory mounts generate `-v` but mode (`:ro`) is stripped. All bind mounts silently ignored. **Workaround pattern**: A Python render script (`render-honcho-compose.py`) injects live-patches into the compose `command:` block before `container-compose up`. This enables a "Circuit Breaker" that skips Alembic migrations when the database schema already exists, preventing data loss on image updates. To force migrations when needed, set `HONCHO_FORCE_MIGRATION=1` on the hub service. | **High** |
+| **`container cp`**             | Volume mounts for all file sharing               | No hot-reload or file sync capability; limits dev workflow                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | High     |
+| **`container wait`**           | Polling with `container list`                    | Cannot efficiently block until a container exits; adds latency to shutdown orchestration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Medium   |
 
 #### Non-Gaps (already supported by container-compose)
 
 The orchestrator script works around several features that container-compose already implements natively:
 
-| Feature | Container-Compose Support | Orchestrator Workaround (unnecessary) |
-|---------|--------------------------|--------------------------------------|
-| **`-f` flag** | `-f` on `ComposeUp` and `ComposeDown`; accepts absolute or relative paths, skips CWD scanning when explicit | Symlink desired file to `compose.yml` before each call |
-| **`${VAR}` interpolation** | `resolveYamlVariables()` in `Helper Functions.swift` resolves `${VAR}`, `${VAR:-default}`, `${VAR:?error}` on raw YAML before decode (Docker Compose compatible with `$$` escaping) | Python pre-renders compose file with `os.environ` substitution |
-| **`depends_on` ordering** | `Service.topoSortConfiguredServices()` does topological sort at `ComposeUp.swift:147`; `waitForHealthy()` gates `service_healthy` dependencies | Manual sequential `container-compose up -d <service>` calls |
-| **`service_healthy` on externally managed containers** | `waitForHealthy()` now verifies container exists before health polling (v0.10.3) | **Mitigated**: Now fails fast with `ContainerNotFoundError` if dependency container doesn't exist. **Root cause remains**: For externally managed containers (started outside compose), use `depends_on: [service_name]` (short form) instead of `depends_on: { service_name: { condition: service_healthy } }`. The `service_healthy` condition assumes compose owns the dependency's lifecycle and healthcheck configuration. |
-| **Partial compose / volumes** | `setupVolume()` handles "already exists" gracefully; **top-level** named volumes created idempotently per compose file. Service-level `volumes:` are parsed but never wired to `container run` args (dead code `configVolume()` at line 839) | Regex-based stripping of `volumes:` and single-service extraction; orchestrator renders patches into `command` instead |
+| Feature                                                | Container-Compose Support                                                                                                                                                                                                                    | Orchestrator Workaround (unnecessary)                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`-f` flag**                                          | `-f` on `ComposeUp` and `ComposeDown`; accepts absolute or relative paths, skips CWD scanning when explicit                                                                                                                                  | Symlink desired file to `compose.yml` before each call                                                                                                                                                                                                                                                                                                                                                                          |
+| **`${VAR}` interpolation**                             | `resolveYamlVariables()` in `Helper Functions.swift` resolves `${VAR}`, `${VAR:-default}`, `${VAR:?error}` on raw YAML before decode (Docker Compose compatible with `$$` escaping)                                                          | Python pre-renders compose file with `os.environ` substitution                                                                                                                                                                                                                                                                                                                                                                  |
+| **`depends_on` ordering**                              | `Service.topoSortConfiguredServices()` does topological sort at `ComposeUp.swift:147`; `waitForHealthy()` gates `service_healthy` dependencies                                                                                               | Manual sequential `container-compose up -d <service>` calls                                                                                                                                                                                                                                                                                                                                                                     |
+| **`service_healthy` on externally managed containers** | `waitForHealthy()` now verifies container exists before health polling (v0.10.3)                                                                                                                                                             | **Mitigated**: Now fails fast with `ContainerNotFoundError` if dependency container doesn't exist. **Root cause remains**: For externally managed containers (started outside compose), use `depends_on: [service_name]` (short form) instead of `depends_on: { service_name: { condition: service_healthy } }`. The `service_healthy` condition assumes compose owns the dependency's lifecycle and healthcheck configuration. |
+| **Partial compose / volumes**                          | `setupVolume()` handles "already exists" gracefully; **top-level** named volumes created idempotently per compose file. Service-level `volumes:` are parsed but never wired to `container run` args (dead code `configVolume()` at line 839) | Regex-based stripping of `volumes:` and single-service extraction; orchestrator renders patches into `command` instead                                                                                                                                                                                                                                                                                                          |
 
 ### Compatibility & Migration
 
 #### v0.10.x → v0.11.0 Migration
 
 **Breaking Changes:**
+
 - Checkpoint export format changes (#1303)
 - Build secrets require containerization 0.29.0+
 
 **Deprecations:**
+
 - Evaluate removing fork registry auth if #1195 meets needs
 
 **New Dependencies:**
+
 - Bump Containerization to 0.29.0
 - Swift tools version unchanged (v5.9+)
 
 ### Testing Requirements
 
-| Feature | Test Priority | Type |
-|---------|--------------|------|
-| Build secrets | High | Integration |
-| Network MTU | Medium | Unit + Network |
-| Resource limits | High | Resource validation |
-| Checkpoint export | High | Migration/compat |
-| RegistryResource | Medium | Auth flows |
+| Feature           | Test Priority | Type                |
+| ----------------- | ------------- | ------------------- |
+| Build secrets     | High          | Integration         |
+| Network MTU       | Medium        | Unit + Network      |
+| Resource limits   | High          | Resource validation |
+| Checkpoint export | High          | Migration/compat    |
+| RegistryResource  | Medium        | Auth flows          |
 
 ### Upstreaming Strategy
 
 **Ready to upstream:**
+
 - [ ] `dns_search` support (if not in v0.11.0)
 - [ ] Build `target` field
 - [ ] Named volume full-path preservation
 
 **Blocked on upstream:**
+
 - Restart policies (waiting for #1258)
 - `container cp` integration (waiting for #1190)
 
 **Fork-only:**
+
 - Checkpoint command (compose-specific)
 - Restart stopped containers (compose lifecycle)
 - Debug output formatting
@@ -397,17 +414,17 @@ The orchestrator script works around several features that container-compose alr
 
 ## Testing Matrix
 
-| Feature | Test Coverage | Priority |
-|--------|---------------|----------|
-| **Persistence** | Named volumes, full path preservation | High |
-| **Security** | SELinux compatibility, build secrets | High |
-| **Reliability** | Memory validation, restart policies, stopped container restart | High |
-| **Networking** | DNS search, network reachability, MTU configuration | Medium |
-| **Build** | Multi-stage targets, build secrets, resource limits | High |
-| **Lifecycle** | Checkpoint export/import, container restart | High |
-| **Orchestration** | healthcheck-aware `depends_on` | High |
-| **Registry** | Authentication, push/pull | Medium |
-| **Test Infrastructure** | Container polling helpers, async state verification | High |
+| Feature                 | Test Coverage                                                  | Priority |
+| ----------------------- | -------------------------------------------------------------- | -------- |
+| **Persistence**         | Named volumes, full path preservation                          | High     |
+| **Security**            | SELinux compatibility, build secrets                           | High     |
+| **Reliability**         | Memory validation, restart policies, stopped container restart | High     |
+| **Networking**          | DNS search, network reachability, MTU configuration            | Medium   |
+| **Build**               | Multi-stage targets, build secrets, resource limits            | High     |
+| **Lifecycle**           | Checkpoint export/import, container restart                    | High     |
+| **Orchestration**       | healthcheck-aware `depends_on`                                 | High     |
+| **Registry**            | Authentication, push/pull                                      | Medium   |
+| **Test Infrastructure** | Container polling helpers, async state verification            | High     |
 
 ---
 
@@ -428,43 +445,43 @@ Features missing or incompatible in Apple's `container` CLI relative to Docker t
 
 ### High Priority — Blocks Core Compose Features
 
-| Feature | Docker CLI | Apple `container` CLI | Impact on Compose |
-|---------|-----------|----------------------|-------------------|
-| **`exec --` separator** | `docker exec <id> -- cmd args` | No `--` support; args go directly after container ID: `container exec <id> cmd args` | Compose healthcheck execution must strip `--` from exec args (worked around in fork) |
-| **`container wait`** | `docker wait <id>` returns exit code | Not implemented (`Plugin 'container-wait' not found`) | No way to block until a container exits; forces polling with `container list` |
-| **`container cp`** | `docker cp <id>:src dest` | Not implemented (`Plugin 'container-cp' not found`) | No file sync or hot-reload; must use volume mounts for all file sharing |
-| **`container restart`** | `docker restart <id>` | Not implemented (`Plugin 'container-restart' not found`) | Restart policies (`restart: always/on-failure`) cannot trigger restarts after crashes |
-| **`container attach`** | `docker attach <id>` | Not implemented (`Plugin 'container-attach' not found`) | Cannot reconnect to a container's stdin/stdout after detach |
+| Feature                 | Docker CLI                           | Apple `container` CLI                                                                | Impact on Compose                                                                     |
+| ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| **`exec --` separator** | `docker exec <id> -- cmd args`       | No `--` support; args go directly after container ID: `container exec <id> cmd args` | Compose healthcheck execution must strip `--` from exec args (worked around in fork)  |
+| **`container wait`**    | `docker wait <id>` returns exit code | Not implemented (`Plugin 'container-wait' not found`)                                | No way to block until a container exits; forces polling with `container list`         |
+| **`container cp`**      | `docker cp <id>:src dest`            | Not implemented (`Plugin 'container-cp' not found`)                                  | No file sync or hot-reload; must use volume mounts for all file sharing               |
+| **`container restart`** | `docker restart <id>`                | Not implemented (`Plugin 'container-restart' not found`)                             | Restart policies (`restart: always/on-failure`) cannot trigger restarts after crashes |
+| **`container attach`**  | `docker attach <id>`                 | Not implemented (`Plugin 'container-attach' not found`)                              | Cannot reconnect to a container's stdin/stdout after detach                           |
 
 ### Medium Priority — Complicates Orchestration
 
-| Feature | Docker CLI | Apple `container` CLI | Impact on Compose |
-|---------|-----------|----------------------|-------------------|
-| **`container rename`** | `docker rename <old> <new>` | Not implemented (`Plugin 'container-restart' not found`) | Cannot rename containers; must track original names |
-| **`container health` / health status in `inspect`** | `docker inspect` returns `Health.Status` | No health status field in container metadata | Compose must exec healthcheck commands manually via `container exec` (works, but native health state would avoid exec overhead per poll) |
-| **`container logs --since` / `--tail`** | `docker logs --tail 100 --since 1m` | `container logs` lacks filtering flags | Cannot efficiently fetch recent logs for debugging |
-| **`--restart` policy on `run`/`create`** | `docker run --restart=always` | Not present on `container run` | Compose `restart:` key cannot delegate to runtime; needs external watchdog |
-| **`--hostname` on `run`/`create`** | `docker run --hostname foo` | Not present on `container run` | Compose `hostname:` key must be handled via `/etc/hosts` volume mount workaround |
+| Feature                                             | Docker CLI                               | Apple `container` CLI                                    | Impact on Compose                                                                                                                        |
+| --------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **`container rename`**                              | `docker rename <old> <new>`              | Not implemented (`Plugin 'container-restart' not found`) | Cannot rename containers; must track original names                                                                                      |
+| **`container health` / health status in `inspect`** | `docker inspect` returns `Health.Status` | No health status field in container metadata             | Compose must exec healthcheck commands manually via `container exec` (works, but native health state would avoid exec overhead per poll) |
+| **`container logs --since` / `--tail`**             | `docker logs --tail 100 --since 1m`      | `container logs` lacks filtering flags                   | Cannot efficiently fetch recent logs for debugging                                                                                       |
+| **`--restart` policy on `run`/`create`**            | `docker run --restart=always`            | Not present on `container run`                           | Compose `restart:` key cannot delegate to runtime; needs external watchdog                                                               |
+| **`--hostname` on `run`/`create`**                  | `docker run --hostname foo`              | Not present on `container run`                           | Compose `hostname:` key must be handled via `/etc/hosts` volume mount workaround                                                         |
 
 ### Low Priority — Nice to Have
 
-| Feature | Docker CLI | Apple `container` CLI | Impact on Compose |
-|---------|-----------|----------------------|-------------------|
-| **`--cap-add` / `--cap-drop`** | `docker run --cap-add SYS_PTRACE` | Not present on `container run` | Cannot configure Linux capabilities |
-| **`--security-opt`** | `docker run --security-opt seccomp=...` | Not present on `container run` | Cannot configure seccomp/AppArmor profiles |
-| **`--pid` (PID sharing)** | `docker run --pid=container:id` | Not present on `container run` | Cannot share PID namespace between containers |
-| **`--shm-size`** | `docker run --shm-size=256m` | Not present on `container run` | Cannot configure shared memory size |
-| **`--tmpfs` with options** | `docker run --tmpfs /run:rw,noexec` | `container run --tmpfs` supports path only | Cannot set tmpfs mount options |
-| **`--gpus`** | `docker run --gpus all` | Not present on `container run` | No GPU passthrough support |
+| Feature                        | Docker CLI                              | Apple `container` CLI                      | Impact on Compose                             |
+| ------------------------------ | --------------------------------------- | ------------------------------------------ | --------------------------------------------- |
+| **`--cap-add` / `--cap-drop`** | `docker run --cap-add SYS_PTRACE`       | Not present on `container run`             | Cannot configure Linux capabilities           |
+| **`--security-opt`**           | `docker run --security-opt seccomp=...` | Not present on `container run`             | Cannot configure seccomp/AppArmor profiles    |
+| **`--pid` (PID sharing)**      | `docker run --pid=container:id`         | Not present on `container run`             | Cannot share PID namespace between containers |
+| **`--shm-size`**               | `docker run --shm-size=256m`            | Not present on `container run`             | Cannot configure shared memory size           |
+| **`--tmpfs` with options**     | `docker run --tmpfs /run:rw,noexec`     | `container run --tmpfs` supports path only | Cannot set tmpfs mount options                |
+| **`--gpus`**                   | `docker run --gpus all`                 | Not present on `container run`             | No GPU passthrough support                    |
 
 ### Syntax Incompatibilities (Implemented, Requires Workarounds)
 
-| Feature | Docker Syntax | Apple `container` Syntax | Workaround in Fork |
-|---------|-------------|------------------------|-------------------|
-| **`exec` argument separation** | `docker exec <id> -- cmd args` | `container exec <id> cmd args` | Strip `--` before passing to exec |
-| **Volume bind mount format** | `docker run -v src:dest:ro` | `container run --mount type=bind,source=src,target=dest,readonly` | Convert `-v` format to `--mount` format in `makeRunArgs` |
-| **Network attach format** | `docker run --network foo` | `container run --network foo[,mac=XX:XX:XX:XX:XX:XX]` | Direct mapping, no issue |
-| **Port publish format** | `docker run -p 127.0.0.1:8080:80` | `container run --publish 8080:80` (no bind address in older versions) | Verified: `--publish 127.0.0.1:8080:80` works in current version |
+| Feature                        | Docker Syntax                     | Apple `container` Syntax                                              | Workaround in Fork                                               |
+| ------------------------------ | --------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **`exec` argument separation** | `docker exec <id> -- cmd args`    | `container exec <id> cmd args`                                        | Strip `--` before passing to exec                                |
+| **Volume bind mount format**   | `docker run -v src:dest:ro`       | `container run --mount type=bind,source=src,target=dest,readonly`     | Convert `-v` format to `--mount` format in `makeRunArgs`         |
+| **Network attach format**      | `docker run --network foo`        | `container run --network foo[,mac=XX:XX:XX:XX:XX:XX]`                 | Direct mapping, no issue                                         |
+| **Port publish format**        | `docker run -p 127.0.0.1:8080:80` | `container run --publish 8080:80` (no bind address in older versions) | Verified: `--publish 127.0.0.1:8080:80` works in current version |
 
 ---
 

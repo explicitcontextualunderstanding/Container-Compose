@@ -7,6 +7,10 @@
 - **Container dependency health check for missing containers**: `waitForHealthy()` now fails fast with `ContainerNotFoundError` when a dependency container doesn't exist, instead of hanging indefinitely. Provides clear error message explaining the issue and suggesting either removing `depends_on: condition: service_healthy` or ensuring the container exists with the expected name.
 - **Documentation**: Clarified that `service_healthy` dependencies should only be used for containers managed by compose. For externally managed dependencies, use short-form `depends_on: [service_name]` instead.
 
+### Added
+
+- **External dependency health-gating (crash recovery)**: When `container-compose up` encounters a `depends_on: { condition: service_healthy }` against a container that is already running (started outside compose or by a previous run), it now skips the health wait and emits a warning. This prevents hangs on externally managed containers — critical for crash recovery scenarios where services like honcho-db and honcho-hub survive a Mac crash and compose is re-run. The new `externallyPresentServices` set tracks pre-existing running containers and skips `waitForHealthy()` for their dependents.
+
 ### Changed
 
 - **Registry environment variable**: Database tests now require `OCI_REGISTRY_URL` environment variable (was `OCI_REGISTRY_URL`). Tests fail fast with clear instructions if not set. Apple Container does not support HTTP for RFC1918 private IPs, so an HTTPS-accessible registry is required for container image tests.
@@ -57,7 +61,7 @@
 
 - **Dead code removal**: Removed unused `configVolume()` function at `ComposeUp.swift:839` that was never called; volume handling is now properly integrated into `makeRunArgs()`.
 - **Service volume mounting**: Previously `service.volumes` was parsed from YAML but never generated `-v` flags for `container run`. Now properly wired to create bind mounts and named volume mappings.
-- **Test suite stabilization**: 
+- **Test suite stabilization**:
   - Fixed WordPress test to check for IP pattern instead of `networks.first` which may be empty (race condition in container runtime API)
   - Added polling wait for container startup in `testUpAndDownComplex`
   - `testUpAndDownComplex` uses busybox/nginx instead of MySQL/WordPress (MySQL 8.0 initialization takes 30-60s and often times out)
