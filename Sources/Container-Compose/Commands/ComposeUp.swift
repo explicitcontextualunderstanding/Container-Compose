@@ -252,7 +252,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
                     // The container survived a crash and is presumed healthy — waiting for
                     // its healthcheck would block startup unnecessarily (SO-07 variant).
                     if externallyPresentServices.contains(serviceName) {
-                        print("Service '\(futureName)' depends on '\(serviceName)' being healthy, but it was already running — skipping health-gate.")
+                        print("[RECOVERY] '\(serviceName)' was already running — skipping health-gate for '\(futureName)'")
                         continue
                     }
                     // Find the healthcheck on the dependency (this service)
@@ -269,6 +269,18 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
                     print("Service '\(serviceName)' is healthy.")
                 }
             }
+        }
+
+        // Recovery summary: if any services were already running, emit a prominent banner
+        // so the operator knows the system detected a crash-recovery scenario.
+        if !externallyPresentServices.isEmpty {
+            print("\n═══════════════════════════════════════════════════════")
+            print("  RECOVERY MODE — \(externallyPresentServices.count) service(s) already running")
+            print("═══════════════════════════════════════════════════════")
+            for svc in externallyPresentServices.sorted() {
+                print("  ✓ '\(svc)' — detected running, health-gates skipped for dependents")
+            }
+            print("═══════════════════════════════════════════════════════\n")
         }
 
         if !detach {
@@ -743,7 +755,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       // Check if container already exists
       if let existingContainer = try? await ClientContainer.get(id: containerName) {
           if existingContainer.status == .running {
-              print("Container '\(containerName)' is already running.")
+              print("[RECOVERY] Container '\(containerName)' is already running — will skip health-gates for dependents")
               // External Dependency Health-Gating: Record this service as externally present
               // so that dependent services skip their service_healthy wait (crash recovery).
               externallyPresentServices.insert(serviceName)
