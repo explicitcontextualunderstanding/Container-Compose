@@ -11,6 +11,7 @@ final class ComposeAdvancedTests {
     enum Errors: Error {
         case containerNotFound
         case registryNotConfigured(String)
+        case registryNotAccessible(String, String)
     }
     
     /// Validates that OCI_REGISTRY_URL is set and accessible.
@@ -24,13 +25,47 @@ final class ComposeAdvancedTests {
                 Apple Container does not support HTTP for RFC1918 private IPs.
                 
                 Options:
-                1. Set OCI_REGISTRY_URL to your registry (e.g., registry.example.com orregistry.example.com)
+                1. Set OCI_REGISTRY_URL to your registry (e.g., registry.example.com or registry.example.com)
                 2. Use a public registry like docker.io
                 
                 Example: OCI_REGISTRY_URL=registry.example.com swift test
                 """)
         }
         return registryURL
+    }
+    
+    /// Validates that the registry URL is accessible by checking /v2/_catalog.
+    /// Only warns if check fails, does not block test execution.
+    private func validateRegistryAccess(_ registryURL: String) {
+        // Synchronous check using URLSession
+        let url = URL(string: "https://\(registryURL)/v2/_catalog")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 5
+        
+        let semaphore = DispatchSemaphore(value: 0)
+        var validationError: String?
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                validationError = "Network error: \(error.localizedDescription)"
+            } else if let httpResponse = response as? HTTPURLResponse {
+                // 200 = catalog accessible, 401 = auth required (both mean registry exists)
+                if httpResponse.statusCode != 200 && httpResponse.statusCode != 401 {
+                    validationError = "Registry returned HTTP \(httpResponse.statusCode)"
+                }
+            }
+            semaphore.signal()
+        }.resume()
+        
+        // Wait up to 5 seconds for validation
+        _ = semaphore.wait(timeout: .now() + 5)
+        
+        if let error = validationError {
+            print("⚠️  Warning: Registry validation failed: \(error)")
+            print("   Tests may fail if registry is unavailable.")
+            print("   OCI_REGISTRY_URL=\(registryURL)")
+        }
     }
     
     private func parseEnvToDict(_ envArray: [String]) -> [String: String] {
@@ -460,8 +495,12 @@ final class ComposeAdvancedTests {
 
  @Test("Test database container starts without volume mount issues")
  func testDatabaseContainerStarts() async throws {
- let testPort = DockerComposeYamlFiles.getAvailablePort()
  let registryURL = try requireRegistryURL()
+ 
+ // Validate registry access (warns if unavailable, doesn't block)
+ validateRegistryAccess(registryURL)
+
+ let testPort = DockerComposeYamlFiles.getAvailablePort()
 
  // Using pgmicro (PostgreSQL-compatible database with wire protocol server)
  // Image must be available in OCI_REGISTRY_URL
@@ -509,8 +548,12 @@ final class ComposeAdvancedTests {
 
 @Test("Test three-tier app with database")
  func testThreeTierWithDatabase() async throws {
- let testPort = DockerComposeYamlFiles.getAvailablePort()
  let registryURL = try requireRegistryURL()
+ 
+ // Validate registry access (warns if unavailable, doesn't block)
+ validateRegistryAccess(registryURL)
+
+ let testPort = DockerComposeYamlFiles.getAvailablePort()
 
  // Three-tier architecture: db (pgmicro) -> app -> nginx
  let yaml = """
