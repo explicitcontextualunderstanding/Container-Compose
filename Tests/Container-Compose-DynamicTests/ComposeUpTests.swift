@@ -599,11 +599,120 @@ struct ContainerDependentTrait: TestScoping, TestTrait, SuiteTrait {
         // Check service name was parsed (indirectly by the fact that it didn't throw during parse)
         #expect(composeUp.services.isEmpty) // It's empty because longServiceName is a service KEY, not an argument
         
-        // Cleanup
+// Cleanup
         try? FileManager.default.removeItem(at: tempLocation.deletingLastPathComponent())
+    }
+    
+    // MARK: - Recovery Mode Tests
+    
+    @Test("Test --recover starts stopped containers")
+    func testRecoverStartsStoppedContainers() async throws {
+        // Create a simple compose file
+        let yaml = """
+            services:
+              test-service:
+                image: busybox:latest
+                command: ["sleep", "300"]
+            """
+        
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_Recover_\(UUID().uuidString)/docker-compose.yaml")
+        try FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        let projectName = tempLocation.deletingLastPathComponent().lastPathComponent
+        
+        defer {
+            // Cleanup
+            try? FileManager.default.removeItem(at: tempLocation.deletingLastPathComponent())
+        }
+        
+        // Step 1: Create and start the container normally
+        var composeUp1 = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp1.run()
+        
+        // Verify container is running
+        let containers1 = try await ClientContainer.list().filter { $0.configuration.id.contains(projectName) }
+        guard let container1 = containers1.first else {
+            throw Errors.containerNotFound
+        }
+        #expect(container1.status == .running, "Container should be running after initial up")
+        
+        // Step 2: Stop the container
+        let containerName = container1.configuration.id
+        try await ContainerComposeCore.streamCommand("container", args: ["stop", containerName], cwd: tempLocation.deletingLastPathComponent().path(percentEncoded: false), onStdout: { _ in }, onStderr: { _ in })
+        
+        // Verify container is stopped
+        let containers2 = try await ClientContainer.list().filter { $0.configuration.id == containerName }
+        guard let container2 = containers2.first else {
+            throw Errors.containerNotFound
+        }
+        #expect(container2.status == .stopped, "Container should be stopped after manual stop")
+        
+        // Step 3: Run compose up --recover
+        var composeUp2 = try ComposeUp.parse(["-d", "--recover", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp2.run()
+        
+        // Verify container is running again
+        let containers3 = try await ClientContainer.list().filter { $0.configuration.id == containerName }
+        guard let container3 = containers3.first else {
+            throw Errors.containerNotFound
+        }
+        #expect(container3.status == .running, "Container should be running after --recover")
+        
+        // Cleanup: Remove the container
+        try? await ContainerComposeCore.streamCommand("container", args: ["rm", "-f", containerName], cwd: tempLocation.deletingLastPathComponent().path(percentEncoded: false), onStdout: { _ in }, onStderr: { _ in })
+    }
+    
+    @Test("Test --recover skips running containers")
+    func testRecoverSkipsRunningContainers() async throws {
+        // Create a simple compose file
+        let yaml = """
+            services:
+              test-service:
+                image: busybox:latest
+                command: ["sleep", "300"]
+            """
+        
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_RecoverRunning_\(UUID().uuidString)/docker-compose.yaml")
+        try FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        let projectName = tempLocation.deletingLastPathComponent().lastPathComponent
+        
+        defer {
+            // Cleanup
+            try? FileManager.default.removeItem(at: tempLocation.deletingLastPathComponent())
+        }
+        
+        // Step 1: Create and start the container normally
+        var composeUp1 = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp1.run()
+        
+        // Verify container is running
+        let containers1 = try await ClientContainer.list().filter { $0.configuration.id.contains(projectName) }
+        guard let container1 = containers1.first else {
+            throw Errors.containerNotFound
+        }
+        let containerName = container1.configuration.id
+        let originalContainerID = container1.id
+        #expect(container1.status == .running, "Container should be running after initial up")
+        
+        // Step 2: Run compose up --recover (container already running)
+        var composeUp2 = try ComposeUp.parse(["-d", "--recover", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp2.run()
+        
+        // Verify container is still running and was NOT recreated (same ID)
+        let containers2 = try await ClientContainer.list().filter { $0.configuration.id == containerName }
+        guard let container2 = containers2.first else {
+            throw Errors.containerNotFound
+        }
+        #expect(container2.status == .running, "Container should still be running")
+        #expect(container2.id == originalContainerID, "Container should not be recreated when already running")
+        
+        // Cleanup: Remove the container
+        try? await ContainerComposeCore.streamCommand("container", args: ["rm", "-f", containerName], cwd: tempLocation.deletingLastPathComponent().path(percentEncoded: false), onStdout: { _ in }, onStderr: { _ in })
     }
 }
 
 extension Trait where Self == ContainerDependentTrait {
     static var containerDependent: ContainerDependentTrait { .init() }
 }
+    
