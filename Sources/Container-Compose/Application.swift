@@ -47,12 +47,13 @@ public struct Main: AsyncParsableCommand {
         NOTE: Keep PROJECT-SERVICE names under 64 characters (macOS Virtualization.framework limit)
         """,
         version: Self.versionString,
-        subcommands: [
-            ComposeUp.self,
-            ComposeDown.self,
-            CheckpointCommand.self,
-            Version.self
-        ])
+subcommands: [
+        ComposeUp.self,
+        ComposeDown.self,
+        CheckpointCommand.self,
+        HealthCommand.self,
+        Version.self
+    ])
     
     public init() {}
 }
