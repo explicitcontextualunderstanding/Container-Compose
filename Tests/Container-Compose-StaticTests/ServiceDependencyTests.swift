@@ -329,7 +329,7 @@ struct ServiceDependencyTests {
         // Normal path: call waitForHealthy
     }
 
-    @Test("externallyPresentServices empty set allows normal health-gating")
+@Test("externallyPresentServices empty set allows normal health-gating")
     func externallyPresentServicesEmptySet() {
         // When no services were pre-existing, all health-gates should proceed normally
         var externallyPresentServices: Set<String> = []
@@ -337,7 +337,102 @@ struct ServiceDependencyTests {
         let dependency = "honcho-db"
         #expect(!externallyPresentServices.contains(dependency),
                 "Empty set should not contain any services")
-
-        // Normal path: call waitForHealthy (not skipped)
     }
+
+    // MARK: - service_completed_successfully Condition Tests (Phase 2)
+
+    @Test("service_completed_successfully condition is parsed correctly")
+    func completedSuccessfullyConditionParsing() throws {
+        // Test that the new condition enum case can be parsed from YAML
+        let yaml = """
+            services:
+              app:
+                image: myapp:latest
+                depends_on:
+                  migrations:
+                    condition: service_completed_successfully
+            """
+        
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"],
+              let dependsOn = service.depends_on,
+              let entry = dependsOn["migrations"] else {
+            Issue.record("Failed to parse depends_on")
+            return
+        }
+        
+        #expect(entry.condition == .service_completed_successfully,
+               "Expected service_completed_successfully condition")
+    }
+
+    @Test("completedSuccessfullyDependencies returns correct service names")
+    func completedSuccessfullyDependenciesProperty() throws {
+        let service = Service(
+            image: "myapp:latest",
+            depends_on: [
+                "db": DependsOnEntry(condition: .service_healthy),
+                "migrations": DependsOnEntry(condition: .service_completed_successfully),
+                "cache": DependsOnEntry(condition: nil),  // service_started (default)
+            ]
+        )
+        
+        let healthy = service.healthyDependencies
+        #expect(healthy == ["db"], "Only db should be a healthy dependency")
+        
+        let completed = service.completedSuccessfullyDependencies
+        #expect(completed == ["migrations"], "Only migrations should be a completed dependency")
+        
+        let all = service.dependencyNames.sorted()
+        #expect(all == ["cache", "db", "migrations"], "All dependencies should be listed")
+    }
+
+    @Test("service_completed_successfully with mixed dependency conditions")
+    func mixedDependencyConditions() throws {
+        let yaml = """
+            services:
+              web:
+                image: nginx:alpine
+                depends_on:
+                  api:
+                    condition: service_started
+                  db:
+                    condition: service_healthy
+                  migrations:
+                    condition: service_completed_successfully
+            """
+        
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let web = dockerCompose.services["web"],
+              let dependsOn = web.depends_on else {
+            Issue.record("Failed to parse service")
+            return
+        }
+        
+        #expect(dependsOn["api"]?.condition == nil, "api should have nil condition (service_started)")
+        #expect(dependsOn["db"]?.condition == .service_healthy, "db should be service_healthy")
+        #expect(dependsOn["migrations"]?.condition == .service_completed_successfully,
+               "migrations should be service_completed_successfully")
+    }
+
+    @Test("topoSort respects service_completed_successfully dependencies")
+    func topoSortWithCompletedSuccessfully() throws {
+        // app depends on migrations (service_completed_successfully)
+        // migrations has no dependencies
+        // app should be scheduled AFTER migrations
+        let app = Service(
+            image: "myapp:latest",
+            depends_on: ["migrations": DependsOnEntry(condition: .service_completed_successfully)]
+        )
+        let migrations = Service(image: "busybox:latest", depends_on: nil)
+
+        let services: [(String, Service)] = [("app", app), ("migrations", migrations)]
+        let sorted = try Service.topoSortConfiguredServices(services)
+
+        #expect(sorted.count == 2)
+        #expect(sorted[0].serviceName == "migrations",
+               "Migrations should come first")
+        #expect(sorted[1].serviceName == "app",
+               "App should come after migrations")
+    }
+}
 }
