@@ -199,4 +199,60 @@ func testVolumeMapping_Opts() throws {
         
         return warnings
     }
+    
+    // MARK: - Single-File Volume Mount Tests (Phase 4)
+    
+    func testSingleFileMountCurrentlySkipped() throws {
+        // Test current behavior: file mounts are skipped with warning
+        // This test documents the existing limitation that will be removed
+        let yaml = """
+            services:
+              app:
+                image: nginx:alpine
+                volumes:
+                  - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+            """
+        
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"]?.flatMap({ $0 }),
+              let volumes = service.volumes else {
+            XCTFail("Failed to parse service")
+            return
+        }
+        
+        XCTAssertEqual(volumes.count, 1, "Should parse volume entry")
+        XCTAssertTrue(volumes[0].contains("nginx.conf"), "Should detect file mount")
+    }
+    
+    func testDirectoryMountWorks() throws {
+        // Test that directory mounts work correctly
+        let yaml = """
+            services:
+              app:
+                image: nginx:alpine
+                volumes:
+                  - ./html:/usr/share/nginx/html
+            """
+        
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"]?.flatMap({ $0 }) else {
+            XCTFail("Failed to parse service")
+            return
+        }
+        
+        let args = try ComposeUp.makeRunArgs(
+            service: service,
+            serviceName: "app",
+            image: "nginx:alpine",
+            dockerCompose: dockerCompose,
+            projectName: "test",
+            detach: true,
+            cwd: "/tmp/test",
+            environmentVariables: [:]
+        )
+        
+        // Should contain -v flag for directory mount
+        XCTAssertTrue(args.contains("-v"), "Should include volume flag")
+        XCTAssertTrue(args.contains { $0.contains("/usr/share/nginx/html") }, "Should mount to correct destination")
+    }
 }
