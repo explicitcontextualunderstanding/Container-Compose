@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 import ArgumentParser
+import ContainerAPIClient
 import ContainerizationExtras
 import Foundation
 import Yams
@@ -97,10 +98,139 @@ public struct ComposePs: AsyncParsableCommand {
         }
     }
 
-    // MARK: - Run (stub — Cycle 4)
+    // MARK: - Run (Cycle 4)
 
     public mutating func run() async throws {
-        // Cycle 4: wire end-to-end
+        let workingDir = cwd ?? FileManager.default.currentDirectoryPath
+
+        // Compose file discovery
+        let composePath: String
+        if let filePath = file {
+            composePath = filePath.hasPrefix("/") ? filePath : "\(workingDir)/\(filePath)"
+        } else {
+            let candidates = ["compose.yml", "compose.yaml", "docker-compose.yml", "docker-compose.yaml"]
+            guard let found = candidates.first(where: { FileManager.default.fileExists(atPath: "\(workingDir)/\($0)") }) else {
+                throw ComposePsError.composeFileNotFound(workingDir)
+            }
+            composePath = "\(workingDir)/\(found)"
+        }
+
+        // Load compose file
+        let yamlContent = try String(contentsOfFile: composePath, encoding: .utf8)
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlContent)
+
+        let projectName: String
+        if let name = dockerCompose.name {
+            projectName = name
+        } else {
+            projectName = try deriveProjectName(cwd: workingDir)
+        }
+
+        // Build services list
+        var services: [(name: String, service: Service)] = []
+        for (serviceName, serviceOpt) in dockerCompose.services {
+            guard let service = serviceOpt else { continue }
+            services.append((serviceName, service))
+        }
+
+        // Validate service filter
+        if let filter = service {
+            guard services.contains(where: { $0.name == filter }) else {
+                throw ComposePsError.serviceNotFound(filter)
+            }
+        }
+
+        // List all containers and convert to ContainerInfo
+        let allContainers = try await ClientContainer.list()
+        let containerInfos: [ContainerInfo] = allContainers.map { container in
+            let ip: String? = container.networks.first.map { String(describing: $0.ipv4Address).split(separator: "/").first.map(String.init) ?? String(describing: $0.ipv4Address) }
+            let ports: [String] = container.configuration.publishedPorts.map { port in
+                let hostAddr = String(describing: port.hostAddress)
+                return "\(hostAddr):\(port.hostPort)->\(port.containerPort)/\(port.proto)"
+            }
+            let state: ComposePs.PsState = switch container.status {
+            case .running: .running
+            case .stopped: .stopped
+            case .stopping: .stopping
+            default: .unknown
+            }
+            return ContainerInfo(
+                name: container.configuration.id,
+                id: container.configuration.id,
+                state: state,
+                ip: ip,
+                ports: ports,
+                startedDate: container.startedDate
+            )
+        }
+
+        let statuses = ComposePs.matchServicesToContainers(
+            services: services,
+            projectName: projectName,
+            containers: containerInfos,
+            serviceFilter: service
+        )
+
+        // Output
+        if json || format == .json {
+            let output = try ComposePs.formatPsJSON(statuses)
+            print(output)
+        } else {
+            print(ComposePs.formatPsTable(statuses))
+            print(ComposePs.formatSummary(statuses))
+        }
+    }
+
+    /// Static helper for tests: list services and return PsStatus array
+    public static func listServices(cwd: String, serviceFilter: String? = nil) async throws -> [PsStatus] {
+        // Try standard compose file names
+        let candidates = ["compose.yml", "compose.yaml", "docker-compose.yml", "docker-compose.yaml"]
+        let composePath: String
+        if let found = candidates.first(where: { FileManager.default.fileExists(atPath: "\(cwd)/\($0)") }) {
+            composePath = "\(cwd)/\(found)"
+        } else {
+            throw ComposePsError.composeFileNotFound(cwd)
+        }
+        let yamlContent = try String(contentsOfFile: composePath, encoding: .utf8)
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlContent)
+
+        let projectName: String
+        if let name = dockerCompose.name {
+            projectName = name
+        } else {
+            projectName = try deriveProjectName(cwd: cwd)
+        }
+
+        var services: [(name: String, service: Service)] = []
+        for (serviceName, serviceOpt) in dockerCompose.services {
+            guard let service = serviceOpt else { continue }
+            services.append((serviceName, service))
+        }
+
+        let allContainers = try await ClientContainer.list()
+        let containerInfos: [ContainerInfo] = allContainers.map { container in
+            let ip: String? = container.networks.first.map { String(describing: $0.ipv4Address).split(separator: "/").first.map(String.init) ?? String(describing: $0.ipv4Address) }
+            let ports: [String] = container.configuration.publishedPorts.map { port in
+                let hostAddr = String(describing: port.hostAddress)
+                return "\(hostAddr):\(port.hostPort)->\(port.containerPort)/\(port.proto)"
+            }
+            let state: ComposePs.PsState = switch container.status {
+            case .running: .running
+            case .stopped: .stopped
+            case .stopping: .stopping
+            default: .unknown
+            }
+            return ContainerInfo(
+                name: container.configuration.id,
+                id: container.configuration.id,
+                state: state,
+                ip: ip,
+                ports: ports,
+                startedDate: container.startedDate
+            )
+        }
+
+        return matchServicesToContainers(services: services, projectName: projectName, containers: containerInfos, serviceFilter: serviceFilter)
     }
 
     // MARK: - Matching Logic (Cycle 2)
@@ -210,5 +340,21 @@ public struct ComposePs: AsyncParsableCommand {
         if hours < 24 { return "\(hours)h ago" }
         let days = hours / 24
         return "\(days)d ago"
+    }
+}
+
+// MARK: - Error Types
+
+public enum ComposePsError: Error, CustomStringConvertible {
+    case serviceNotFound(String)
+    case composeFileNotFound(String)
+
+    public var description: String {
+        switch self {
+        case .serviceNotFound(let name):
+            return "Service '\(name)' not found in compose file"
+        case .composeFileNotFound(let cwd):
+            return "No compose file found in \(cwd)"
+        }
     }
 }
