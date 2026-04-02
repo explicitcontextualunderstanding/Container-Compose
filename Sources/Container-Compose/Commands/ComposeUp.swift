@@ -504,12 +504,12 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         )
     }
 
-    /// Parses a duration string like "30s", "1m", "10" into seconds. Returns nil if unparseable.
+/// Parses a duration string like "30s", "1m", "10" into seconds. Returns nil if unparseable.
     static func parseDuration(_ value: String?) -> TimeInterval? {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty { return nil }
-
+        
         if trimmed.hasSuffix("s") {
             guard let val = Double(trimmed.dropLast()) else { return nil }
             return val
@@ -522,6 +522,27 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         } else {
             // Bare number treated as seconds
             return Double(trimmed)
+        }
+    }
+    
+    /// Checks for known database paths that may have virtiofs performance/reliability issues on macOS
+    /// Emits warnings to help users avoid known problematic configurations
+    private static func checkVirtiofsDatabaseWarnings(destination: String, serviceName: String) {
+        let databasePaths: [(String, String, String)] = [
+            ("PostgreSQL", "/var/lib/postgresql/data", "Consider using a named volume or Docker Desktop for database workloads"),
+            ("MySQL/MariaDB", "/var/lib/mysql", "Consider using a named volume or Docker Desktop for database workloads"),
+            ("Redis", "/data", "Redis AOF files may have performance issues with virtiofs"),
+            ("MongoDB", "/data/db", "MongoDB journal files may have performance issues with virtiofs"),
+            ("SQLite", ".db", "SQLite database files may have locking issues with virtiofs"),
+            ("BerkeleyDB", "/var/lib/berkeleydb", "Berkeley DB files may have locking issues with virtiofs")
+        ]
+        
+        for (dbName, dbPath, recommendation) in databasePaths {
+            if destination.contains(dbPath) {
+                print("⚠️ [VIRTIOFS WARNING] Service '\(serviceName)' mounts to \(dbName) path: \(destination)")
+                print("                      \(recommendation)")
+                print("                      See: https://github.com/Mcrich23/Container-Compose/issues/virtiofs-db")
+            }
         }
     }
 
@@ -1197,22 +1218,25 @@ extension ComposeUp {
             runArgs.append("-i")
         }
 
-        // Map service volumes to -v flags (bind mounts)
+// Map service volumes to -v flags (bind mounts)
         if let volumes = service.volumes {
             let fileManager = FileManager.default
             for volume in volumes {
                 let resolvedVolume = try resolveVariable(volume, with: environmentVariables)
-
+                
                 // Parse the volume string: source:destination[:mode]
                 let components = resolvedVolume.split(separator: ":", maxSplits: 2).map(String.init)
                 guard components.count >= 2 else {
                     print("Warning: Volume entry '\(resolvedVolume)' has an invalid format (expected 'source:destination'). Skipping.")
                     continue
                 }
-
+                
                 let source = components[0]
                 let destination = components[1]
-
+                
+                // Check for virtiofs database path warnings (Phase 4)
+                checkVirtiofsDatabaseWarnings(destination: destination, serviceName: serviceName)
+                
                 // Check if the source looks like a host path (contains '/' or starts with '.')
                 if source.contains("/") || source.starts(with: ".") || source.starts(with: "..") {
                     // Bind mount (local path to container path)
