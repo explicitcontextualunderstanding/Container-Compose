@@ -108,6 +108,9 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     @Flag(name: .long, help: "If containers already exist and are running, don't recreate them")
     var noRecreate: Bool = false
 
+    @Flag(name: .long, help: "Recover crashed or stopped containers without recreating them. Mutually exclusive with --build and --force-recreate.")
+    var recover: Bool = false
+
     @Flag(name: .long, help: "Do not use cache")
     var noCache: Bool = false
 
@@ -137,6 +140,12 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     public mutating func validate() throws {
         if forceRecreate && noRecreate {
             throw ValidationError("--force-recreate and --no-recreate are mutually exclusive")
+        }
+        if recover && rebuild {
+            throw ValidationError("--recover and --build are mutually exclusive")
+        }
+        if recover && forceRecreate {
+            throw ValidationError("--recover and --force-recreate are mutually exclusive")
         }
     }
 
@@ -754,26 +763,77 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
       // Check if container already exists
       if let existingContainer = try? await ClientContainer.get(id: containerName) {
-          if existingContainer.status == .running {
-              print("[RECOVERY] Container '\(containerName)' is already running — will skip health-gates for dependents")
-              // External Dependency Health-Gating: Record this service as externally present
-              // so that dependent services skip their service_healthy wait (crash recovery).
-              externallyPresentServices.insert(serviceName)
-              try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
-              return
+          // Recovery mode logic
+          if recover {
+              // Handle different container states in recovery mode
+              switch existingContainer.status {
+              case .running:
+                  print("[RECOVER] Container '\(containerName)' is already running - skipping creation")
+                  // External Dependency Health-Gating: Record this service as externally present
+                  // so that dependent services skip their service_healthy wait (crash recovery).
+                  externallyPresentServices.insert(serviceName)
+                  
+                  // Check for configuration drift
+                  if let driftWarnings = checkContainerDrift(container: existingContainer, service: service, expectedImage: imageToRun, env: combinedEnv), !driftWarnings.isEmpty {
+                      for warning in driftWarnings {
+                          print("⚠️  [DRIFT WARNING] Container '\(containerName)': \(warning)")
+                      }
+                  }
+                  
+                  try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
+                  return
+                  
+              case .stopped:
+                  print("[RECOVER] Container '\(containerName)' is stopped - starting it")
+                  
+                  // Check for configuration drift before starting
+                  if let driftWarnings = checkContainerDrift(container: existingContainer, service: service, expectedImage: imageToRun, env: combinedEnv), !driftWarnings.isEmpty {
+                      for warning in driftWarnings {
+                          print("⚠️  [DRIFT WARNING] Container '\(containerName)': \(warning)")
+                      }
+                  }
+                  
+                  let startCommand = try Application.ContainerStart.parse([containerName])
+                  try await startCommand.run()
+                  try await waitUntilContainerIsRunning(containerName)
+                  try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
+                  return
+                  
+              default:
+                  // Zombie container states: creating, dead, restarting, etc.
+                  // These are invalid states for recovery - purge and recreate
+                  print("[RECOVER] Container '\(containerName)' is in invalid state '\(existingContainer.status)' - purging zombie")
+                  try await purgeZombieContainer(name: containerName)
+                  // Fall through to create new container
+              }
           } else {
-              // Container exists but is not running
-              if noRecreate {
-                  print("Container '\(containerName)' exists with status: \(existingContainer.status). Not recreating (--no-recreate).")
+              // Non-recovery mode: original behavior
+              if existingContainer.status == .running {
+                  print("[RECOVERY] Container '\(containerName)' is already running — will skip health-gates for dependents")
+                  // External Dependency Health-Gating: Record this service as externally present
+                  // so that dependent services skip their service_healthy wait (crash recovery).
+                  externallyPresentServices.insert(serviceName)
+                  try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
+                  return
+              } else {
+                  // Container exists but is not running
+                  if noRecreate {
+                      print("Container '\(containerName)' exists with status: \(existingContainer.status). Not recreating (--no-recreate).")
+                      return
+                  }
+                  print("Container '\(containerName)' exists with status: \(existingContainer.status). Starting it...")
+                  let startCommand = try Application.ContainerStart.parse([containerName])
+                  try await startCommand.run()
+                  try await waitUntilContainerIsRunning(containerName)
+                  try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
                   return
               }
-              print("Container '\(containerName)' exists with status: \(existingContainer.status). Starting it...")
-              let startCommand = try Application.ContainerStart.parse([containerName])
-              try await startCommand.run()
-              try await waitUntilContainerIsRunning(containerName)
-              try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
-              return
           }
+      }
+      
+      // Container doesn't exist - create new
+      if recover {
+          print("[RECOVER] Creating container '\(containerName)' - not found")
       }
 
         // Start container and capture result
@@ -899,6 +959,48 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         print("----------------------------------------")
 
         return imageToRun
+    }
+    
+    /// Check container configuration drift
+    /// Returns array of warning messages if configuration differs from compose.yml
+    private func checkContainerDrift(container: ClientContainer, service: Service, expectedImage: String, env: [String: String]) -> [String]? {
+        var warnings: [String] = []
+        
+        // Check image drift
+        let containerImage = container.configuration.image.reference
+        if containerImage != expectedImage {
+            warnings.append("Image changed from '\(expectedImage)' to '\(containerImage)'")
+        }
+        
+        // Check environment drift (basic check - just compare keys)
+        let containerEnvArray = container.configuration.initProcess.environment ?? []
+        let containerEnvKeys = Set(containerEnvArray.compactMap { $0.components(separatedBy: "=").first })
+        let expectedEnvKeys = Set(env.keys)
+        let addedKeys = containerEnvKeys.subtracting(expectedEnvKeys)
+        let removedKeys = expectedEnvKeys.subtracting(containerEnvKeys)
+        
+        if !addedKeys.isEmpty {
+            warnings.append("Environment keys added: \(addedKeys.sorted().joined(separator: ", "))")
+        }
+        if !removedKeys.isEmpty {
+            warnings.append("Environment keys removed: \(removedKeys.sorted().joined(separator: ", "))")
+        }
+        
+        return warnings.isEmpty ? nil : warnings
+    }
+    
+    /// Purge a zombie container (stuck in invalid state)
+    private func purgeZombieContainer(name: String) async throws {
+        print("[RECOVER] Removing zombie container '\(name)'")
+        try await ContainerComposeCore.streamCommand(
+            "container",
+            args: ["rm", "-f", name],
+            cwd: cwd,
+            onStdout: { _ in },
+            onStderr: { output in
+                print("⚠️  container rm warning: \(output)")
+            }
+        )
     }
 
 }
