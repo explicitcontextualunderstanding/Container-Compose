@@ -626,6 +626,110 @@ services:
         // Cleanup: Remove the container
         try? await ContainerComposeCore.streamCommand("container", args: ["rm", "-f", containerName], cwd: tempLocation.deletingLastPathComponent().path(percentEncoded: false), onStdout: { _ in }, onStderr: { _ in })
     }
+    
+    // MARK: - service_completed_successfully Tests (Phase 2)
+    
+    @Test("Test service_completed_successfully waits for exit code 0")
+    func testCompletedSuccessfullyWaitsForExit0() async throws {
+        // Test that when a dependency has condition: service_completed_successfully,
+        // the orchestrator waits for the container to exit with code 0 before starting dependents
+        let yaml = """
+            services:
+              init-migrations:
+                image: busybox:latest
+                command: ["sh", "-c", "echo 'Running migrations' && sleep 1 && exit 0"]
+              app:
+                image: busybox:latest
+                command: ["sleep", "300"]
+                depends_on:
+                  init-migrations:
+                    condition: service_completed_successfully
+            """
+        
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_CompletedSuccess_\(UUID().uuidString)/docker-compose.yaml")
+        try FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        let projectName = tempLocation.deletingLastPathComponent().lastPathComponent
+        
+        defer {
+            // Cleanup
+            try? FileManager.default.removeItem(at: tempLocation.deletingLastPathComponent())
+        }
+        
+        // Run compose up
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp.run()
+        
+        // Verify containers
+        let containers = try await ClientContainer.list().filter { $0.configuration.id.contains(projectName) }
+        
+        // Find the app container
+        guard let appContainer = containers.first(where: { $0.configuration.id.contains("app") }) else {
+            // If app container doesn't exist, the test should fail
+            // because the dependency didn't complete successfully
+            throw Errors.containerNotFound
+        }
+        
+        // App container should be running (dependency completed successfully)
+        #expect(appContainer.status == .running, "App container should be running after dependency completed successfully")
+        
+        // Cleanup: Remove all containers
+        for container in containers {
+            try? await ContainerComposeCore.streamCommand("container", args: ["rm", "-f", container.configuration.id], cwd: tempLocation.deletingLastPathComponent().path(percentEncoded: false), onStdout: { _ in }, onStderr: { _ in })
+        }
+    }
+    
+    @Test("Test service_completed_successfully halts on non-zero exit")
+    func testCompletedSuccessfullyHaltsOnNonZeroExit() async throws {
+        // Test that when a dependency has condition: service_completed_successfully and exits with non-zero,
+        // the orchestrator halts and refuses to start dependent services
+        let yaml = """
+            services:
+              failing-init:
+                image: busybox:latest
+                command: ["sh", "-c", "echo 'Failing migrations' && sleep 1 && exit 1"]
+              app:
+                image: busybox:latest
+                command: ["sleep", "300"]
+                depends_on:
+                  failing-init:
+                    condition: service_completed_successfully
+            """
+        
+        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_CompletedFail_\(UUID().uuidString)/docker-compose.yaml")
+        try FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
+        let projectName = tempLocation.deletingLastPathComponent().lastPathComponent
+        
+        defer {
+            // Cleanup
+            try? FileManager.default.removeItem(at: tempLocation.deletingLastPathComponent())
+        }
+        
+        // Run compose up - this should fail/halt because dependency exits with non-zero
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        
+        // The compose up should either throw an error or complete without starting the app container
+        do {
+            try await composeUp.run()
+            
+            // If we get here, verify that app container was NOT started
+            let containers = try await ClientContainer.list().filter { $0.configuration.id.contains(projectName) }
+            
+            // App should NOT be running
+            let appContainer = containers.first(where: { $0.configuration.id.contains("app") })
+            #expect(appContainer == nil || appContainer?.status != .running, 
+                   "App container should NOT be running when dependency failed with non-zero exit")
+            
+            // Cleanup any containers that were created
+            for container in containers {
+                try? await ContainerComposeCore.streamCommand("container", args: ["rm", "-f", container.configuration.id], cwd: tempLocation.deletingLastPathComponent().path(percentEncoded: false), onStdout: { _ in }, onStderr: { _ in })
+            }
+        } catch {
+            // Expected: compose up should fail when dependency exits with non-zero
+            // This is the correct behavior
+        }
+    }
 }
 
 struct ContainerDependentTrait: TestScoping, TestTrait, SuiteTrait {
