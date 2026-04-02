@@ -1251,15 +1251,19 @@ extension ComposeUp {
                         continue
                     }
 
-                    var isDirectory: ObjCBool = false
-                    if fileManager.fileExists(atPath: fullHostPath, isDirectory: &isDirectory) {
-                        if isDirectory.boolValue {
-                            runArgs.append("-v")
-                            runArgs.append("\(source):\(destination)")
-                        } else {
-                            print("Warning: Volume mount source '\(source)' is a file. The 'container' tool does not support direct file mounts. Skipping this volume.")
-                        }
-                    } else {
+var isDirectory: ObjCBool = false
+            if fileManager.fileExists(atPath: fullHostPath, isDirectory: &isDirectory) {
+                if isDirectory.boolValue {
+                    runArgs.append("-v")
+                    runArgs.append("\(source):\(destination)")
+                } else {
+                    // File mount: Apple Container runtime supports file mounts
+                    // No need to skip - pass through to container CLI
+                    runArgs.append("-v")
+                    runArgs.append("\(source):\(destination)")
+                    print("Info: Mounting file '\(source)' to '\(destination)'")
+                }
+            } else {
                         // Try to create the directory
                         do {
                             try fileManager.createDirectory(atPath: fullHostPath, withIntermediateDirectories: true, attributes: nil)
