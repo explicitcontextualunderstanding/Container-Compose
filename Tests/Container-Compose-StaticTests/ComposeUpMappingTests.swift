@@ -446,22 +446,15 @@ final class ComposeUpMappingTests: XCTestCase {
     // MARK: - Validation Tests
 
     func testRecoverMutuallyExclusiveWithBuild() throws {
-        var cmd = try ComposeUp.parse(["--recover", "--build"])
-        XCTAssertThrowsError(try cmd.validate(), "Expected validation error when both --recover and --build are provided") { error in
-            guard let validationError = error as? ArgumentParser.ValidationError else {
-                return XCTFail("Expected ValidationError, got \(error)")
-            }
-            XCTAssertTrue(validationError.description.contains("mutually exclusive"), "Error message should mention mutual exclusivity")
+        // ArgumentParser enforces mutual exclusivity during parse(), before validate() runs
+        XCTAssertThrowsError(try ComposeUp.parse(["--recover", "--build"]), "Expected parse error when both --recover and --build are provided") { error in
+            XCTAssertTrue(String(describing: error).contains("mutually exclusive"), "Error should mention mutual exclusivity, got: \(error)")
         }
     }
 
     func testRecoverMutuallyExclusiveWithForceRecreate() throws {
-        var cmd = try ComposeUp.parse(["--recover", "--force-recreate"])
-        XCTAssertThrowsError(try cmd.validate(), "Expected validation error when both --recover and --force-recreate are provided") { error in
-            guard let validationError = error as? ArgumentParser.ValidationError else {
-                return XCTFail("Expected ValidationError, got \(error)")
-            }
-            XCTAssertTrue(validationError.description.contains("mutually exclusive"), "Error message should mention mutual exclusivity")
+        XCTAssertThrowsError(try ComposeUp.parse(["--recover", "--force-recreate"]), "Expected parse error when both --recover and --force-recreate are provided") { error in
+            XCTAssertTrue(String(describing: error).contains("mutually exclusive"), "Error should mention mutual exclusivity, got: \(error)")
         }
     }
 
