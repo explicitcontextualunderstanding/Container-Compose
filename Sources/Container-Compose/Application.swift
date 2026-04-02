@@ -50,6 +50,7 @@ public struct Main: AsyncParsableCommand {
 subcommands: [
         ComposeUp.self,
         ComposeDown.self,
+        ComposePs.self,
         CheckpointCommand.self,
         HealthCommand.self,
         Version.self
