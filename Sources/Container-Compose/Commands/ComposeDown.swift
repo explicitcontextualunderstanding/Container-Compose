@@ -46,6 +46,9 @@ public struct ComposeDown: AsyncParsableCommand {
     @Option(name: [.customShort("f"), .customLong("file")], help: "The path to your Docker Compose file")
     var composeFile: String? = nil
 
+    @Option(name: .long, help: "Per-service stop timeout in seconds (default: 30)")
+    var timeoutSeconds: Int = 30
+
     private var foundFilename: String?
     private var composePath: String {
         if let file = composeFile {
@@ -56,6 +59,76 @@ public struct ComposeDown: AsyncParsableCommand {
 
     private var fileManager: FileManager { FileManager.default }
     private var projectName: String?
+
+    // MARK: - Result Model
+
+    /// Tracks the outcome of stopping each service for exit code calculation.
+    public struct DownResult: Sendable {
+        public let stopped: [String]
+        public let timeouts: [String]
+        public let errors: [String]
+
+        public init(stopped: [String], timeouts: [String], errors: [String]) {
+            self.stopped = stopped
+            self.timeouts = timeouts
+            self.errors = errors
+        }
+
+        /// Worst-case exit code: 0=all clean, 1=some timeouts, 2=fatal errors.
+        public var exitCode: Int32 {
+            if !errors.isEmpty { return 2 }
+            if !timeouts.isEmpty { return 1 }
+            return 0
+        }
+
+        public var isSuccess: Bool { exitCode == 0 }
+
+        public var summary: String {
+            var parts: [String] = []
+            if !stopped.isEmpty {
+                parts.append("\(stopped.count) stopped")
+            }
+            if !timeouts.isEmpty {
+                parts.append("\(timeouts.count) timeout")
+            }
+            if !errors.isEmpty {
+                parts.append("\(errors.count) error")
+            }
+            if parts.isEmpty {
+                return "0 stopped"
+            }
+            return parts.joined(separator: ", ")
+        }
+    }
+
+    // MARK: - State File (Idempotent Teardown)
+
+    /// Path to the state file for a given working directory.
+    public static func stateFilePath(cwd: String) -> URL {
+        URL(fileURLWithPath: cwd).appendingPathComponent(".container-compose.state")
+    }
+
+    /// Read owned container names from the state file. Returns empty array if file doesn't exist.
+    public static func readStateFile(_ url: URL) -> [String] {
+        guard let data = FileManager.default.contents(atPath: url.path),
+              let content = String(data: data, encoding: .utf8) else {
+            return []
+        }
+        return content.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+    }
+
+    /// Write owned container names to the state file.
+    public static func writeStateFile(_ url: URL, containerNames: [String]) {
+        let content = containerNames.joined(separator: "\n")
+        try? content.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    /// Remove the state file. No-op if it doesn't exist.
+    public static func removeStateFile(_ url: URL) {
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    // MARK: - Run
 
     public mutating func run() async throws {
 
@@ -115,11 +188,24 @@ public struct ComposeDown: AsyncParsableCommand {
             })
         }
 
-        try await stopOldStuff(services, remove: false)
+        let result = try await stopOldStuff(services, remove: false)
+
+        // Report summary
+        print("Summary: \(result.summary)")
+
+        // Exit with appropriate code
+        if !result.isSuccess {
+            throw ComposeDownError.teardownIncomplete(result)
+        }
     }
 
-    private func stopOldStuff(_ services: [(serviceName: String, service: Service)], remove: Bool) async throws {
-        guard let projectName else { return }
+    private func stopOldStuff(_ services: [(serviceName: String, service: Service)], remove: Bool) async throws -> DownResult {
+        guard let projectName else { return DownResult(stopped: [], timeouts: [], errors: []) }
+
+        var stopped: [String] = []
+        var timeouts: [String] = []
+        var errors: [String] = []
+        var ownedContainerNames: [String] = []
 
         for (serviceName, service) in services {
             // Respect explicit container_name, otherwise use default pattern
@@ -130,26 +216,94 @@ public struct ComposeDown: AsyncParsableCommand {
                 containerName = "\(projectName)-\(serviceName)"
             }
 
+            ownedContainerNames.append(containerName)
+
             print("Stopping container: \(containerName)")
             guard let container = try? await ClientContainer.get(id: containerName) else {
                 print("Warning: Container '\(containerName)' not found, skipping.")
                 continue
             }
 
-            do {
-                try await container.stop()
+            // Stop with per-service timeout
+            let didStop = try await stopWithTimeout(container: container, name: containerName, timeout: timeoutSeconds)
+            if didStop {
                 print("Successfully stopped container: \(containerName)")
-            } catch {
-                print("Error Stopping Container: \(error)")
+                stopped.append(containerName)
+            } else {
+                print("Warning: Timeout stopping container: \(containerName) (force-stopped)")
+                timeouts.append(containerName)
             }
+
             if remove {
                 do {
                     try await container.delete()
                     print("Successfully removed container: \(containerName)")
                 } catch {
                     print("Error Removing Container: \(error)")
+                    errors.append(containerName)
                 }
             }
+        }
+
+        // Write state file so a subsequent `down` can resume
+        let statePath = ComposeDown.stateFilePath(cwd: cwd)
+        if ownedContainerNames.isEmpty {
+            // No services to manage — remove state file if it exists (idempotent no-op)
+            ComposeDown.removeStateFile(statePath)
+        } else {
+            ComposeDown.writeStateFile(statePath, containerNames: ownedContainerNames)
+        }
+
+        return DownResult(stopped: stopped, timeouts: timeouts, errors: errors)
+    }
+
+    /// Stop a container with a timeout. Returns true if stopped gracefully, false if timed out.
+    private func stopWithTimeout(container: ClientContainer, name: String, timeout: Int) async throws -> Bool {
+        let timeoutNs = UInt64(timeout) * 1_000_000_000
+
+        return try await withThrowingTaskGroup(of: Bool.self) { group in
+            // Primary: try graceful stop
+            group.addTask {
+                try await container.stop()
+                return true
+            }
+
+            // Timeout: cancel after N seconds
+            group.addTask {
+                try await Task.sleep(nanoseconds: timeoutNs)
+                return false
+            }
+
+            // Wait for first result
+            let graceful = try await group.next() ?? false
+            group.cancelAll()
+
+            if graceful {
+                return true
+            }
+
+            // Timed out — attempt force stop
+            print("Graceful stop timed out for \(name), attempting force stop...")
+            do {
+                try await container.delete(force: true)
+                return false // stopped but not gracefully
+            } catch {
+                print("Force stop also failed for \(name): \(error)")
+                return false
+            }
+        }
+    }
+}
+
+// MARK: - Error Types
+
+public enum ComposeDownError: Error, CustomStringConvertible {
+    case teardownIncomplete(ComposeDown.DownResult)
+
+    public var description: String {
+        switch self {
+        case .teardownIncomplete(let result):
+            return "Teardown incomplete: \(result.summary)"
         }
     }
 }
