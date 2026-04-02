@@ -1,6 +1,7 @@
 import XCTest
 @testable import ContainerComposeCore
 import Yams
+import ArgumentParser
 
 final class ComposeUpMappingTests: XCTestCase {
     func testRestartPolicyMapping_Always() throws {
@@ -440,6 +441,28 @@ final class ComposeUpMappingTests: XCTestCase {
         var cmd = try ComposeUp.parse(["-f", "/custom/path.yml"])
         XCTAssertNotNil(cmd.composeFile, "composeFile should be set when -f is provided")
         XCTAssertEqual(cmd.composePath, "/custom/path.yml")
+    }
+
+    // MARK: - Validation Tests
+
+    func testRecoverMutuallyExclusiveWithBuild() throws {
+        var cmd = try ComposeUp.parse(["--recover", "--build"])
+        XCTAssertThrowsError(try cmd.validate(), "Expected validation error when both --recover and --build are provided") { error in
+            guard let validationError = error as? ArgumentParser.ValidationError else {
+                return XCTFail("Expected ValidationError, got \(error)")
+            }
+            XCTAssertTrue(validationError.description.contains("mutually exclusive"), "Error message should mention mutual exclusivity")
+        }
+    }
+
+    func testRecoverMutuallyExclusiveWithForceRecreate() throws {
+        var cmd = try ComposeUp.parse(["--recover", "--force-recreate"])
+        XCTAssertThrowsError(try cmd.validate(), "Expected validation error when both --recover and --force-recreate are provided") { error in
+            guard let validationError = error as? ArgumentParser.ValidationError else {
+                return XCTFail("Expected ValidationError, got \(error)")
+            }
+            XCTAssertTrue(validationError.description.contains("mutually exclusive"), "Error message should mention mutual exclusivity")
+        }
     }
 
     // MARK: - Volume Mapping Tests

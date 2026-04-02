@@ -65,6 +65,7 @@ import Foundation
 public enum DependsOnCondition: String, Codable, Hashable {
     case service_started
     case service_healthy
+    case service_completed_successfully
 }
 
 /// A single entry in the long-form `depends_on` map.
@@ -178,6 +179,13 @@ public final class Service: Codable, Hashable {
     public var healthyDependencies: [String] {
         depends_on?.compactMap { name, entry in
             entry.condition == .service_healthy ? name : nil
+        }.sorted() ?? []
+    }
+    
+    /// Dependency service names that require `service_completed_successfully` condition.
+    public var completedSuccessfullyDependencies: [String] {
+        depends_on?.compactMap { name, entry in
+            entry.condition == .service_completed_successfully ? name : nil
         }.sorted() ?? []
     }
     

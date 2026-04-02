@@ -329,7 +329,7 @@ struct ServiceDependencyTests {
         // Normal path: call waitForHealthy
     }
 
-@Test("externallyPresentServices empty set allows normal health-gating")
+    @Test("externallyPresentServices empty set allows normal health-gating")
     func externallyPresentServicesEmptySet() {
         // When no services were pre-existing, all health-gates should proceed normally
         var externallyPresentServices: Set<String> = []
@@ -354,10 +354,12 @@ struct ServiceDependencyTests {
             """
         
         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
-        guard let service = dockerCompose.services["app"],
+        // services is [String: Service?] so dictionary subscript returns Service??
+        // Use double optional unwrapping with ?? or flatMap
+        guard let service = dockerCompose.services["app"]?.flatMap({ $0 }),
               let dependsOn = service.depends_on,
               let entry = dependsOn["migrations"] else {
-            Issue.record("Failed to parse depends_on")
+            Issue.record("Failed to parse service")
             return
         }
         
@@ -402,13 +404,14 @@ struct ServiceDependencyTests {
             """
         
         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
-        guard let web = dockerCompose.services["web"],
+        // services is [String: Service?] so dictionary subscript returns Service??
+        guard let web = dockerCompose.services["web"]?.flatMap({ $0 }),
               let dependsOn = web.depends_on else {
             Issue.record("Failed to parse service")
             return
         }
         
-        #expect(dependsOn["api"]?.condition == nil, "api should have nil condition (service_started)")
+        #expect(dependsOn["api"]?.condition == .service_started, "api should have service_started condition")
         #expect(dependsOn["db"]?.condition == .service_healthy, "db should be service_healthy")
         #expect(dependsOn["migrations"]?.condition == .service_completed_successfully,
                "migrations should be service_completed_successfully")
@@ -434,5 +437,4 @@ struct ServiceDependencyTests {
         #expect(sorted[1].serviceName == "app",
                "App should come after migrations")
     }
-}
 }
