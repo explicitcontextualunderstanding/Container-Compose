@@ -628,6 +628,66 @@ services:
     }
 }
 
+struct ContainerDependentTrait: TestScoping, TestTrait, SuiteTrait {
+    func provideScope(for test: Test, testCase: Test.Case?, performing function: () async throws -> Void) async throws {
+        let euid = getuid()
+        let isRoot = euid == 0
+
+        // Step 1: Ping the API server
+        var pingResult: String
+        var health: SystemHealth?
+        do {
+            health = try await ClientHealthCheck.ping(timeout: .seconds(3))
+            let version = health?.apiServerVersion ?? "unknown"
+            let commit = health?.apiServerCommit ?? "unknown"
+            pingResult = "OK (v\(version), commit \(commit))"
+        } catch {
+            pingResult = "FAILED — \(error.localizedDescription)"
+        }
+
+        // Step 2: If ping failed, try SystemStart
+        var startResult: String?
+        if health == nil {
+            do {
+                try await Application.SystemStart.parse(["--enable-kernel-install"]).run()
+                startResult = nil
+            } catch {
+                startResult = "Error: \(error)"
+            }
+
+            // Step 3: Re-ping after start attempt
+            if startResult == nil {
+                do {
+                    health = try await ClientHealthCheck.ping(timeout: .seconds(3))
+                    pingResult = "OK after start (v\(health?.apiServerVersion ?? "unknown"), commit \(health?.apiServerCommit ?? "unknown"))"
+                } catch {
+                    pingResult = "FAILED after start attempt"
+                }
+            }
+        }
+
+        // Print diagnostics
+        if health != nil {
+            print("✓ Container Runtime Diagnostics:")
+            print("  EUID: \(euid)\(isRoot ? " (running as root)" : " (not root — sudo recommended)")")
+            print("  API server ping: \(pingResult)")
+        } else {
+            print("⚠️  Container Runtime Diagnostics:")
+            print("  EUID: \(euid)\(isRoot ? " (running as root)" : " (not root — container operations may fail without sudo)")")
+            print("  API server ping: FAILED — connection timed out")
+            if let startResult {
+                print("  SystemStart attempt: \(startResult)")
+            }
+            print("  API server after start: FAILED")
+            print("  ❌ Container runtime is not available. Tests requiring containers will likely fail.")
+            print("     Try running with: sudo ./run-tests.sh")
+        }
+
+        // Run Test
+        try await function()
+    }
+}
+
 extension Trait where Self == ContainerDependentTrait {
     static var containerDependent: ContainerDependentTrait { .init() }
 }

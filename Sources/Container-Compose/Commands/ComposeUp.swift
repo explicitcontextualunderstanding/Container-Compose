@@ -973,7 +973,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
         
         // Check environment drift (basic check - just compare keys)
-        let containerEnvArray = container.configuration.initProcess.environment ?? []
+        let containerEnvArray = container.configuration.initProcess.environment
         let containerEnvKeys = Set(containerEnvArray.compactMap { $0.components(separatedBy: "=").first })
         let expectedEnvKeys = Set(env.keys)
         let addedKeys = containerEnvKeys.subtracting(expectedEnvKeys)
