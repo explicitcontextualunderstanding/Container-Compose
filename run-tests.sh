@@ -98,31 +98,73 @@ echo ""
 
 # Neutralize conda environment contamination (shared with build-sign-install.sh)
 source "$SCRIPT_DIR/scripts/env-setup.sh"
-[ -n "$_ENV_SETUP_SUMMARY" ] && echo "  Env: $_ENV_SETUP_SUMMARY"
+[ -n "$_ENV_SETUP_SUMMARY" ] && echo " Env: $_ENV_SETUP_SUMMARY"
+
+# Check for stale lock files in temp directory
+LOCK_PATTERN="_Users_kieranlal_workspace_Container-Compose_.build"
+TEMP_DIR="/var/folders/1s/1zg1gfbn3j79qw5g2fqsf9q00000gn/T"
+
+if [ -d "$TEMP_DIR" ]; then
+    stale_locks=$(find "$TEMP_DIR" -name "*$LOCK_PATTERN*" -type f 2>/dev/null || true)
+    if [ -n "$stale_locks" ]; then
+        lock_count=$(echo "$stale_locks" | wc -l | tr -d ' ')
+        echo "⚠️ Detected $lock_count stale lock file(s) in temp directory:"
+        echo "$stale_locks" | head -5 | while read -r lock; do
+            echo " - $(basename "$lock")"
+        done
+        if [ "$lock_count" -gt 5 ]; then
+            echo " ... and $((lock_count - 5)) more"
+        fi
+        echo ""
+        echo " These can cause 'invalid access' errors during build."
+        echo ""
+        
+        if [ "$AUTO_CLEAN" = true ]; then
+            should_clean=true
+        else
+            read -p "Remove stale lock files? [Y/n] " -n 1 -r
+            echo ""
+            if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                should_clean=true
+            fi
+        fi
+        
+        if [ "$should_clean" = true ]; then
+            echo "$stale_locks" | while read -r lock; do
+                rm -f "$lock" 2>/dev/null || true
+            done
+            echo "✓ Stale lock files removed"
+            echo ""
+        else
+            echo "⚠️ Continuing without removing locks. Build may fail."
+            echo ""
+        fi
+    fi
+fi
 
 # Check for root-owned files in .build if not running as root
 if [ -d ".build" ] && [ "$EUID" -ne 0 ]; then
     root_files=$(find .build -user root -print -quit 2>/dev/null || true)
     if [ -n "$root_files" ]; then
-        echo "⚠️  Detected root-owned files in .build directory."
-        echo "   This will cause 'Permission denied' errors during compilation."
+        echo "⚠️ Detected root-owned files in .build directory."
+        echo " This will cause 'Permission denied' errors during compilation."
         echo ""
-        read -p "   Would you like to fix permissions using sudo? [y/N] " -n 1 -r
+        read -p " Would you like to fix permissions using sudo? [y/N] " -n 1 -r
         echo ""
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             sudo chown -R "$USER" .build
             echo "✓ Permissions fixed."
             echo ""
         else
-            echo "⚠️  Continuing without fixing permissions. Build may fail."
-            echo ""
-        fi
-    fi
-fi
+            echo "⚠️ Continuing without fixing permissions. Build may fail."
+ echo ""
+ fi
+ fi
+ fi
 
-# Set configurable test ports to avoid conflicts with existing services
-# Override these via environment variables if needed
-export TEST_PORT_WORDPRESS="${TEST_PORT_WORDPRESS:-18080}"
+ # Set configurable test ports to avoid conflicts with existing services
+ # Override these via environment variables if needed
+ export TEST_PORT_WORDPRESS="${TEST_PORT_WORDPRESS:-18080}"
 export TEST_PORT_WEB="${TEST_PORT_WEB:-18081}"
 export TEST_PORT_GATEWAY="${TEST_PORT_GATEWAY:-18082}"
 export TEST_PORT_API="${TEST_PORT_API:-18083}"
