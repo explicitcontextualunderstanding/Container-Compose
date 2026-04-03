@@ -36,75 +36,72 @@ struct ComposeUpTests {
         try FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         try nginxConf.write(to: nginxConfLocation, atomically: false, encoding: .utf8)
-        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+        try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
+            let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+            var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        try await composeUp.run()
-        
-        // Get these containers
-        let containers = try await ClientContainer.list()
-            .filter({
-                $0.configuration.id.contains(tempLocation.deletingLastPathComponent().lastPathComponent)
-            })
-        
-        // Assert correct container information (wp + nginx + mysql setup)
-        guard let wordpressContainer = containers.first(where: { $0.configuration.id == "\(folderName)-wp" }),
-              let webContainer = containers.first(where: { $0.configuration.id == "\(folderName)-web" }),
-              let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" })
-        else {
-            throw Errors.containerNotFound
+            // Get these containers
+            let containers = try await ClientContainer.list()
+                .filter({
+                    $0.configuration.id.contains(tempLocation.deletingLastPathComponent().lastPathComponent)
+                })
+
+            // Assert correct container information (wp + nginx + mysql setup)
+            guard let wordpressContainer = containers.first(where: { $0.configuration.id == "\(folderName)-wp" }),
+                  let webContainer = containers.first(where: { $0.configuration.id == "\(folderName)-web" }),
+                  let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" })
+            else {
+                throw Errors.containerNotFound
+            }
+
+            // Check WordPress container (php-fpm, no exposed ports internally)
+            #expect(wordpressContainer.configuration.image.reference == "docker.io/library/wordpress:fpm-alpine")
+
+            // Check Environment
+            let wpEnv = parseEnvToDict(wordpressContainer.configuration.initProcess.environment)
+            // The container runtime API (ClientContainer) doesn't always populate networks[] immediately
+            // after container start. However, the internal getIPForContainer call in compose up IS working
+            // - we can verify this by checking the env var was set to an IP address.
+            // Note: The networks array may be empty in the API response but the IP resolution works.
+            if let dbHost = wpEnv["WORDPRESS_DB_HOST"] {
+                // Verify it looks like an IP address (basic validation)
+                let ipPattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
+                #expect(dbHost.firstMatch(of: ipPattern) != nil, "WORDPRESS_DB_HOST should be an IP address, got: \(dbHost)")
+            } else {
+                #expect(false, "WORDPRESS_DB_HOST not set in environment")
+            }
+            #expect(wpEnv["WORDPRESS_DB_USER"] == "wordpress")
+            #expect(wpEnv["WORDPRESS_DB_PASSWORD"] == "wordpress")
+            #expect(wpEnv["WORDPRESS_DB_NAME"] == "wordpress")
+
+            // Check Volume
+            print("DEBUG: wp mounts: \(wordpressContainer.configuration.mounts.map(\.destination))")
+            #expect(wordpressContainer.configuration.mounts.map(\.destination).contains("/var/www/html"))
+
+            // Check Web container (nginx, handles external port mapping)
+            #expect(webContainer.configuration.publishedPorts.first?.hostPort == 18080)
+            #expect(webContainer.configuration.publishedPorts.first?.containerPort == 8080)
+            #expect(webContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
+
+            // Assert correct db container information
+            // Check Image
+            #expect(dbContainer.configuration.image.reference == "docker.io/library/mysql:8.0")
+
+            // Check Environment
+            let dbEnv = parseEnvToDict(dbContainer.configuration.initProcess.environment)
+            #expect(dbEnv["MYSQL_ROOT_PASSWORD"] == "rootpassword")
+            #expect(dbEnv["MYSQL_DATABASE"] == "wordpress")
+            #expect(dbEnv["MYSQL_USER"] == "wordpress")
+            #expect(dbEnv["MYSQL_PASSWORD"] == "wordpress")
+
+            // Check Volume
+            print("DEBUG: db mounts: \(dbContainer.configuration.mounts.map(\.destination))")
+            #expect(dbContainer.configuration.mounts.map(\.destination).contains("/var/lib/mysql"))
+            print("")
         }
-
-        // Check WordPress container (php-fpm, no exposed ports internally)
-        #expect(wordpressContainer.configuration.image.reference == "docker.io/library/wordpress:fpm-alpine")
-
-        // Check Environment
-        let wpEnv = parseEnvToDict(wordpressContainer.configuration.initProcess.environment)
-        // The container runtime API (ClientContainer) doesn't always populate networks[] immediately
-        // after container start. However, the internal getIPForContainer call in compose up IS working
-        // - we can verify this by checking the env var was set to an IP address.
-        // Note: The networks array may be empty in the API response but the IP resolution works.
-        if let dbHost = wpEnv["WORDPRESS_DB_HOST"] {
-            // Verify it looks like an IP address (basic validation)
-            let ipPattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
-            #expect(dbHost.firstMatch(of: ipPattern) != nil, "WORDPRESS_DB_HOST should be an IP address, got: \(dbHost)")
-        } else {
-            #expect(false, "WORDPRESS_DB_HOST not set in environment")
-        }
-        #expect(wpEnv["WORDPRESS_DB_USER"] == "wordpress")
-        #expect(wpEnv["WORDPRESS_DB_PASSWORD"] == "wordpress")
-        #expect(wpEnv["WORDPRESS_DB_NAME"] == "wordpress")
-
-        // Check Volume
-        print("DEBUG: wp mounts: \(wordpressContainer.configuration.mounts.map(\.destination))")
-        #expect(wordpressContainer.configuration.mounts.map(\.destination).contains("/var/www/html"))
-
-        // Check Web container (nginx, handles external port mapping)
-        #expect(webContainer.configuration.publishedPorts.first?.hostPort == 18080)
-        #expect(webContainer.configuration.publishedPorts.first?.containerPort == 8080)
-        #expect(webContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
-
-        // Assert correct db container information
-        // Check Image
-        #expect(dbContainer.configuration.image.reference == "docker.io/library/mysql:8.0")
-        
-        // Check Environment
-        let dbEnv = parseEnvToDict(dbContainer.configuration.initProcess.environment)
-        #expect(dbEnv["MYSQL_ROOT_PASSWORD"] == "rootpassword")
-        #expect(dbEnv["MYSQL_DATABASE"] == "wordpress")
-        #expect(dbEnv["MYSQL_USER"] == "wordpress")
-        #expect(dbEnv["MYSQL_PASSWORD"] == "wordpress")
-        
-        // Check Volume
-        print("DEBUG: db mounts: \(dbContainer.configuration.mounts.map(\.destination))")
-        #expect(dbContainer.configuration.mounts.map(\.destination).contains("/var/lib/mysql"))
-        print("")
-        
-        // Cleanup
-        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        _ = try? await composeDown.run()
     }
-    
+
     @Test("Test three-tier web application")
     func testThreeTierWebApp() async throws {
         // Note: Apple Container doesn't support custom bridge networks.
@@ -151,75 +148,72 @@ struct ComposeUpTests {
         let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
-        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+        try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
+            let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+            var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        try await composeUp.run()
+            // Wait for containers to be created, then wait for networks to populate
+            let containers = try await TestHelpers.ContainerPollingHelpers.waitForAllNetworks(
+                projectName: folderName,
+                expectedCount: 4,
+                timeout: 60 // Networks take longer to populate
+            )
 
-    // Wait for containers to be created, then wait for networks to populate
-    let containers = try await TestHelpers.ContainerPollingHelpers.waitForAllNetworks(
-        projectName: folderName,
-        expectedCount: 4,
-        timeout: 60 // Networks take longer to populate
-    )
+            guard let nginxContainer = containers.first(where: { $0.configuration.id == "\(folderName)-nginx" }),
+                 let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }),
+                 let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" }),
+                 let redisContainer = containers.first(where: { $0.configuration.id == "\(folderName)-redis" })
+            else {
+                throw Errors.containerNotFound
+            }
 
-    guard let nginxContainer = containers.first(where: { $0.configuration.id == "\(folderName)-nginx" }),
-         let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }),
-         let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" }),
-         let redisContainer = containers.first(where: { $0.configuration.id == "\(folderName)-redis" })
-    else {
-        throw Errors.containerNotFound
+            // --- NGINX Container ---
+            #expect(nginxContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
+            #expect(nginxContainer.configuration.publishedPorts.count == 1)
+            #expect(nginxContainer.configuration.publishedPorts.first?.containerPort == 80)
+            // All containers should have at least one network (default network on Apple Container)
+            TestHelpers.ContainerTestHelpers.assertHasNetworks(nginxContainer)
+
+            // --- APP Container ---
+            #expect(appContainer.configuration.image.reference == "docker.io/library/node:18-alpine")
+
+            let appEnv = parseEnvToDict(appContainer.configuration.initProcess.environment)
+            #expect(appEnv["NODE_ENV"] == "production")
+
+            // Verify DATABASE_URL contains database hostname or IP
+            if let dbUrl = appEnv["DATABASE_URL"] {
+                // DATABASE_URL may contain hostname (db) or resolved IP
+                let hostnamePattern = /postgres:\/\/[a-zA-Z0-9_-]+:5432\/myapp/
+                let ipPattern = /postgres:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:5432\/myapp/
+                #expect(
+                    dbUrl.firstMatch(of: hostnamePattern) != nil || dbUrl.firstMatch(of: ipPattern) != nil,
+                    "DATABASE_URL should contain hostname or IP, got: \(dbUrl)"
+                )
+            } else {
+                #expect(false, "DATABASE_URL not set in environment")
+            }
+
+            // All containers should have networks populated
+            TestHelpers.ContainerTestHelpers.assertHasNetworks(appContainer)
+
+            // --- DB Container ---
+            #expect(dbContainer.configuration.image.reference == "docker.io/library/postgres:14-alpine")
+            let dbEnv = parseEnvToDict(dbContainer.configuration.initProcess.environment)
+            #expect(dbEnv["POSTGRES_DB"] == "myapp")
+            #expect(dbEnv["POSTGRES_USER"] == "user")
+            #expect(dbEnv["POSTGRES_PASSWORD"] == "password")
+
+            // Note: Volume mounts removed to avoid Virtualization.framework permission issues
+            // Database data is ephemeral for testing
+            TestHelpers.ContainerTestHelpers.assertHasNetworks(dbContainer)
+
+            // --- Redis Container ---
+            #expect(redisContainer.configuration.image.reference == "docker.io/library/redis:alpine")
+            TestHelpers.ContainerTestHelpers.assertHasNetworks(redisContainer)
+        }
     }
 
-    // --- NGINX Container ---
-        #expect(nginxContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
-        #expect(nginxContainer.configuration.publishedPorts.count == 1)
-        #expect(nginxContainer.configuration.publishedPorts.first?.containerPort == 80)
-        // All containers should have at least one network (default network on Apple Container)
-        TestHelpers.ContainerTestHelpers.assertHasNetworks(nginxContainer)
-
-        // --- APP Container ---
-        #expect(appContainer.configuration.image.reference == "docker.io/library/node:18-alpine")
-
-        let appEnv = parseEnvToDict(appContainer.configuration.initProcess.environment)
-        #expect(appEnv["NODE_ENV"] == "production")
-
-        // Verify DATABASE_URL contains database hostname or IP
-        if let dbUrl = appEnv["DATABASE_URL"] {
-            // DATABASE_URL may contain hostname (db) or resolved IP
-            let hostnamePattern = /postgres:\/\/[a-zA-Z0-9_-]+:5432\/myapp/
-            let ipPattern = /postgres:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:5432\/myapp/
-            #expect(
-                dbUrl.firstMatch(of: hostnamePattern) != nil || dbUrl.firstMatch(of: ipPattern) != nil,
-                "DATABASE_URL should contain hostname or IP, got: \(dbUrl)"
-            )
-        } else {
-            #expect(false, "DATABASE_URL not set in environment")
-        }
-
-        // All containers should have networks populated
-        TestHelpers.ContainerTestHelpers.assertHasNetworks(appContainer)
-
-        // --- DB Container ---
-        #expect(dbContainer.configuration.image.reference == "docker.io/library/postgres:14-alpine")
-        let dbEnv = parseEnvToDict(dbContainer.configuration.initProcess.environment)
-        #expect(dbEnv["POSTGRES_DB"] == "myapp")
-        #expect(dbEnv["POSTGRES_USER"] == "user")
-        #expect(dbEnv["POSTGRES_PASSWORD"] == "password")
-
-        // Note: Volume mounts removed to avoid Virtualization.framework permission issues
-        // Database data is ephemeral for testing
-        TestHelpers.ContainerTestHelpers.assertHasNetworks(dbContainer)
-
-        // --- Redis Container ---
-        #expect(redisContainer.configuration.image.reference == "docker.io/library/redis:alpine")
-        TestHelpers.ContainerTestHelpers.assertHasNetworks(redisContainer)
-
-    // Cleanup
-    var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-    _ = try? await composeDown.run()
-}
-    
 //    @Test("Parse development environment with build")
 //    func parseDevelopmentEnvironment() throws {
 //        let yaml = DockerComposeYamlFiles.dockerComposeYaml4
@@ -280,46 +274,43 @@ struct ComposeUpTests {
     try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
     try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
     let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+    try await ContainerPollingHelpers.withProjectCleanup(projectName: folderName) {
+        // First, start the container
+        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp.run()
 
-    // First, start the container
-    var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-    try await composeUp.run()
+        // Verify container is running
+        let containersAfterFirstUp = try await ClientContainer.list()
+          .filter { $0.configuration.id.contains(folderName) }
+        guard let container = containersAfterFirstUp.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
+          throw Errors.containerNotFound
+        }
+        #expect(container.status == .running)
 
-    // Verify container is running
-    let containersAfterFirstUp = try await ClientContainer.list()
-      .filter { $0.configuration.id.contains(folderName) }
-    guard let container = containersAfterFirstUp.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
-      throw Errors.containerNotFound
+        // Stop the container using container CLI
+        var stopCommand = try Application.ContainerStop.parse([container.configuration.id])
+        try await stopCommand.run()
+
+        // Verify container is stopped
+        let stoppedContainers = try await ClientContainer.list()
+          .filter { $0.configuration.id == "\(folderName)-app" }
+        guard let stoppedContainer = stoppedContainers.first else {
+          throw Errors.containerNotFound
+        }
+        #expect(stoppedContainer.status == .stopped)
+
+        // Now run compose up again - it should restart the stopped container
+        composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+        try await composeUp.run()
+
+        // Verify container is running again
+        let containersAfterSecondUp = try await ClientContainer.list()
+          .filter { $0.configuration.id == "\(folderName)-app" }
+        guard let restartedContainer = containersAfterSecondUp.first else {
+          throw Errors.containerNotFound
+        }
+        #expect(restartedContainer.status == .running)
     }
-    #expect(container.status == .running)
-
-    // Stop the container using container CLI
-    var stopCommand = try Application.ContainerStop.parse([container.configuration.id])
-    try await stopCommand.run()
-
-    // Verify container is stopped
-    let stoppedContainers = try await ClientContainer.list()
-      .filter { $0.configuration.id == "\(folderName)-app" }
-    guard let stoppedContainer = stoppedContainers.first else {
-      throw Errors.containerNotFound
-    }
-    #expect(stoppedContainer.status == .stopped)
-
-    // Now run compose up again - it should restart the stopped container
-    composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-    try await composeUp.run()
-
-    // Verify container is running again
-    let containersAfterSecondUp = try await ClientContainer.list()
-      .filter { $0.configuration.id == "\(folderName)-app" }
-    guard let restartedContainer = containersAfterSecondUp.first else {
-      throw Errors.containerNotFound
-    }
-    #expect(restartedContainer.status == .running)
-
-    // Cleanup
-    var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-    try await composeDown.run()
   }
 
   @Test("Test compose with complex dependency chain")
@@ -329,57 +320,54 @@ struct ComposeUpTests {
         let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
-        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
-        
-        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        try await composeUp.run()
-        
-        // Get the containers created by this compose file
-        let containers = try await ClientContainer.list()
-            .filter {
-                $0.configuration.id.contains(folderName)
-            }
-        
-        guard let webContainer = containers.first(where: { $0.configuration.id == "\(folderName)-web" }),
-              let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }),
-              let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" })
-        else {
-            throw Errors.containerNotFound
-        }
-        
-        // --- WEB Container ---
-        #expect(webContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
-        // Check that port mapping exists (host port is configurable via TEST_PORT_WEB2 env var)
-#expect(webContainer.configuration.publishedPorts.count == 1)
-#expect(webContainer.configuration.publishedPorts.first?.containerPort == 80)
-        
-    // --- APP Container ---
-    #expect(appContainer.configuration.image.reference == "docker.io/library/python:3.12-alpine")
-    let appEnv = parseEnvToDict(appContainer.configuration.initProcess.environment)
-    #expect(appEnv["DATABASE_URL"] == "postgres://postgres:postgres@db:5432/appdb")
-    // After fixing command parsing, executable is just "python" (args are separate)
-    #expect(appContainer.configuration.initProcess.executable == "python")
-        #expect(appContainer.configuration.platform.architecture == "arm64")
-        #expect(appContainer.configuration.platform.os == "linux")
-        
-        // --- DB Container ---
-        #expect(dbContainer.configuration.image.reference == "docker.io/library/postgres:14")
-        let dbEnv = parseEnvToDict(dbContainer.configuration.initProcess.environment)
-        #expect(dbEnv["POSTGRES_DB"] == "appdb")
-        #expect(dbEnv["POSTGRES_USER"] == "postgres")
-        #expect(dbEnv["POSTGRES_PASSWORD"] == "postgres")
-        
-        // --- Dependency Verification ---
-        // The dependency chain should reflect: web → app → db
-        // i.e., app depends on db, web depends on app
-        // We can verify indirectly by container states and environment linkage.
-        // App isn't set to run long term
-        #expect(webContainer.status == .running)
-        #expect(dbContainer.status == .running)
+        try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
+            let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+            var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+            try await composeUp.run()
 
-        // Cleanup
-        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        _ = try? await composeDown.run()
+            // Get the containers created by this compose file
+            let containers = try await ClientContainer.list()
+                .filter {
+                    $0.configuration.id.contains(folderName)
+                }
+
+            guard let webContainer = containers.first(where: { $0.configuration.id == "\(folderName)-web" }),
+                  let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }),
+                  let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" })
+            else {
+                throw Errors.containerNotFound
+            }
+
+            // --- WEB Container ---
+            #expect(webContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
+            // Check that port mapping exists (host port is configurable via TEST_PORT_WEB2 env var)
+            #expect(webContainer.configuration.publishedPorts.count == 1)
+            #expect(webContainer.configuration.publishedPorts.first?.containerPort == 80)
+
+            // --- APP Container ---
+            #expect(appContainer.configuration.image.reference == "docker.io/library/python:3.12-alpine")
+            let appEnv = parseEnvToDict(appContainer.configuration.initProcess.environment)
+            #expect(appEnv["DATABASE_URL"] == "postgres://postgres:postgres@db:5432/appdb")
+            // After fixing command parsing, executable is just "python" (args are separate)
+            #expect(appContainer.configuration.initProcess.executable == "python")
+            #expect(appContainer.configuration.platform.architecture == "arm64")
+            #expect(appContainer.configuration.platform.os == "linux")
+
+            // --- DB Container ---
+            #expect(dbContainer.configuration.image.reference == "docker.io/library/postgres:14")
+            let dbEnv = parseEnvToDict(dbContainer.configuration.initProcess.environment)
+            #expect(dbEnv["POSTGRES_DB"] == "appdb")
+            #expect(dbEnv["POSTGRES_USER"] == "postgres")
+            #expect(dbEnv["POSTGRES_PASSWORD"] == "postgres")
+
+            // --- Dependency Verification ---
+            // The dependency chain should reflect: web → app → db
+            // i.e., app depends on db, web depends on app
+            // We can verify indirectly by container states and environment linkage.
+            // App isn't set to run long term
+            #expect(webContainer.status == .running)
+            #expect(dbContainer.status == .running)
+        }
     }
 
         @Test("Test container created with non-default CPU and memory limits")
@@ -399,23 +387,20 @@ struct ComposeUpTests {
                 let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
                 try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
-                let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+                try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
+                    let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+                    var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+                    try await composeUp.run()
 
-                var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-                try await composeUp.run()
+                    let containers = try await ClientContainer.list()
+                            .filter { $0.configuration.id.contains(folderName) }
 
-                let containers = try await ClientContainer.list()
-                        .filter { $0.configuration.id.contains(folderName) }
+                    guard let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
+                            throw Errors.containerNotFound
+                    }
 
-                guard let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
-                        throw Errors.containerNotFound
+                    #expect(appContainer.configuration.resources.memoryInBytes == 512.mib())
                 }
-
-                #expect(appContainer.configuration.resources.memoryInBytes == 512.mib())
-
-                // Cleanup
-                var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-                try await composeDown.run()
         }
 
     @Test("Feature 1: Pre-decode ${VAR} substitution in image and volumes")
@@ -436,28 +421,25 @@ services:
         let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try resolvedYaml.write(to: tempLocation, atomically: false, encoding: .utf8)
-        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+        try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
+            let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+            var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        try await composeUp.run()
+            let containers = try await ClientContainer.list()
+                .filter { $0.configuration.id.contains(folderName) }
 
-        let containers = try await ClientContainer.list()
-            .filter { $0.configuration.id.contains(folderName) }
+            guard let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
+                throw Errors.containerNotFound
+            }
 
-        guard let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
-            throw Errors.containerNotFound
+            // Verify image was resolved from defaults: ${REGISTRY:-docker.io/library}/nginx:${TAG:-alpine}
+            #expect(appContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
+
+            // Verify volume was mounted: /tmp/data:/data should result in /data mount
+            print("DEBUG: Feature 1 mounts: \(appContainer.configuration.mounts.map(\.destination))")
+            #expect(appContainer.configuration.mounts.map(\.destination).contains("/data"))
         }
-
-        // Verify image was resolved from defaults: ${REGISTRY:-docker.io/library}/nginx:${TAG:-alpine}
-        #expect(appContainer.configuration.image.reference == "docker.io/library/nginx:alpine")
-
-        // Verify volume was mounted: /tmp/data:/data should result in /data mount
-        print("DEBUG: Feature 1 mounts: \(appContainer.configuration.mounts.map(\.destination))")
-        #expect(appContainer.configuration.mounts.map(\.destination).contains("/data"))
-
-        // Cleanup
-        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        _ = try? await composeDown.run()
     }
 
     @Test("Feature 2: service_healthy dependency waits for healthcheck to pass")
@@ -485,29 +467,26 @@ services:
         let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
-        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+        try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
+            let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+            var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        try await composeUp.run()
+            let containers = try await ClientContainer.list()
+                .filter { $0.configuration.id.contains(folderName) }
 
-        let containers = try await ClientContainer.list()
-            .filter { $0.configuration.id.contains(folderName) }
+            guard let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" }),
+                  let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" })
+            else {
+                throw Errors.containerNotFound
+            }
 
-        guard let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" }),
-              let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" })
-        else {
-            throw Errors.containerNotFound
+            // Both should be running — db first (healthcheck passes immediately), then app
+            #expect(dbContainer.status == .running)
+            #expect(appContainer.status == .running)
         }
-
-        // Both should be running — db first (healthcheck passes immediately), then app
-        #expect(dbContainer.status == .running)
-        #expect(appContainer.status == .running)
-
-        // Cleanup
-        var composeDown = try ComposeDown.parse(["--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
-        _ = try? await composeDown.run()
     }
-    
+
     enum Errors: Error {
         case containerNotFound
     }

@@ -38,33 +38,28 @@ struct ComposePsTests {
             command: ["sh", "-c", "sleep 300"]
         """
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
+        try await ContainerPollingHelpers.withProjectCleanup(projectName: project.name) {
+            var composeUp = try ComposeUp.parse([
+                "-d", "--cwd", project.base.path(percentEncoded: false),
+            ])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse([
-            "-d", "--cwd", project.base.path(percentEncoded: false),
-        ])
-        try await composeUp.run()
+            let deadline = Date().addingTimeInterval(60)
+            while Date() < deadline {
+                let running = try await ClientContainer.list()
+                    .filter({ $0.configuration.id.contains(project.name) && $0.status == .running })
+                if running.count >= 2 { break }
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+            }
 
-        // Wait for containers to be running
-        let deadline = Date().addingTimeInterval(60)
-        while Date() < deadline {
-            let running = try await ClientContainer.list()
-                .filter({ $0.configuration.id.contains(project.name) && $0.status == .running })
-            if running.count >= 2 { break }
-            try await Task.sleep(nanoseconds: 1_000_000_000)
+            let statuses = try await ComposePs.listServices(
+                cwd: project.base.path(percentEncoded: false)
+            )
+
+            #expect(statuses.count == 2, "Expected 2 services, got \(statuses.count)")
+            let nginxStatus = statuses.first { $0.service == "nginx" }
+            #expect(nginxStatus?.state == .running, "nginx should be running")
         }
-
-        var composePs = try ComposePs.parse(["--cwd", project.base.path(percentEncoded: false)])
-        let statuses = try await ComposePs.listServices(
-            cwd: project.base.path(percentEncoded: false)
-        )
-
-        #expect(statuses.count == 2, "Expected 2 services, got \(statuses.count)")
-        let nginxStatus = statuses.first { $0.service == "nginx" }
-        #expect(nginxStatus?.state == .running, "nginx should be running")
-
-        // Cleanup
-        var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
-        try? await composeDown.run()
     }
 
     @Test("Shows stopped container after container stop")
@@ -72,23 +67,19 @@ struct ComposePsTests {
         let containerName = "CCT_ps_stop_\(UUID().uuidString)"
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
+        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "CCT_ps_stop"]) {
+            var composeUp = try ComposeUp.parse([
+                "-d", "--cwd", project.base.path(percentEncoded: false),
+            ])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse([
-            "-d", "--cwd", project.base.path(percentEncoded: false),
-        ])
-        try await composeUp.run()
+            let container = try await ClientContainer.get(id: containerName)
+            try await container.stop()
 
-        // Stop the container
-        let container = try await ClientContainer.get(id: containerName)
-        try await container.stop()
-
-        let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
-        let status = statuses.first { $0.service == "web" }
-        #expect(status?.state == .stopped, "Container should be stopped")
-
-        // Cleanup (tolerate XPC timeout flakes)
-        var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
-        try? await composeDown.run()
+            let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
+            let status = statuses.first { $0.service == "web" }
+            #expect(status?.state == .stopped, "Container should be stopped")
+        }
     }
 
     @Test("Shows stopped service after container stop")
@@ -102,36 +93,31 @@ struct ComposePsTests {
             command: ["sh", "-c", "sleep 300"]
         """
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
+        try await ContainerPollingHelpers.withProjectCleanup(projectName: project.name) {
+            var composeUp = try ComposeUp.parse([
+                "-d", "--cwd", project.base.path(percentEncoded: false),
+            ])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse([
-            "-d", "--cwd", project.base.path(percentEncoded: false),
-        ])
-        try await composeUp.run()
+            let deadline = Date().addingTimeInterval(60)
+            while Date() < deadline {
+                let running = try await ClientContainer.list()
+                    .filter({ $0.configuration.id.contains(project.name) && $0.status == .running })
+                if running.count >= 2 { break }
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+            }
 
-        // Wait for both containers to be running
-        let deadline = Date().addingTimeInterval(60)
-        while Date() < deadline {
-            let running = try await ClientContainer.list()
+            let allContainers = try await ClientContainer.list()
                 .filter({ $0.configuration.id.contains(project.name) && $0.status == .running })
-            if running.count >= 2 { break }
-            try await Task.sleep(nanoseconds: 1_000_000_000)
+            if let busybox = allContainers.first(where: { $0.configuration.id.contains("busybox") }) {
+                try await busybox.stop()
+            }
+
+            let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
+            #expect(statuses.count == 2, "Expected 2 services in compose file")
+            let notRunning = statuses.filter { $0.state != .running }
+            #expect(!notRunning.isEmpty, "At least one service should be stopped")
         }
-
-        // Stop one container to create a stopped service
-        let allContainers = try await ClientContainer.list()
-            .filter({ $0.configuration.id.contains(project.name) && $0.status == .running })
-        if let busybox = allContainers.first(where: { $0.configuration.id.contains("busybox") }) {
-            try await busybox.stop()
-        }
-
-        let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
-        #expect(statuses.count == 2, "Expected 2 services in compose file")
-        let notRunning = statuses.filter { $0.state != .running }
-        #expect(!notRunning.isEmpty, "At least one service should be stopped")
-
-        // Cleanup (tolerate XPC timeout flakes)
-        var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
-        try? await composeDown.run()
     }
 
     @Test("Filter by service name")
@@ -148,28 +134,24 @@ struct ComposePsTests {
             command: ["sh", "-c", "sleep 300"]
         """
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
+        try await ContainerPollingHelpers.withProjectCleanup(projectName: project.name) {
+            var composeUp = try ComposeUp.parse([
+                "-d", "--cwd", project.base.path(percentEncoded: false),
+            ])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse([
-            "-d", "--cwd", project.base.path(percentEncoded: false),
-        ])
-        try await composeUp.run()
+            let deadline = Date().addingTimeInterval(60)
+            while Date() < deadline {
+                let running = try await ClientContainer.list()
+                    .filter({ $0.configuration.id.contains(project.name) && $0.status == .running })
+                if running.count >= 2 { break }
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+            }
 
-        let deadline = Date().addingTimeInterval(60)
-        while Date() < deadline {
-            let running = try await ClientContainer.list()
-                .filter({ $0.configuration.id.contains(project.name) && $0.status == .running })
-            if running.count >= 2 { break }
-            try await Task.sleep(nanoseconds: 1_000_000_000)
+            let allStatuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false), serviceFilter: "nginx")
+            #expect(allStatuses.count == 1, "Filter should return 1 service")
+            #expect(allStatuses[0].service == "nginx")
         }
-
-        // Use the listServices function with filter
-        let allStatuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false), serviceFilter: "nginx")
-        #expect(allStatuses.count == 1, "Filter should return 1 service")
-        #expect(allStatuses[0].service == "nginx")
-
-        // Cleanup (tolerate XPC timeout flakes)
-        var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
-        try? await composeDown.run()
     }
 
     @Test("Container name override matches correctly")
@@ -177,20 +159,17 @@ struct ComposePsTests {
         let containerName = "CCT_ps_name_\(UUID().uuidString)"
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
+        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "CCT_ps_name"]) {
+            var composeUp = try ComposeUp.parse([
+                "-d", "--cwd", project.base.path(percentEncoded: false),
+            ])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse([
-            "-d", "--cwd", project.base.path(percentEncoded: false),
-        ])
-        try await composeUp.run()
-
-        let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
-        #expect(statuses.count == 1)
-        #expect(statuses[0].container == containerName)
-        #expect(statuses[0].state == .running)
-
-        // Cleanup
-        var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
-        try? await composeDown.run()
+            let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
+            #expect(statuses.count == 1)
+            #expect(statuses[0].container == containerName)
+            #expect(statuses[0].state == .running)
+        }
     }
 
     @Test("JSON output is valid JSON")
@@ -198,21 +177,18 @@ struct ComposePsTests {
         let containerName = "CCT_ps_json_\(UUID().uuidString)"
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
+        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "CCT_ps_json"]) {
+            var composeUp = try ComposeUp.parse([
+                "-d", "--cwd", project.base.path(percentEncoded: false),
+            ])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse([
-            "-d", "--cwd", project.base.path(percentEncoded: false),
-        ])
-        try await composeUp.run()
-
-        let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
-        let jsonString = try ComposePs.formatPsJSON(statuses)
-        let data = Data(jsonString.utf8)
-        let json = try JSONSerialization.jsonObject(with: data)
-        #expect(json is [Any], "JSON output should be an array")
-
-        // Cleanup
-        var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
-        try? await composeDown.run()
+            let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
+            let jsonString = try ComposePs.formatPsJSON(statuses)
+            let data = Data(jsonString.utf8)
+            let json = try JSONSerialization.jsonObject(with: data)
+            #expect(json is [Any], "JSON output should be an array")
+        }
     }
 
     @Test("Exit code 0 when all running")
@@ -220,40 +196,35 @@ struct ComposePsTests {
         let containerName = "CCT_ps_exit_\(UUID().uuidString)"
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
+        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "CCT_ps_exit"]) {
+            var composeUp = try ComposeUp.parse([
+                "-d", "--cwd", project.base.path(percentEncoded: false),
+            ])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse([
-            "-d", "--cwd", project.base.path(percentEncoded: false),
-        ])
-        try await composeUp.run()
-
-        // listServices should succeed without throwing
-        let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
-        #expect(statuses.count == 1)
-        #expect(statuses[0].state == .running)
-
-        // Cleanup
-        var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
-        try? await composeDown.run()
+            let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
+            #expect(statuses.count == 1)
+            #expect(statuses[0].state == .running)
+        }
     }
 
-    @Test("All missing after compose down")
+    @Test("All stopped after compose down")
     func testPsAfterComposeDown() async throws {
         let containerName = "CCT_ps_after_\(UUID().uuidString)"
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
+        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "CCT_ps_after"]) {
+            var composeUp = try ComposeUp.parse([
+                "-d", "--cwd", project.base.path(percentEncoded: false),
+            ])
+            try await composeUp.run()
 
-        var composeUp = try ComposeUp.parse([
-            "-d", "--cwd", project.base.path(percentEncoded: false),
-        ])
-        try await composeUp.run()
+            var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
+            try? await composeDown.run()
 
-        // Bring down
-        var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
-        try? await composeDown.run()
-
-        // Now ps should show all missing/stopped
-        let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
-        #expect(statuses.count == 1)
-        #expect(statuses[0].state == .stopped, "After down, service should be stopped (compose down stops but doesn't remove containers)")
+            let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
+            #expect(statuses.count == 1)
+            #expect(statuses[0].state == .stopped, "After down, service should be stopped (compose down stops but doesn't remove containers)")
+        }
     }
 }

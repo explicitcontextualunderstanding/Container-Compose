@@ -197,6 +197,124 @@ public struct ContainerPollingHelpers {
             waited: timeout
         )
     }
+
+    /// Default maximum total containers allowed before slot polling blocks.
+    /// Set to production container count (5) + small buffer (3).
+    /// Tests that push above this trigger polling until slots free up.
+    public static let defaultMaxContainerSlots = 8
+
+    /// Default timeout for slot polling (seconds).
+    public static let defaultSlotPollTimeout: TimeInterval = 5
+
+    /// Default poll interval for slot polling (nanoseconds).
+    public static let defaultSlotPollInterval: UInt64 = 100_000_000
+
+    /// Stop and remove all containers matching a project name prefix.
+    ///
+    /// Compose down only stops containers (doesn't remove), leaving VM slots occupied.
+    /// This helper stops each container and then deletes it to free the VM slot.
+    /// All errors are swallowed — this is cleanup, not a test assertion.
+    ///
+    /// - Parameter projectName: The project name prefix to match containers
+    public static func cleanupProjectContainers(projectName: String) async {
+        // Re-fetch list to avoid stale references
+        let containers = (try? await ClientContainer.list()) ?? []
+        let projectContainers = containers.filter { $0.configuration.id.contains(projectName) }
+
+        for container in projectContainers {
+            // Always attempt stop — status from list() may be stale
+            try? await container.stop()
+        }
+
+        // Pause to let the runtime release VM slots
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
+
+        // Re-fetch — original references may be stale after stop
+        let remaining = (try? await ClientContainer.list()) ?? []
+        let toDelete = remaining.filter { $0.configuration.id.contains(projectName) }
+
+        for container in toDelete {
+            // Try graceful delete first, then force
+            if (try? await container.delete()) == nil {
+                try? await container.delete(force: true)
+            }
+        }
+    }
+
+    /// Poll until the total container count drops below a threshold.
+    ///
+    /// Virtualization.framework has a finite VM slot limit (~12-16 on M2 8GB).
+    /// After cleanup, the kernel needs time to reclaim slots. This helper polls
+    /// `ClientContainer.list()` until the count is within budget, ensuring the
+    /// next test can allocate VMs without hitting `NSPOSIXErrorDomain Code=22`.
+    ///
+    /// - Parameters:
+    ///   - maxSlots: Maximum allowed containers (default: `defaultMaxContainerSlots`)
+    ///   - timeout: Maximum time to wait (default: `defaultSlotPollTimeout`)
+    ///   - interval: Poll interval in nanoseconds (default: `defaultSlotPollInterval`)
+    public static func waitForContainerSlots(
+        maxSlots: Int = defaultMaxContainerSlots,
+        timeout: TimeInterval = defaultSlotPollTimeout,
+        interval: UInt64 = defaultSlotPollInterval
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let count = (try? await ClientContainer.list())?.count ?? 0
+            if count <= maxSlots { return }
+            try? await Task.sleep(nanoseconds: interval)
+        }
+        // Timeout — proceed anyway. The test may fail with Code=22 but
+        // at least we gave the runtime every chance to reclaim slots.
+    }
+
+    /// Wraps a test body with guaranteed container cleanup and slot polling.
+    ///
+    /// After cleanup completes, polls until total container count drops below
+    /// `maxSlots` to ensure the next test won't hit VM slot exhaustion.
+    ///
+    /// Usage in tests:
+    /// ```swift
+    /// try await ContainerPollingHelpers.withProjectCleanup(projectName: project.name) {
+    ///     var composeUp = try ComposeUp.parse(["-d", "--cwd", ...])
+    ///     try await composeUp.run()
+    ///     // ... assertions ...
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - projectNames: The project name prefix(es) to match containers for cleanup.
+    ///     Use multiple names when tests use custom `container_name:` overrides that
+    ///     don't match the temp directory UUID.
+    ///   - maxSlots: Maximum allowed containers after cleanup (default: 8).
+    ///   - body: The test body. Errors are rethrown after cleanup.
+    public static func withProjectCleanup(
+        projectNames: [String],
+        maxSlots: Int = defaultMaxContainerSlots,
+        _ body: () async throws -> Void
+    ) async rethrows -> Void {
+        do {
+            try await body()
+        } catch {
+            for name in projectNames {
+                await cleanupProjectContainers(projectName: name)
+            }
+            await waitForContainerSlots(maxSlots: maxSlots)
+            throw error
+        }
+        for name in projectNames {
+            await cleanupProjectContainers(projectName: name)
+        }
+        await waitForContainerSlots(maxSlots: maxSlots)
+    }
+
+    /// Convenience overload for single project name.
+    public static func withProjectCleanup(
+        projectName: String,
+        maxSlots: Int = defaultMaxContainerSlots,
+        _ body: () async throws -> Void
+    ) async rethrows -> Void {
+        try await withProjectCleanup(projectNames: [projectName], maxSlots: maxSlots, body)
+    }
 }
 
 /// Swift Testing helpers for container assertions
