@@ -57,11 +57,16 @@ public struct HealthCommand: AsyncParsableCommand {
         let workingDir = cwd ?? FileManager.default.currentDirectoryPath
         let composePath = try deriveComposePath(from: file, cwd: workingDir)
         
-        // Load compose file
-        let yamlContent = try String(contentsOfFile: composePath, encoding: .utf8)
-        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlContent)
-        
-        let projectName = try deriveProjectName(cwd: workingDir)
+ // Load compose file
+ let yamlContent = try String(contentsOfFile: composePath, encoding: .utf8)
+ let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlContent)
+
+ let projectName: String
+ if let name = dockerCompose.name {
+ projectName = name
+ } else {
+ projectName = try deriveProjectName(cwd: workingDir)
+ }
         
         // Get services to check
         let servicesToCheck: [(String, Service)]
