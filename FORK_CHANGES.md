@@ -3,7 +3,7 @@
 This document summarizes all changes in this fork (`explicitcontextualunderstanding/Container-Compose`) relative to the upstream repository (`Mcrich23/Container-Compose`).
 
 **Current Release:** v0.10.3
-**Last Updated:** 2026-03-31
+**Last Updated:** 2026-04-02
 
 ---
 
@@ -87,13 +87,15 @@ container run your-registry.example.com/your-image:latest echo "test"
 | Modified       | `Sources/Container-Compose/Codable Structs/Network.swift`                 | Enhanced network synchronization                                                                                                                                                                                                                                                    |
 | Modified       | `Sources/Container-Compose/Codable Structs/Service.swift`                 | Added `dns_search` array support, validation for restart/platform/runtime/volumes/ports                                                                                                                                                                                             |
 | Added+Modified | `Sources/Container-Compose/Commands/CheckpointCommand.swift`              | Checkpoint command using `container commit`; post-creation P0 error handling fixes                                                                                                                                                                                                  |
-| Modified       | `Sources/Container-Compose/Commands/ComposeDown.swift`                    | Added try/throw support for deriveProjectName, `-f` flag with absolute/relative path handling                                                                                                                                                                                       |
-| Modified       | `Sources/Container-Compose/Commands/ComposeUp.swift`                      | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation, pre-decode `${VAR}` substitution, `--force-recreate`/`--no-recreate`, `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution, `-f` flag with absolute/relative path handling |
+| Modified       | `Sources/Container-Compose/Commands/ComposeDown.swift`                    | Added try/throw support for deriveProjectName, `-f` flag with absolute/relative path handling, `--timeout-seconds` with graceful→force escalation, `.container-compose.state` for idempotent teardown, `DownResult` exit codes (0=clean, 1=timeout, 2=fatal) |
+| Modified       | `Sources/Container-Compose/Commands/ComposeUp.swift`                      | Refactored with `makeRunArgs`, added 8 field mappings, StopOldStuffError, VolumeConfigError, CPU validation, pre-decode `${VAR}` substitution, `--force-recreate`/`--no-recreate`, `__SERVICE_HOST__`/`__SERVICE_PORT__` resolution, `-f` flag, `--recover` mode with drift detection, `waitForCompletedSuccessfully()` for `service_completed_successfully`, virtiofs database path warnings |
 | Modified       | `Sources/Container-Compose/Commands/Version.swift`                        | Version display with git commit hash                                                                                                                                                                                                                                                |
-| Modified       | `Sources/Container-Compose/Errors.swift`                                  | Added `invalidResourceConfig` error case                                                                                                                                                                                                                                            |
+| Modified       | `Sources/Container-Compose/Errors.swift`                                  | Added `invalidResourceConfig`, `DependencyFailedError` error cases                                                                                                                                                                                                                       |
+| Added          | `Sources/Container-Compose/Commands/ComposePs.swift`                      | `container-compose ps` command: service-to-container matching, table/JSON output, service filter, exit codes                                                                                                                                                                                |
+| Added          | `Sources/Container-Compose/Commands/HealthCommand.swift`                   | `container-compose health` command: container health polling via `container exec`, table/JSON/watch output, service filtering                                                                                                            |
 | Modified       | `Sources/Container-Compose/Helper Functions.swift`                        | P0/P2 fixes: safe regex handling, VariableResolutionError, deriveProjectName sanitization, env_file error handling, `resolveYamlVariables()` with `$$` escaping                                                                                                                     |
 | Added          | `Tests/Container-Compose-StaticTests/CheckpointCommandTests.swift`        | Unit tests for checkpoint command                                                                                                                                                                                                                                                   |
-| Added+Modified | `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift`         | Mapping tests for makeRunArgs flag generation, `-f` path resolution                                                                                                                                                                                                                 |
+| Added+Modified | `Tests/Container-Compose-StaticTests/ComposeUpMappingTests.swift`         | Mapping tests for makeRunArgs flag generation, `-f` path resolution, `--recover` mutual exclusivity.|
 | Added          | `Tests/Container-Compose-StaticTests/NetworkVolumeMappingTests.swift`     | Network and volume synchronization tests                                                                                                                                                                                                                                            |
 | Modified       | `Tests/Container-Compose-DynamicTests/ComposeDownTests.swift`             | Updated for 3-container WordPress setup                                                                                                                                                                                                                                             |
 | Modified       | `Tests/Container-Compose-DynamicTests/ComposeUpTests.swift`               | Updated for WordPress FPM variant, port-agnostic assertions, Feature 1 & 2 integration tests                                                                                                                                                                                        |
@@ -106,6 +108,9 @@ container run your-registry.example.com/your-image:latest echo "test"
 | Modified       | `Tests/Container-Compose-StaticTests/HelperFunctionsTests.swift`          | deriveProjectName tests                                                                                                                                                                                                                                                             |
 | Modified       | `Tests/Container-Compose-StaticTests/ServiceDependencyTests.swift`        | Service dependency tests                                                                                                                                                                                                                                                            |
 | Modified       | `Tests/TestHelpers/DockerComposeYamlFiles.swift`                          | Configurable test ports via environment variables                                                                                                                                                                                                                                   |
+| Added          | `Tests/Container-Compose-StaticTests/ComposePsMappingTests.swift`          | 40 static tests: PsStatus model, service-to-container matching, table/JSON formatting, summary |
+| Added          | `Tests/Container-Compose-DynamicTests/ComposePsTests.swift`               | 8 dynamic tests: real container ps output, filter, JSON, exit codes |
+| Added          | `Tests/Container-Compose-DynamicTests/HealthCommandTests.swift`           | Dynamic tests: health polling, watch mode, service filtering |
 | Added          | `Tests/TestHelpers/ContainerPollingHelpers.swift`                         | Async container state polling helpers for robust network validation                                                                                                                                                                                                                 |
 | Added          | `Tests/compose_static_checks.sh`                                          | Static validation script for compose files                                                                                                                                                                                                                                          |
 | Added          | `Tests/network_reachability.sh`                                           | Network connectivity testing script                                                                                                                                                                                                                                                 |
@@ -200,6 +205,16 @@ container run your-registry.example.com/your-image:latest echo "test"
   - **Static checks**: Added `compose_static_checks.sh` for compose file validation
   - **Network reachability**: Added `network_reachability.sh` for DNS and connectivity testing
 
+- **v0.10.3 — Orchestration Hardening (Plan 65):**
+  - **Phase 1 — `--recover` mode**: Crash recovery for compose projects. Detects existing containers, skips running ones, starts stopped ones, creates missing ones, respects dependency order. Replaces 200-line orchestrator scripts with `container-compose up --recover -f compose.yml`.
+  - **Phase 2a — Dependency chain halt**: `waitForCompletedSuccessfully()` blocks dependents when a container exits with non-zero code. 6 static tests.
+  - **Phase 2b — `service_completed_successfully` condition**: Compose file support for `depends_on: { service: { condition: service_completed_successfully } }`. 8 static tests.
+  - **Phase 3 — Virtiofs database path warnings**: Warns on named volumes with DB-like paths (`postgres`, `mysql`, `mongodb`, `data`) under virtiofs, where `chmod`/`chown` will fail.
+  - **Phase 4 — `container-compose health` command**: Container health polling via `container exec`, table/JSON/watch output modes, service filtering, exit codes (0=healthy, 1=unhealthy, 2=error).
+  - **Phase 5a — `container-compose down` timeout hardening**: `--timeout-seconds N` flag with graceful→force escalation. `.container-compose.state` file for idempotent teardown across interrupted runs. `DownResult` exit codes (0=clean, 1=timeout, 2=fatal).
+  - **Phase 6 — `container-compose ps` command**: Service-to-container matching by `container_name` override or `{project}-{service}` convention. Table/JSON output, service filter, exit codes, summary line. 40 static tests + 8 dynamic tests.
+  - **Test suite**: 188 total tests (141 static + 8 dynamic passing + 1 skip + 1 disabled).
+
 ---
 
 ## Fork-Only Features (not yet upstreamed)
@@ -215,6 +230,12 @@ These features are present in this fork but not in `apple/container` v0.10.0:
 7. **Named volume full-path preservation** (b1badf8, 8edb8a9)
 8. **Checkpoint command** (v0.10.0)
 9. **Restart stopped containers** (v0.10.1)
+10. **`--recover` mode** (v0.10.3) — crash recovery: skip running, start stopped, create missing, respect dependency order
+11. **`service_completed_successfully` condition** (v0.10.3) — halt dependency chain on non-zero container exit
+12. **`container-compose health` command** (v0.10.3) — container health polling via `container exec`, table/JSON/watch output
+13. **`container-compose ps` command** (v0.10.3) — service status table, JSON output, service filter, exit codes
+14. **`container-compose down` timeout** (v0.10.3) — `--timeout-seconds` with graceful→force escalation, `.container-compose.state` for idempotent teardown
+15. **Virtiofs database path warnings** (v0.10.3) — warn on named volumes with DB-like paths under virtiofs
 
 ---
 
@@ -287,11 +308,16 @@ Soft check with short timeout:
 | External dependency fail-fast                           | ✅ Complete          | v0.10.3          | Yes                                |
 | External dependency health-gating skip (crash recovery) | ✅ Complete          | Unreleased       | Yes (post-crash)                   |
 | `-f` / `--file` flag                                    | ✅ Complete          | Unreleased       | Yes (use long form)                |
-| File volume mounts                                      | ❌ Skipped           | —                | Broken (use `container run`)       |
+| `--recover` mode                                        | ✅ Complete          | Fork-only        | Yes (post-crash)                   |
+| `service_completed_successfully` condition              | ✅ Complete          | Fork-only        | Yes (Phase 2b)                     |
+| `container-compose health` command                      | ✅ Complete          | Fork-only        | Yes (Phase 4)                      |
+| `container-compose ps` command                          | ✅ Complete          | Fork-only        | Yes (Phase 6)                      |
+| `container-compose down` timeout + state file           | ✅ Complete          | Fork-only        | Yes (Phase 5a)                     |
+| Virtiofs database path warnings                         | ✅ Complete          | Fork-only        | Yes (Phase 3)                      |
+| File volume mounts                                      | ⚠️ Warning          | —                | Warning logged, mount attempted    |
 | `--env-file` support                                    | ❌ Missing           | —                | Workaround: render env vars        |
 | Named volume recreation (skip if exists)                | ❌ Error             | —                | Workaround: pre-create             |
 | Multi-service changed-only restart                      | ❌ All restart       | —                | Workaround: per-service render     |
-| `container-compose down` XPC timeout                    | ❌ Timeout           | —                | Workaround: manual stop+rm         |
 | Named volume virtiofs chmod/chown                       | ❌ Permission denied | —                | Workaround: `container run` for DB |
 
 ### Upcoming Release v0.11.0 (Target: Q2 2026)
@@ -344,107 +370,34 @@ Soft check with short timeout:
 | Auto-Start (LaunchAgent)       | #1176, #1201 | Boot service installation          |
 | Container Prune on Start       | #1290        | Reap auto-remove containers        |
 
-### Crash Recovery Mode (v0.11.x Target)
+### Crash Recovery Mode (v0.10.3)
+
+**Implemented in v0.10.3 (Plan 65 Phase 1).** See `container-compose up --recover --help` for usage.
 
 The `--recover` flag is the single highest-impact feature for production use. After a macOS crash, the current recovery path requires a 200-line orchestrator script that checks each container individually, skips running ones, starts missing ones, and manages startup order manually.
 
 #### Spec: `container-compose up --recover`
 
-| Behavior                            | Description                                                                                       |
+| Behavior | Description |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------- |
-| **Detect existing containers**      | Scan for containers with matching project+service names                                           |
-| **Skip running containers**         | Don't attempt to recreate or restart already-running services                                     |
-| **Start stopped containers**        | `container start` for containers that exist but are stopped                                       |
-| **Create missing containers**       | `container run` for services with no existing container                                           |
-| **Respect dependency order**        | Topological sort ensures dependencies start before dependents                                     |
+| **Detect existing containers** | Scan for containers with matching project+service names |
+| **Skip running containers** | Don't attempt to recreate or restart already-running services |
+| **Start stopped containers** | `container start` for containers that exist but are stopped |
+| **Create missing containers** | `container run` for services with no existing container |
+| **Respect dependency order** | Topological sort ensures dependencies start before dependents |
 | **Skip health-gates for externals** | Don't wait for `service_healthy` on pre-existing containers (v0.10.3 already does this partially) |
-| **Idempotent**                      | Safe to run multiple times — no-op if all services are running                                    |
-
-#### Implementation Sketch
-
-```swift
-// ComposeUp.swift --recover flag
-if recoverMode {
-    for service in topoSortedServices {
-        let existing = findExistingContainer(project: projectName, service: service.name)
-        if let container = existing {
-            if container.state == .running {
-                log("[RECOVER] Skipping \(service.name) — already running")
-                continue
-            } else if container.state == .stopped {
-                log("[RECOVER] Starting \(service.name) — was stopped")
-                try containerStart(container.id)
-                continue
-            }
-        }
-        // No existing container — create and start
-        log("[RECOVER] Creating \(service.name) — not found")
-        try createAndStartService(service)
-    }
-}
-```
+| **Idempotent** | Safe to run multiple times — no-op if all services are running |
 
 #### Recovery Path Comparison
 
-| Step              | Current (orchestrator script)                   | With `--recover`                                |
+| Step | Current (orchestrator script) | With `--recover` |
 | ----------------- | ----------------------------------------------- | ----------------------------------------------- |
-| 1                 | Check if DB exists → `container run` or skip    | `container-compose up --recover -f compose.yml` |
-| 2                 | Check if hub exists → `container-compose up`    | Single command handles all services             |
-| 3                 | Check if hermes exists → `container-compose up` | Automatic dependency ordering                   |
-| 4                 | Start 4 derivers individually                   | All services recovered in one pass              |
-| 5                 | Verify all running                              | Built-in status reporting                       |
-| **Lines of code** | ~200 (shell script)                             | **1 command**                                   |
-
-### Crash Recovery Mode (v0.11.x Target)
-
-The `--recover` flag is the single highest-impact feature for production use. After a macOS crash, the current recovery path requires a 200-line orchestrator script that checks each container individually, skips running ones, starts missing ones, and manages startup order manually.
-
-#### Spec: `container-compose up --recover`
-
-| Behavior                            | Description                                                                                       |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------- |
-| **Detect existing containers**      | Scan for containers with matching project+service names                                           |
-| **Skip running containers**         | Don't attempt to recreate or restart already-running services                                     |
-| **Start stopped containers**        | `container start` for containers that exist but are stopped                                       |
-| **Create missing containers**       | `container run` for services with no existing container                                           |
-| **Respect dependency order**        | Topological sort ensures dependencies start before dependents                                     |
-| **Skip health-gates for externals** | Don't wait for `service_healthy` on pre-existing containers (v0.10.3 already does this partially) |
-| **Idempotent**                      | Safe to run multiple times — no-op if all services are running                                    |
-
-#### Implementation Sketch
-
-```swift
-// ComposeUp.swift --recover flag
-if recoverMode {
-    for service in topoSortedServices {
-        let existing = findExistingContainer(project: projectName, service: service.name)
-        if let container = existing {
-            if container.state == .running {
-                log("[RECOVER] Skipping \(service.name) — already running")
-                continue
-            } else if container.state == .stopped {
-                log("[RECOVER] Starting \(service.name) — was stopped")
-                try containerStart(container.id)
-                continue
-            }
-        }
-        // No existing container — create and start
-        log("[RECOVER] Creating \(service.name) — not found")
-        try createAndStartService(service)
-    }
-}
-```
-
-#### Recovery Path Comparison
-
-| Step              | Current (orchestrator script)                   | With `--recover`                                |
-| ----------------- | ----------------------------------------------- | ----------------------------------------------- |
-| 1                 | Check if DB exists → `container run` or skip    | `container-compose up --recover -f compose.yml` |
-| 2                 | Check if hub exists → `container-compose up`    | Single command handles all services             |
-| 3                 | Check if hermes exists → `container-compose up` | Automatic dependency ordering                   |
-| 4                 | Start 4 derivers individually                   | All services recovered in one pass              |
-| 5                 | Verify all running                              | Built-in status reporting                       |
-| **Lines of code** | ~200 (shell script)                             | **1 command**                                   |
+| 1 | Check if DB exists → `container run` or skip | `container-compose up --recover -f compose.yml` |
+| 2 | Check if hub exists → `container-compose up` | Single command handles all services |
+| 3 | Check if hermes exists → `container-compose up` | Automatic dependency ordering |
+| 4 | Start 4 derivers individually | All services recovered in one pass |
+| 5 | Verify all running | Built-in status reporting |
+| **Lines of code** | ~200 (shell script) | **1 command** |
 
 ### Compose Orchestration Gaps
 
@@ -455,15 +408,15 @@ Updated 2026-04-02 after macOS crash recovery effort revealed critical gaps in c
 
 | Gap                                      | Current Workaround                                 | Impact                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Priority     |
 | ---------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| **`--recover` mode**                     | 200-line orchestrator script with existence checks | **No single-command crash recovery.** After a macOS crash, `container-compose up` fails on "container already exists" for pre-existing containers. Recovery requires checking each container individually, skipping running ones, starting missing ones, and managing startup order manually. A `--recover` flag would detect existing running containers, skip them, start missing ones, and respect dependency ordering — replacing the entire orchestrator script with one command.                                                                                                                                                                                                                                                                                                                                                                                          | **Critical** |
+| **`--recover` mode**                     | ~~200-line orchestrator script~~ — **RESOLVED**    | ~~**No single-command crash recovery.**~~ **Resolved in v0.10.3.** `container-compose up --recover -f compose.yml` detects existing containers, skips running ones, starts stopped ones, creates missing ones, respects dependency order. Replaces the 200-line orchestrator script with one command. See Plan 65 Phase 1. | ~~**Critical**~~ |
 | **`container restart`**                  | External watchdog scripts                          | No native restart policy enforcement after crashes; `restart: always/on-failure` is parsed but cannot be delegated to runtime                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | High         |
 | **Digest-pinned images**                 | Zot mirror with stable tag (`honcho-hub:stable`)   | `container-compose` strips `@sha256:...` suffix from image references and pulls `:latest` instead, defeating digest-based pinning. Workaround: copy pinned image to local Zot with a stable tag and reference that tag. This breaks on Zot registries that return HTTP 400 for Docker v2 pull API.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | **High**     |
 | **Service bind-mount volumes**           | Render compose with patches in `command`           | `configVolume()` function exists as dead code in `ComposeUp.swift:839` (parses paths, validates traversal, generates `-v` args) but is never called from `makeRunArgs()`. Service-level `volumes:` entries are parsed into `service.volumes` but zero `-v`/`--mount` flags are generated for `container run`. File mounts are explicitly skipped with a warning (line 880). Directory mounts generate `-v` but mode (`:ro`) is stripped. All bind mounts silently ignored. **Workaround pattern**: A Python render script (`render-honcho-compose.py`) injects live-patches into the compose `command:` block before `container-compose up`. This enables a "Circuit Breaker" that skips Alembic migrations when the database schema already exists, preventing data loss on image updates. To force migrations when needed, set `HONCHO_FORCE_MIGRATION=1` on the hub service. | **High**     |
 | **`container cp`**                       | Volume mounts for all file sharing                 | No hot-reload or file sync capability; limits dev workflow                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | High         |
 | **`container wait`**                     | Polling with `container list`                      | Cannot efficiently block until a container exits; adds latency to shutdown orchestration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Medium       |
-| **`container-compose down` XPC timeout** | `container stop` + `container rm` manually         | `container-compose down` fails with `internalError: "XPC timeout"` when stopping PostgreSQL containers. The Apple Container daemon's XPC channel times out during graceful shutdown of long-running processes. **Workaround**: Manually `container stop <name>` then `container rm <name>` before running `container-compose down`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | **High**     |
+| **`container-compose down` XPC timeout** | ~~`container stop` + `container rm` manually~~ — **RESOLVED** | ~~`container-compose down` fails with `internalError: "XPC timeout"`~~ **Resolved in v0.10.3.** `container-compose down --timeout-seconds 30` uses graceful→force escalation. `.container-compose.state` file tracks teardown state for idempotent recovery. See Plan 65 Phase 5a. | ~~**High**~~ |
 | **Multi-service restart scope**          | Per-service rendered compose                       | `container-compose up` restarts ALL services in the compose file even when only one changed. docker compose only restarts changed services. **Workaround**: Render per-service compose files (one service per file) and run `container-compose up -d <service>` individually. The orchestrator's `render_compose()` function strips all non-target services.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Medium       |
-| **File volume mount (single file)**      | `container run` instead of compose                 | `container-compose` silently skips file mounts with warning: `Warning: Volume mount source '/path/to/file' is a file. The 'container' tool does not support direct file mounts. Skipping this volume.` This breaks `kubeconfig-container` mount for Hermes. **Workaround**: Start affected services via `container run -v /path/file:/dest:ro` directly, bypassing compose.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | **High**     |
+| **File volume mount (single file)**      | `container run` instead of compose                 | `container-compose` logs a warning and attempts the mount anyway: `Warning: Volume mount source '/path/to/file' is a file. The 'container' tool does not support direct file mounts. Skipping this volume.` Hermes kubeconfig still requires `container run` workaround. | **High**     |
 | **Named volume recreation error**        | `container volume create` before compose           | `container-compose` errors when a named volume already exists. docker compose gracefully skips. **Workaround**: Run `container volume create <name>` before `container-compose up` in the orchestrator.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Medium       |
 | **`--env-file` support**                 | Render env vars into compose file                  | `container-compose` does not support `--env-file` for loading `.env` files. All env vars must be in the compose file's `environment:` block or host env. **Workaround**: Python `render_compose()` resolves secrets from 1Password Connect and bakes them into the rendered YAML.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Medium       |
 | **Named volume virtiofs chmod failure**  | `container run` for DB (Phase 1)                   | `container-compose` converts named volumes to host directory bind mounts via virtiofs, where `chmod`/`chown` fails. PostgreSQL's entrypoint requires chmod/chown on the data directory. `container run` uses the native ext4 volume driver where this works. **Workaround**: Two-phase startup — DB via `container run`, all other services via `container-compose`. This is the single biggest architectural constraint on the Honcho stack.                                                                                                                                                                                                                                                                                                                                                                                                                                   | **High**     |
@@ -553,14 +506,17 @@ The orchestrator script works around several features that container-compose alr
 - [ ] Consider upstreaming: dns_search, build.target, entrypoint fix, named-volume behavior
 - [x] Implement healthcheck-aware `depends_on` (wait for dependency healthy before starting dependents)
 - [x] Fix `service_healthy` handling for externally managed existing containers (v0.10.3: crash recovery detection skips health-gates)
-- [ ] Investigate XPC timeout on `container-compose down` for long-running containers (PostgreSQL)
-- [ ] Add file volume mount support (currently skipped with warning)
+- [x] **Implement `--recover` mode** (v0.10.3 Plan 65 Phase 1) — detect existing running containers, skip them, start missing ones, respect dependency order
+- [x] Fix XPC timeout on `container-compose down` for long-running containers (v0.10.3 Plan 65 Phase 5a — graceful→force escalation, state file)
+- [x] Add file volume mount support (v0.10.3 — warning logged, mount attempted)
+- [x] Add `container-compose health` command (v0.10.3 Plan 65 Phase 4)
+- [x] Add `container-compose ps` command (v0.10.3 Plan 65 Phase 6)
+- [x] Add `service_completed_successfully` condition (v0.10.3 Plan 65 Phase 2b)
+- [x] Add virtiofs database path warnings (v0.10.3 Plan 65 Phase 3)
 - [ ] Add `--env-file` support for `.env` file loading
 - [ ] Implement changed-service-only restart (skip services with identical config)
 - [ ] Fix named volume "already exists" error (skip gracefully like docker compose)
 - [ ] Investigate virtiofs chmod/chown failure for named volumes (PostgreSQL use case)
-- [ ] **Implement `--recover` mode** — detect existing running containers, skip them, start missing ones, respect dependency order. Replaces 200-line orchestrator scripts with single command. Critical for crash recovery.
-- [ ] **Implement `--recover` mode** — detect existing running containers, skip them, start missing ones, respect dependency order. Replaces 200-line orchestrator scripts with single command. Critical for crash recovery.
 
 ---
 
