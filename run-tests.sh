@@ -165,10 +165,36 @@ fi
 echo "Local development environment detected"
 echo ""
 
+# Check for OCI_REGISTRY_URL (required for database tests)
+if [ -z "$OCI_REGISTRY_URL" ]; then
+    echo "⚠️ OCI_REGISTRY_URL environment variable is not set."
+    echo ""
+    echo "Database tests require an OCI container registry accessible via HTTPS."
+    echo "Apple Container does not support HTTP for RFC1918 private IPs."
+    echo ""
+    echo "Examples:"
+    echo " - OCI_REGISTRY_URL=REMOVED_REGISTRY_URL"
+    echo " - OCI_REGISTRY_URL=ghcr.io"
+    echo " - OCI_REGISTRY_URL=docker.io"
+    echo ""
+    
+    # Prompt user for registry URL
+    read -p "Enter OCI registry URL (or press Enter to skip database tests): " -r REGISTRY_INPUT
+    
+    if [ -n "$REGISTRY_INPUT" ]; then
+        export OCI_REGISTRY_URL="$REGISTRY_INPUT"
+        echo "✓ OCI_REGISTRY_URL set to: $OCI_REGISTRY_URL"
+        echo ""
+    else
+        echo "⚠️ Skipping database tests (OCI_REGISTRY_URL not set)"
+        echo ""
+    fi
+fi
+
 # Check if container runtime is available
 if ! command -v container &> /dev/null; then
-    echo "⚠️  'container' CLI not found in PATH"
-    echo "   Tests requiring container runtime will fail"
+    echo "⚠️ 'container' CLI not found in PATH"
+    echo " Tests requiring container runtime will fail"
     echo ""
 fi
 
@@ -202,38 +228,23 @@ done
 
 # Check if already running as root/sudo
 if [ "$EUID" -eq 0 ]; then
-    echo "✓ Already running with sudo"
+    echo "⚠️ ERROR: Running as root (EUID=0) is NOT supported."
+    echo " Apple Container runtime rejects sudo/root access with 'unauthorized request'."
     echo ""
-    swift test "${FILTERED_ARGS[@]}"
-    exit $?
+    echo "Please run WITHOUT sudo:"
+    echo " ./run-tests.sh"
+    echo ""
+    exit 1
 fi
 
-# Not root - check if we should skip sudo
+# Prompt for sudo is disabled - Apple Container rejects root access
+echo "NOTE: Apple Container runtime requires non-root user."
+echo " Tests will run without sudo."
+echo ""
 if [ "$FORCE_NO_SUDO" = true ]; then
     echo "Running tests without sudo (requested via --no-sudo)..."
     echo ""
-    swift test "${FILTERED_ARGS[@]}"
-    exit $?
 fi
 
-# Prompt for sudo if not forced no-sudo
-echo "These tests requiring container runtime (privileged) typically require sudo to:"
-echo "  - Install kernel extensions (--enable-kernel-install)"
-echo "  - Create container volumes"
-echo "  - Start container runtime"
-echo ""
-
-read -p "Run with sudo? [y/N] " -n 1 -r
-echo ""
-
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Attempting to run tests without sudo..."
-    echo ""
-    swift test "${FILTERED_ARGS[@]}"
-    exit $?
-fi
-
-# Re-run with sudo
-echo "Requesting sudo privileges..."
-echo ""
-exec sudo -E env "PATH=$PATH" "HOME=$HOME" "$0" "${FILTERED_ARGS[@]}"
+swift test "${FILTERED_ARGS[@]}"
+exit $?
