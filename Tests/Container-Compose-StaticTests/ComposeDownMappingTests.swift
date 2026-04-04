@@ -80,7 +80,7 @@ final class ComposeDownMappingTests: XCTestCase {
         let readBack = ComposeDown.readStateFile(stateFile)
         XCTAssertEqual(readBack.containers, containers)
     }
-
+    
     func testStateFileMissingReturnsEmpty() throws {
         let stateFile = URL(fileURLWithPath: "/tmp/CCT_nonexistent_\(UUID().uuidString).state")
         let result = ComposeDown.readStateFile(stateFile)
