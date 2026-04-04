@@ -379,6 +379,21 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         public init(_ message: String) { self.message = message }
     }
 
+    /// Captures the last N lines of container output for debugging failed health checks.
+    private func captureContainerLogs(_ containerName: String, lines: Int = 50) async -> String {
+        var logOutput = ""
+        do {
+            _ = try await ContainerComposeCore.streamCommand(
+                "container", args: ["logs", "--tail", "\(lines)", containerName], cwd: self.cwd,
+                onStdout: { logOutput += $0 + "\n" },
+                onStderr: { logOutput += $0 + "\n" }
+            )
+        } catch {
+            return "(Could not capture logs: \(error))"
+        }
+        return logOutput.isEmpty ? "(No logs available)" : logOutput
+    }
+
     /// Waits for a container to pass its healthcheck by running the healthcheck command inside it.
     private func waitForHealthy(containerName: String, dependencyName: String, healthcheck: Healthcheck) async throws {
         guard let test = healthcheck.test, test.first != "NONE" else {
@@ -442,8 +457,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
             consecutiveFailures += 1
             if consecutiveFailures >= retries {
+                let containerLogs = await captureContainerLogs(containerName)
                 throw HealthcheckTimeoutError(
-                    "Dependency '\(dependencyName)' failed healthcheck after \(retries) retries"
+                    "Dependency '\(dependencyName)' failed healthcheck after \(retries) retries.\n"
+                    + "Container output (last 50 lines):\n\(containerLogs)"
                 )
             }
 
@@ -451,8 +468,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             try await Task.sleep(nanoseconds: UInt64(intervalSeconds * 1_000_000_000))
         }
 
+        let containerLogs = await captureContainerLogs(containerName)
         throw HealthcheckTimeoutError(
-            "Timed out waiting for dependency '\(dependencyName)' to become healthy"
+            "Timed out waiting for dependency '\(dependencyName)' to become healthy.\n"
+            + "Container output (last 50 lines):\n\(containerLogs)"
         )
     }
     
