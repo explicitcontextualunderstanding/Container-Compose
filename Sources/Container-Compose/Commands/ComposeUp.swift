@@ -303,15 +303,31 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
         }
 
-        // Recovery summary: if any services were already running, emit a prominent banner
+// Recovery summary: if any services were already running, emit a prominent banner
         // so the operator knows the system detected a crash-recovery scenario.
         if !externallyPresentServices.isEmpty {
             print("\n═══════════════════════════════════════════════════════")
-            print("  RECOVERY MODE — \(externallyPresentServices.count) service(s) already running")
+            print(" RECOVERY MODE — \(externallyPresentServices.count) service(s) already running")
             print("═══════════════════════════════════════════════════════")
             for svc in externallyPresentServices.sorted() {
-                print("  ✓ '\(svc)' — detected running, health-gates will be checked")
+                print(" ✓ '\(svc)' — detected running, health-gates will be checked")
             }
+            print("═══════════════════════════════════════════════════════\n")
+        }
+
+        // Write state file for compose down to use
+        let state = ComposeDown.ComposeState(
+            containers: services.map { $0.service.container_name ?? "\(projectName ?? "")-\($0.serviceName)" },
+            networks: createdNetworks
+        )
+        let statePath = ComposeDown.stateFilePath(cwd: cwd)
+        ComposeDown.writeStateFile(statePath, state: state)
+        print("Info: State file written with \(state.containers.count) container(s) and \(state.networks.count) network(s).")
+
+        if !detach {
+            await waitForever()
+        }
+    }
             print("═══════════════════════════════════════════════════════\n")
         }
 
@@ -1193,11 +1209,10 @@ public static func resolvePlatform(
             }
         }
 
-    // Add caching options
+        // Add caching options
         if noCache {
             commands.append("--no-cache")
         }
-    }
         
         // Add OS/Arch
         let (os, arch) = Self.resolvePlatform(servicePlatform: service.platform)
@@ -1207,14 +1222,14 @@ public static func resolvePlatform(
         // Add image name
         commands.append(contentsOf: ["--tag", imageToRun])
         
-                // Add CPU & Memory with validation
-                let cpuString = service.deploy?.resources?.limits?.cpus ?? "2"
-                guard let cpuCount = Int64(cpuString) else {
-                    throw ComposeError.invalidResourceConfig("Invalid CPU count '\(cpuString)' for service '\(serviceName)'. Expected numeric value.")
-                }
-                let memoryLimit = service.deploy?.resources?.limits?.memory ?? "2048MB"
-                commands.append(contentsOf: ["--cpus", "\(cpuCount)"])
-                commands.append(contentsOf: ["--memory", memoryLimit])
+        // Add CPU & Memory with validation
+        let cpuString = service.deploy?.resources?.limits?.cpus ?? "2"
+        guard let cpuCount = Int64(cpuString) else {
+            throw ComposeError.invalidResourceConfig("Invalid CPU count '\(cpuString)' for service '\(serviceName)'. Expected numeric value.")
+        }
+        let memoryLimit = service.deploy?.resources?.limits?.memory ?? "2048MB"
+        commands.append(contentsOf: ["--cpus", "\(cpuCount)"])
+        commands.append(contentsOf: ["--memory", memoryLimit])
 
         let buildCommand = try Application.BuildCommand.parse(commands)
         print("\n----------------------------------------")
