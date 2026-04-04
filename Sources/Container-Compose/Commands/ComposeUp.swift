@@ -63,6 +63,13 @@ public struct ImagePullError: Error, CustomStringConvertible {
     }
 }
 
+/// Error thrown when container name collisions are detected.
+public struct ContainerNameCollisionError: Error, CustomStringConvertible {
+    public let message: String
+    public var description: String { message }
+    public init(_ message: String) { self.message = message }
+}
+
 public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     public init() {}
 
@@ -232,14 +239,17 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         })
         services = try Service.topoSortConfiguredServices(services)
 
-        // Filter for specified services
-        if !self.services.isEmpty {
-            services = services.filter({ serviceName, service in
-                self.services.contains(where: { $0 == serviceName }) || self.services.contains(where: { service.dependedBy.contains($0) })
-            })
-        }
+// Filter for specified services
+    if !self.services.isEmpty {
+        services = services.filter({ serviceName, service in
+            self.services.contains(where: { $0 == serviceName }) || self.services.contains(where: { service.dependedBy.contains($0) })
+        })
+    }
 
-        // Only force-recreate tears down existing containers first
+    // Validate container name uniqueness
+    try validateContainerNames(services: services, projectName: projectName ?? "")
+
+    // Only force-recreate tears down existing containers first
         if forceRecreate {
             try await stopOldStuff(services.map({ $0.serviceName }), remove: true)
         }
@@ -1293,7 +1303,7 @@ public static func resolvePlatform(
         return warnings.isEmpty ? nil : warnings
     }
     
-    /// Purge a zombie container (stuck in invalid state)
+/// Purge a zombie container (stuck in invalid state)
     private func purgeZombieContainer(name: String) async throws {
         print("[RECOVER] Removing zombie container '\(name)'")
         try await ContainerComposeCore.streamCommand(
@@ -1302,9 +1312,74 @@ public static func resolvePlatform(
             cwd: cwd,
             onStdout: { _ in },
             onStderr: { output in
-                print("⚠️  container rm warning: \(output)")
+                print("⚠️ container rm warning: \(output)")
             }
         )
+    }
+
+    // MARK: - Container Name Validation
+
+    /// Validates that all resolved container names are unique.
+    private func validateContainerNames(services: [(serviceName: String, service: Service)], projectName: String) throws {
+        var containerNames: [String: String] = [:]
+        var duplicates: [(containerName: String, services: [String])] = []
+
+        for (serviceName, service) in services {
+            let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
+
+            if let existingService = containerNames[containerName] {
+                if let dupIdx = duplicates.firstIndex(where: { $0.containerName == containerName }) {
+                    duplicates[dupIdx].services.append(serviceName)
+                } else {
+                    duplicates.append((containerName, [existingService, serviceName]))
+                }
+            } else {
+                containerNames[containerName] = serviceName
+            }
+        }
+
+        if !duplicates.isEmpty {
+            let messages = duplicates.map { dup in
+                "Container name '\(dup.containerName)' is used by services: \(dup.services.joined(separator: ", "))"
+            }
+            throw ContainerNameCollisionError(
+                "Container name collision detected. \(messages.joined(separator: " ")). " +
+                "Use unique container_name values or remove explicit container_name to use default naming (PROJECT-SERVICE)."
+            )
+        }
+    }
+
+    /// Static validation function for testing container name collision detection.
+    public static func validateContainerNameCollisions(
+        services: [(serviceName: String, service: Service)],
+        projectName: String
+    ) throws {
+        var containerNames: [String: String] = [:]
+        var duplicates: [(containerName: String, services: [String])] = []
+
+        for (serviceName, service) in services {
+            let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
+
+            if let existingService = containerNames[containerName] {
+                if let dupIdx = duplicates.firstIndex(where: { $0.containerName == containerName }) {
+                    duplicates[dupIdx].services.append(serviceName)
+                } else {
+                    duplicates.append((containerName, [existingService, serviceName]))
+                }
+            } else {
+                containerNames[containerName] = serviceName
+            }
+        }
+
+        if !duplicates.isEmpty {
+            let messages = duplicates.map { dup in
+                "Container name '\(dup.containerName)' is used by services: \(dup.services.joined(separator: ", "))"
+            }
+            throw ContainerNameCollisionError(
+                "Container name collision detected. \(messages.joined(separator: " ")). " +
+                "Use unique container_name values or remove explicit container_name to use default naming (PROJECT-SERVICE)."
+            )
+        }
     }
 
 }

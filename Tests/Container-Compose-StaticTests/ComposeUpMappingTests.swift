@@ -604,7 +604,7 @@ final class ComposeUpMappingTests: XCTestCase {
         XCTAssertFalse(args.contains("--scheme"), "Should not have --scheme flag when not specified: \(args)")
     }
 
-    func testSchemeInvalidValue() throws {
+func testSchemeInvalidValue() throws {
         let yaml = """
         services:
           app:
@@ -612,7 +612,145 @@ final class ComposeUpMappingTests: XCTestCase {
             scheme: ftp
         """
         XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yaml)) { error in
-            XCTAssertTrue(error is DecodingError, "Expected DecodingError for invalid scheme, got: \(error)")
+            XCTAssertTrue(error is DecodingError, "Expected DecodingError for invalid scheme, got: \\(error)")
         }
+    }
+
+    // MARK: - Container Name Collision Tests
+
+    func testDuplicateContainerNamesThrowsError() throws {
+        let yaml = """
+        services:
+          web1:
+            image: nginx:latest
+            container_name: myapp
+          web2:
+            image: nginx:latest
+            container_name: myapp
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { serviceName, service in
+            guard let service else { return nil }
+            return (serviceName, service)
+        }
+
+        XCTAssertThrowsError(try ComposeUp.validateContainerNameCollisions(services: services, projectName: "proj")) { error in
+            XCTAssertTrue(error is ContainerNameCollisionError, "Expected ContainerNameCollisionError, got: \\(error)")
+            let errorStr = String(describing: error)
+            XCTAssertTrue(errorStr.contains("myapp"), "Error should mention container name 'myapp': \\(errorStr)")
+            XCTAssertTrue(errorStr.contains("web1"), "Error should mention service 'web1': \\(errorStr)")
+            XCTAssertTrue(errorStr.contains("web2"), "Error should mention service 'web2': \\(errorStr)")
+        }
+    }
+
+    func testDifferentDefaultNamesNoCollision() throws {
+        let yaml = """
+        services:
+          web:
+            image: nginx:latest
+          db:
+            image: postgres:latest
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { serviceName, service in
+            guard let service else { return nil }
+            return (serviceName, service)
+        }
+
+        XCTAssertNoThrow(try ComposeUp.validateContainerNameCollisions(services: services, projectName: "myproject"),
+            "Different service names with default naming should not collide")
+    }
+
+    func testExplicitNameMatchesDefaultNameThrowsError() throws {
+        let yaml = """
+        services:
+          web:
+            image: nginx:latest
+          db:
+            image: postgres:latest
+            container_name: myproject-web
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { serviceName, service in
+            guard let service else { return nil }
+            return (serviceName, service)
+        }
+
+        XCTAssertThrowsError(try ComposeUp.validateContainerNameCollisions(services: services, projectName: "myproject")) { error in
+            XCTAssertTrue(error is ContainerNameCollisionError, "Expected ContainerNameCollisionError when explicit name matches default, got: \\(error)")
+            let errorStr = String(describing: error)
+            XCTAssertTrue(errorStr.contains("myproject-web"), "Error should mention 'myproject-web': \\(errorStr)")
+        }
+    }
+
+    func testMultipleServicesWithSameExplicitNameThrowsError() throws {
+        let yaml = """
+        services:
+          service1:
+            image: nginx:latest
+            container_name: same-name
+          service2:
+            image: redis:latest
+            container_name: same-name
+          service3:
+            image: postgres:latest
+            container_name: same-name
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { serviceName, service in
+            guard let service else { return nil }
+            return (serviceName, service)
+        }
+
+        XCTAssertThrowsError(try ComposeUp.validateContainerNameCollisions(services: services, projectName: "proj")) { error in
+            XCTAssertTrue(error is ContainerNameCollisionError, "Expected ContainerNameCollisionError, got: \\(error)")
+            let errorStr = String(describing: error)
+            XCTAssertTrue(errorStr.contains("same-name"), "Error should mention 'same-name': \\(errorStr)")
+            XCTAssertTrue(errorStr.contains("service1"), "Error should mention 'service1': \\(errorStr)")
+            XCTAssertTrue(errorStr.contains("service2"), "Error should mention 'service2': \\(errorStr)")
+            XCTAssertTrue(errorStr.contains("service3"), "Error should mention 'service3': \\(errorStr)")
+        }
+    }
+
+    func testUniqueExplicitNamesNoCollision() throws {
+        let yaml = """
+        services:
+          web:
+            image: nginx:latest
+            container_name: my-web-app
+          db:
+            image: postgres:latest
+            container_name: my-db-app
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { serviceName, service in
+            guard let service else { return nil }
+            return (serviceName, service)
+        }
+
+        XCTAssertNoThrow(try ComposeUp.validateContainerNameCollisions(services: services, projectName: "proj"),
+            "Unique explicit container names should not collide")
+    }
+
+    func testMixedExplicitAndDefaultNamesNoCollision() throws {
+        let yaml = """
+        services:
+          web:
+            image: nginx:latest
+            container_name: my-web
+          db:
+            image: postgres:latest
+          cache:
+            image: redis:latest
+            container_name: my-cache
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { serviceName, service in
+            guard let service else { return nil }
+            return (serviceName, service)
+        }
+
+XCTAssertNoThrow(try ComposeUp.validateContainerNameCollisions(services: services, projectName: "proj"),
+            "Mixed explicit and default names with no duplicates should not collide")
     }
 }
