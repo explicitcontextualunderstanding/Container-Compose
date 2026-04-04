@@ -19,7 +19,7 @@ import ArgumentParser
 
 public struct Main: AsyncParsableCommand {
     private static let commandName: String = "container-compose"
-    private static let version: String = "0.10.3"
+    private static let version: String = "0.11.0"
     private static let gitCommit: String = "4d1aa8a"  // Injected by build-sign-install.sh
     public static var versionString: String {
         "\(commandName) version \(version) (git: \(gitCommit))"
@@ -27,8 +27,8 @@ public struct Main: AsyncParsableCommand {
  public static let configuration: CommandConfiguration = .init(
  commandName: Self.commandName,
  abstract: "A tool to manage Docker Compose files using Apple Container.",
- discussion: """
- VERSION 0.10.3 FEATURES:
+  discussion: """
+  VERSION 0.11.0 FEATURES:
  • env: shorthand (alias for environment:) with ${VAR} interpolation
  • Pre-decode ${VAR} / ${VAR:-default} / ${VAR:?error} substitution in all YAML values
  • $$ escaping for literal $ in shell commands
