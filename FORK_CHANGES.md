@@ -3,7 +3,8 @@
 This document summarizes all changes in this fork (`explicitcontextualunderstanding/Container-Compose`) relative to the upstream repository (`Mcrich23/Container-Compose`).
 
 **Current Release:** v0.10.3
-**Last Updated:** 2026-04-02
+**Container Runtime:** v0.11.0
+**Last Updated:** 2026-04-03
 
 ---
 
@@ -320,55 +321,38 @@ Soft check with short timeout:
 | Multi-service changed-only restart                      | ❌ All restart       | —                | Workaround: per-service render     |
 | Named volume virtiofs chmod/chown                       | ❌ Permission denied | —                | Workaround: `container run` for DB |
 
-### Upcoming Release v0.11.0 (Target: Q2 2026)
+### Container Runtime v0.11.0 (Released 2026-03-31)
 
-#### 1. Build Secrets Support
+[Release notes](https://github.com/apple/container/releases/tag/0.11.0) — no breaking CLI or API changes.
 
-- **Upstream:** #1300 - Add support for build secrets
-- **Compose Mapping:** Add `secrets:` to service `build:` configuration
-- **Implementation:** Extend `Build.swift` with secrets array, map to `container build --secret`
+#### Landed in v0.11.0
 
-#### 2. Network MTU Configuration
+| Feature | Upstream PR | Compose Impact | Fork Action |
+|---------|------------|----------------|-------------|
+| Build secrets support | #1300 | Add `secrets:` to `build:` config | Extend `Build.swift` with secrets array |
+| Network MTU configuration | #1267 | Add `mtu:` to network definitions | Update `Network.swift` with MTU field |
+| Default CPUs/memory (container) | #1266 | System properties set defaults | May affect `makeRunArgs()` resource flags |
+| Default CPUs/memory (builder) | #1293 | System properties set defaults | May affect build resource allocation |
+| CONTAINER_DEFAULT_PLATFORM | #1286 | Default image platform selection | Evaluate if fork needs explicit arch flag |
+| Checkpoint export as OCI tar | #1303 | Breaking change to checkpoint format | Update `CheckpointCommand.swift` |
+| Dockerfile ignore files | #1273 | `.dockerignore` per Dockerfile | No compose change needed |
+| ARG parsing fixes | #1342 | Build arg resolution | Verify existing `${VAR}` handling |
+| Auto-remove container prune on start | #1290 | Reaps orphaned auto-remove containers | No compose change needed |
+| Rootfs override | #1323 | Custom init filesystem per service | Evaluate for compose integration |
+| Registry resource (auth) | #1195 | Native registry authentication | Spike to deprecate fork registry handling |
+| Volumes allow "." | #1326 | Current directory as volume source | No compose change needed |
+| Container lifecycle hang fixes | Multiple | Addresses XPC timeout issues | May reduce need for `--timeout-seconds` |
+| CLI stop/delete error on not found | #878 | `container stop`/`delete` error instead of silent fail | Scripts should handle exit codes explicitly |
+| Containerization 0.29.0 | #1327 | Runtime dependency bump | Required for build secrets |
 
-- **Upstream:** #1267 - Add mtu option for network attachments
-- **Compose Mapping:** Add `mtu:` to network definitions
-- **Implementation:** Update `Network.swift` with MTU field
+#### Not Yet Landed (Deferred to v0.12.0+)
 
-#### 3. Resource Limits
-
-- **Upstream:** #1266, #1293 - Container and build resource tracking
-- **Compose Mapping:**
-  - Services: `cpus:`, `mem_limit:`
-  - Build: `build.cpus:`, `build.memory:`
-- **Implementation:** Extend `Service.swift` and `Build.swift`
-
-#### 4. Registry Authentication
-
-- **Upstream:** #1195 - RegistryResource
-- **Compose Mapping:** Evaluate if native support replaces fork needs
-- **Action:** Spike to determine if fork registry handling can be deprecated
-
-#### 5. Checkpoint/Export Enhancement
-
-- **Upstream:** #1303 - Refactor container export as tar archive
-- **Compose Impact:** Update `CheckpointCommand.swift` for new export API
-- **Note:** Breaking change - checkpoint files may need migration
-
-#### 6. Robust Service Lifecycle (Restart Policies)
-
-- **Status:** Deferred to v0.12.0
-- **Depends on:** Upstream PR #1258 (not yet merged to main)
-- **Scope:** `restart: always/on-failure/unless-stopped`
-
-### Future Releases (v0.12.0+)
-
-| Feature                        | Upstream PR  | Notes                              |
-| ------------------------------ | ------------ | ---------------------------------- |
-| High-Performance File Transfer | #1190        | `container cp` for sync/hot-reload |
-| Rootfs Override                | #1323        | Custom init filesystem per service |
-| Advanced Networking            | #1151        | Multi-plugin network support       |
-| Auto-Start (LaunchAgent)       | #1176, #1201 | Boot service installation          |
-| Container Prune on Start       | #1290        | Reap auto-remove containers        |
+| Feature | Upstream PR | Notes |
+|---------|------------|-------|
+| High-Performance File Transfer | #1190 | `container cp` for sync/hot-reload |
+| Advanced Networking | #1151 | Multi-plugin network support |
+| Auto-Start (LaunchAgent) | #1176, #1201 | Boot service installation |
+| Robust Service Lifecycle (Restart Policies) | #1258 | `restart: always/on-failure/unless-stopped` |
 
 ### Crash Recovery Mode (v0.10.3)
 
@@ -437,10 +421,23 @@ The orchestrator script works around several features that container-compose alr
 
 #### v0.10.x → v0.11.0 Migration
 
-**Breaking Changes:**
+**No breaking CLI or API changes.** Safe to upgrade with containers running — existing containers continue on the old runtime until stopped and restarted.
 
-- Checkpoint export format changes (#1303)
-- Build secrets require containerization 0.29.0+
+**Behavioral Changes:**
+
+- Checkpoint export format changes (#1303) — checkpoint files may need migration
+- `container stop`/`delete` now error on not-found containers (#878) — scripts should handle exit codes explicitly
+- Default CPUs/memory set via system properties (#1266, #1293) — may affect resource allocation on next `container run`/`container-compose up`
+- Auto-remove containers reaped on system start (#1290) — orphaned auto-remove containers cleaned up
+
+**New Capabilities Available:**
+
+- Build secrets via `container build --secret` (#1300)
+- Network MTU via `--network ...mtu=N` (#1267)
+- `CONTAINER_DEFAULT_PLATFORM` env var for image arch selection (#1286)
+- Rootfs override per container (#1323)
+- Registry resource for authentication (#1195)
+- Volumes allow "." as source (#1326)
 
 **Deprecations:**
 
@@ -448,7 +445,7 @@ The orchestrator script works around several features that container-compose alr
 
 **New Dependencies:**
 
-- Bump Containerization to 0.29.0
+- Containerization 0.29.0 (bundled with v0.11.0)
 - Swift tools version unchanged (v5.9+)
 
 ### Testing Requirements
@@ -460,6 +457,8 @@ The orchestrator script works around several features that container-compose alr
 | Resource limits   | High          | Resource validation |
 | Checkpoint export | High          | Migration/compat    |
 | RegistryResource  | Medium        | Auth flows          |
+| Rootfs override   | Low           | Integration         |
+| v0.11.0 compat    | High          | Full suite          |
 
 ### Upstreaming Strategy
 
@@ -502,7 +501,11 @@ The orchestrator script works around several features that container-compose alr
 
 - [ ] Create detailed CHANGELOG.md with migration notes
 - [ ] Update README and CLI --help strings for fork-only features
-- [ ] Audit tests for upstream compatibility
+- [ ] Audit tests for upstream v0.11.0 compatibility
+- [ ] Add build secrets support to `Build.swift` (v0.11.0 upstream #1300)
+- [ ] Add network MTU to `Network.swift` (v0.11.0 upstream #1267)
+- [ ] Spike RegistryResource (#1195) to evaluate deprecating fork registry auth
+- [ ] Update `CheckpointCommand.swift` for OCI tar export format (v0.11.0 #1303)
 - [ ] Consider upstreaming: dns_search, build.target, entrypoint fix, named-volume behavior
 - [x] Implement healthcheck-aware `depends_on` (wait for dependency healthy before starting dependents)
 - [x] Fix `service_healthy` handling for externally managed existing containers (v0.10.3: crash recovery detection skips health-gates)
