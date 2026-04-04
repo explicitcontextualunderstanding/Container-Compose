@@ -6,9 +6,41 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP_COMPOSE=$(mktemp /tmp/apple-container-network-test.XXXXXX.yml)
-trap 'rm -f "$TMP_COMPOSE"' EXIT
+AC_SNAPSHOTS_DIR="$HOME/Library/Application Support/com.apple.container/snapshots"
 SOCAT_IP="192.168.64.1"
 RUN=${1:-}
+
+# Prune orphaned snapshots left by test containers
+prune_network_test_snapshots() {
+    local snapshot_dir="$AC_SNAPSHOTS_DIR"
+    [ -d "$snapshot_dir" ] || return
+    # Remove any snapshot not referenced by a currently running container
+    local all_ids=""
+    if [ -f "$HOME/Library/Application Support/com.apple.container/state.json" ] && command -v python3 &>/dev/null; then
+        all_ids=$(python3 -c "
+import json, os
+sf = os.path.expanduser(\"$HOME/Library/Application Support/com.apple.container/state.json\")
+with open(sf) as f:
+    state = json.load(f)
+for cid in state.get(\"containers\", {}):
+    print(cid)
+" 2>/dev/null || true)
+    fi
+    local removed=0
+    for snap_dir in "$snapshot_dir"/*/; do
+        [ -d "$snap_dir" ] || continue
+        local snap_name
+        snap_name=$(basename "$snap_dir")
+        case " $all_ids " in
+            *" $snap_name "*) continue ;;
+        esac
+        rm -rf "$snap_dir"
+        removed=$((removed + 1))
+    done
+    [ "$removed" -gt 0 ] && echo "  Pruned $removed orphaned snapshot(s)"
+}
+
+trap 'rm -f "$TMP_COMPOSE"; prune_network_test_snapshots' EXIT
 
 cat > "$TMP_COMPOSE" <<EOF
 name: apple-network-test

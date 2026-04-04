@@ -9,24 +9,49 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Apple Container data directory
+AC_SNAPSHOTS_DIR="$HOME/Library/Application Support/com.apple.container/snapshots"
+
 echo "=========================================="
 echo "Container-Compose Build, Sign & Install"
 echo "=========================================="
 echo ""
 
-# Clean up any leftover test containers from previous runs
+# Clean up any leftover test containers and their snapshots from previous runs
 if command -v container &> /dev/null; then
- echo "Pruning leftover test containers..."
- TEST_CONTAINERS=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
- if [ -n "$TEST_CONTAINERS" ]; then
- echo "$TEST_CONTAINERS" | while read -r container_id; do
- container stop "$container_id" 2>/dev/null || true
- container delete "$container_id" 2>/dev/null || true
- done
- echo "✓ Leftover test containers cleaned"
- else
- echo "✓ No leftover test containers"
- fi
+	echo "Pruning leftover test containers..."
+	TEST_CONTAINERS=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
+	if [ -n "$TEST_CONTAINERS" ]; then
+		echo "$TEST_CONTAINERS" | while read -r container_id; do
+		container stop "$container_id" 2>/dev/null || true
+		container delete "$container_id" 2>/dev/null || true
+		done
+		echo "✓ Leftover test containers cleaned"
+	else
+		echo "✓ No leftover test containers"
+	fi
+	# Prune orphaned snapshots left by test containers
+	if [ -d "$AC_SNAPSHOTS_DIR" ] && [ -f "$HOME/Library/Application Support/com.apple.container/state.json" ] && command -v python3 &>/dev/null; then
+		all_ids=$(python3 -c "
+import json, os
+sf = os.path.expanduser(\"$HOME/Library/Application Support/com.apple.container/state.json\")
+with open(sf) as f:
+    state = json.load(f)
+for cid in state.get(\"containers\", {}):
+    print(cid)
+" 2>/dev/null || true)
+		pruned=0
+		for snap_dir in "$AC_SNAPSHOTS_DIR"/*/; do
+			[ -d "$snap_dir" ] || continue
+			snap_name=$(basename "$snap_dir")
+			case " $all_ids " in
+				*" $snap_name "*) continue ;;
+			esac
+			rm -rf "$snap_dir"
+			pruned=$((pruned + 1))
+		done
+		[ "$pruned" -gt 0 ] && echo "  Pruned $pruned orphaned snapshot(s)"
+	fi
 fi
 
 # Neutralize conda environment contamination (shared with run-tests.sh)
@@ -65,7 +90,7 @@ fi
 # Clear xattrs from built binary
 echo ""
 echo "Clearing extended attributes from built binary..."
-if command -v xattr &>/dev/null; then
+if command -v xattr &> /dev/null; then
   xattr -c "$BINARY_PATH" 2>/dev/null || true
   echo "  Cleared xattrs from $BINARY_PATH"
 fi
@@ -93,7 +118,7 @@ chmod 755 "$TARGET"
 # env-setup.sh above ensures conda's codesign shim is not in PATH
 echo ""
 echo "Signing binary..."
-if command -v codesign &>/dev/null; then
+if command -v codesign &> /dev/null; then
   codesign --force --sign - "$TARGET" 2>/dev/null || {
     echo "Warning: codesign failed - container runtime may reject unsigned binary"
   }
@@ -102,7 +127,7 @@ else
 fi
 
 # Clean up any existing provenance attribute (ad-hoc sig prevents re-application)
-if command -v xattr &>/dev/null; then
+if command -v xattr &> /dev/null; then
   xattr -d com.apple.provenance "$TARGET" 2>/dev/null || true
 fi
 
@@ -148,14 +173,14 @@ echo "=========================================="
 
 # Final cleanup of any test containers created during build
 if command -v container &> /dev/null; then
- TEST_CONTAINERS=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
- if [ -n "$TEST_CONTAINERS" ]; then
- echo ""
- echo "Final cleanup of test containers..."
- echo "$TEST_CONTAINERS" | while read -r container_id; do
- container stop "$container_id" 2>/dev/null || true
- container delete "$container_id" 2>/dev/null || true
- done
- echo "✓ Test containers cleaned"
- fi
+	TEST_CONTAINERS=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
+	if [ -n "$TEST_CONTAINERS" ]; then
+		echo ""
+		echo "Final cleanup of test containers..."
+		echo "$TEST_CONTAINERS" | while read -r container_id; do
+			container stop "$container_id" 2>/dev/null || true
+			container delete "$container_id" 2>/dev/null || true
+		done
+		echo "✓ Test containers cleaned"
+	fi
 fi

@@ -275,14 +275,6 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         for (futureName, futureService) in remainingServices {
             // Check for service_healthy condition
             if futureService.healthyDependencies.contains(serviceName) {
-                // External Dependency Health-Gating: Skip health check if the dependency
-                // was already running before this compose invocation (crash recovery).
-                // The container survived a crash and is presumed healthy — waiting for
-                // its healthcheck would block startup unnecessarily (SO-07 variant).
-                if externallyPresentServices.contains(serviceName) {
-                    print("[RECOVERY] '\(serviceName)' was already running — skipping health-gate for '\(futureName)'")
-                    continue
-                }
                 // Find the healthcheck on the dependency (this service)
                 guard let healthcheck = service.healthcheck else {
                     print("Warning: Service '\(futureName)' depends on '\(serviceName)' with condition service_healthy, but '\(serviceName)' has no healthcheck configured.")
@@ -299,12 +291,6 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             
             // Check for service_completed_successfully condition
             if futureService.completedSuccessfullyDependencies.contains(serviceName) {
-                // External Dependency: Skip wait if the dependency was already running
-                if externallyPresentServices.contains(serviceName) {
-                    print("[RECOVERY] '\(serviceName)' was already running — skipping completed-successfully wait for '\(futureName)'")
-                    continue
-                }
-                
                 print("Service '\(futureName)' depends on '\(serviceName)' completing successfully. Waiting...")
                 try await waitForCompletedSuccessfully(
                     containerName: containerName,
@@ -322,7 +308,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             print("  RECOVERY MODE — \(externallyPresentServices.count) service(s) already running")
             print("═══════════════════════════════════════════════════════")
             for svc in externallyPresentServices.sorted() {
-                print("  ✓ '\(svc)' — detected running, health-gates skipped for dependents")
+                print("  ✓ '\(svc)' — detected running, health-gates will be checked")
             }
             print("═══════════════════════════════════════════════════════\n")
         }
@@ -1085,13 +1071,15 @@ public static func resolvePlatform(
     /// - Parameters:
     ///   - imageName: The name of the image to pull.
     ///   - platform: Optional platform specifier (e.g., "linux/arm64").
-    ///   - scheme: Optional registry scheme override.
-    ///   - retryConfig: Optional retry configuration (defaults to 3 retries, 5s base delay).
+/// - scheme: Optional registry scheme override.
+    /// - retryConfig: Optional retry configuration (defaults to 3 retries, 5s base delay).
+    /// - timeoutSeconds: Maximum time to wait for pull operation (defaults to 300s = 5 minutes).
     private func pullImage(
         _ imageName: String,
         platform: String?,
         scheme: String? = nil,
-        retryConfig: PullRetryConfig = .default
+        retryConfig: PullRetryConfig = .default,
+        timeoutSeconds: TimeInterval = 300
     ) async throws {
         let imageList = try await ClientImage.list()
         guard !imageList.contains(where: { $0.description.reference.components(separatedBy: "/").last == imageName }) else {
@@ -1115,8 +1103,11 @@ public static func resolvePlatform(
         var lastError: Error?
         for attempt in 1...retryConfig.maxRetries {
             do {
-                let imagePull = try Application.ImagePull.parse(commands + logging.passThroughCommands())
-                try await imagePull.run()
+                // Use withTimeout to add timeout protection to the pull operation
+                try await withTimeout(seconds: timeoutSeconds, operation: {
+                    let imagePull = try Application.ImagePull.parse(commands + logging.passThroughCommands())
+                    try await imagePull.run()
+                })
                 print("Successfully pulled image \(imageName)")
                 return
             } catch {

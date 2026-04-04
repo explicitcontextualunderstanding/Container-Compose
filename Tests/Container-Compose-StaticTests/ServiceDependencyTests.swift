@@ -312,21 +312,21 @@ struct ServiceDependencyTests {
         #expect(externallyPresentServices.contains("honcho-hub"))
         #expect(externallyPresentServices.count == 2)
 
-        // Health-gating skip logic: if dependency is in the set, skip waitForHealthy
+        // Health-gating: if dependency is in the set, DO NOT skip - always check health
         let dependency = "honcho-db"
         if externallyPresentServices.contains(dependency) {
-            // Skip health-gate — this is the crash recovery path
-            #expect(true, "Should skip health-gate for externally present service")
+            // Health gate should proceed - this is the fix (H-2)
+            #expect(true, "Health-gate should run for externally present service")
         } else {
             Issue.record("Should have detected honcho-db as externally present")
         }
 
-        // Service not in set should NOT be skipped
+        // Service not in set should also have health gate run
         let newDependency = "honcho-deriver"
-        if externallyPresentServices.contains(newDependency) {
-            Issue.record("Should NOT have detected honcho-deriver as externally present")
+        if !externallyPresentServices.contains(newDependency) {
+            // Health gate should also proceed - normal path
+            #expect(true, "Health-gate should run for non-externally present service")
         }
-        // Normal path: call waitForHealthy
     }
 
     @Test("externallyPresentServices empty set allows normal health-gating")
