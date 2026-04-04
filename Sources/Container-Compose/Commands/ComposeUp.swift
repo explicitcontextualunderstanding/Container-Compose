@@ -1038,12 +1038,21 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         // Add Dockerfile path
         commands.append(contentsOf: ["--file", "\(self.cwd)/\(buildConfig.dockerfile ?? "Dockerfile")"])
 
-        // Add target stage for multi-stage builds
-        if let target = buildConfig.target {
-            commands.append(contentsOf: ["--target", target])
-        }
+    // Add target stage for multi-stage builds
+    if let target = buildConfig.target {
+        commands.append(contentsOf: ["--target", target])
+    }
 
-        // Add caching options
+    // Add build secrets (Apple Container 0.11.0+)
+    for secret in buildConfig.secrets ?? [] {
+        if let env = secret.env {
+            commands.append(contentsOf: ["--secret", "id=\(secret.id),env=\(env)"])
+        } else if let src = secret.src {
+            commands.append(contentsOf: ["--secret", "id=\(secret.id),src=\(self.cwd)/\(src)"])
+        }
+    }
+
+    // Add caching options
         if noCache {
             commands.append("--no-cache")
         }
