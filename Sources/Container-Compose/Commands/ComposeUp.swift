@@ -381,17 +381,24 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
     /// Captures the last N lines of container output for debugging failed health checks.
     private func captureContainerLogs(_ containerName: String, lines: Int = 50) async -> String {
-        var logOutput = ""
+        // Use actor to safely collect logs from concurrent callbacks
+        actor LogCollector {
+            private var output = ""
+            func append(_ line: String) { output += line + "\n" }
+            func getOutput() -> String { output }
+        }
+        let collector = LogCollector()
         do {
             _ = try await ContainerComposeCore.streamCommand(
                 "container", args: ["logs", "--tail", "\(lines)", containerName], cwd: self.cwd,
-                onStdout: { logOutput += $0 + "\n" },
-                onStderr: { logOutput += $0 + "\n" }
+                onStdout: { Task { await collector.append($0) } },
+                onStderr: { Task { await collector.append($0) } }
             )
+            let logOutput = await collector.getOutput()
+            return logOutput.isEmpty ? "(No logs available)" : logOutput
         } catch {
             return "(Could not capture logs: \(error))"
         }
-        return logOutput.isEmpty ? "(No logs available)" : logOutput
     }
 
     /// Waits for a container to pass its healthcheck by running the healthcheck command inside it.
