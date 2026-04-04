@@ -157,11 +157,18 @@ public struct ComposeDown: AsyncParsableCommand {
             throw YamlError.composeFileNotFound(path)
         }
 
-    // Decode the YAML file into the DockerCompose struct
-    guard let dockerComposeString = String(data: yamlData, encoding: .utf8) else {
-      throw YamlError.invalidYamlEncoding
-    }
-    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: dockerComposeString)
+      // Decode the YAML file into the DockerCompose struct
+      guard let dockerComposeString = String(data: yamlData, encoding: .utf8) else {
+          throw YamlError.invalidYamlEncoding
+      }
+
+      // Load .env file early so vars are available for pre-decode substitution
+      let envFilePath = "\(cwd)/.env"
+      let environmentVariables = (try? loadEnvFile(path: envFilePath)) ?? [:]
+
+      // Pre-decode ${VAR} substitution (Docker Compose compatible with $$ escaping)
+      let resolvedYaml = try resolveYamlVariables(dockerComposeString, with: environmentVariables)
+      let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: resolvedYaml)
 
         // Determine project name for container naming
         if let name = dockerCompose.name {
