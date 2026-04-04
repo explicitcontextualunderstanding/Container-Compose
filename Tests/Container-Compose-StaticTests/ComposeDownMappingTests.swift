@@ -196,4 +196,84 @@ final class ComposeDownMappingTests: XCTestCase {
         let summary = result.summary
         XCTAssertTrue(summary.contains("0 stopped"))
     }
+
+    // MARK: - State File Resume Path
+
+    func testStateFileResumeIntersectsContainerNames() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CCT_StateResume_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let stateFile = tmpDir.appendingPathComponent(".container-compose.state")
+
+        // Write state with containers from compose file
+        ComposeDown.writeStateFile(stateFile, containerNames: ["myproject-web", "myproject-db"])
+
+        // Read back and verify intersection would work
+        let readBack = ComposeDown.readStateFile(stateFile)
+        XCTAssertEqual(readBack.count, 2)
+
+        // Simulate intersection with compose file that only has 'web' service
+        let expectedContainers: Set<String> = ["myproject-web", "myproject-cache"]
+        let intersected = readBack.filter { expectedContainers.contains($0) }
+        XCTAssertEqual(intersected, ["myproject-web"], "Should only stop containers that exist in both state file and compose file")
+    }
+
+    func testStateFileResumeFiltersNonExistentContainers() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CCT_StateResumeFilter_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let stateFile = tmpDir.appendingPathComponent(".container-compose.state")
+
+        // State file has stale container that was removed from compose
+        ComposeDown.writeStateFile(stateFile, containerNames: ["proj-svc-a", "proj-svc-deleted"])
+
+        // Compose file now only has svc-a
+        let expectedContainers: Set<String> = ["proj-svc-a", "proj-svc-b"]
+        let readBack = ComposeDown.readStateFile(stateFile)
+        let intersected = readBack.filter { expectedContainers.contains($0) }
+
+        XCTAssertEqual(intersected, ["proj-svc-a"], "Should filter out stale container from state file")
+    }
+
+    func testStateFileEmptyWhenMissing() throws {
+        let stateFile = URL(fileURLWithPath: "/tmp/CCT_nonexistent_\(UUID().uuidString).state")
+        let containers = ComposeDown.readStateFile(stateFile)
+        XCTAssertTrue(containers.isEmpty, "Missing state file should return empty array")
+    }
+
+    func testStateFileRemovedAfterSuccessfulTeardown() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CCT_StateFileCleanup_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let stateFile = tmpDir.appendingPathComponent(".container-compose.state")
+
+        // Write state file
+        ComposeDown.writeStateFile(stateFile, containerNames: ["proj-a", "proj-b"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: stateFile.path))
+
+        // Simulate successful teardown - remove state file
+        ComposeDown.removeStateFile(stateFile)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: stateFile.path), "State file should be removed after teardown")
+    }
+
+    func testStateFileResumeWithExplicitContainerNames() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CCT_StateResumeExplicit_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let stateFile = tmpDir.appendingPathComponent(".container-compose.state")
+
+        // State file uses explicit container_name (not project-service pattern)
+        ComposeDown.writeStateFile(stateFile, containerNames: ["custom-web-name", "custom-db-name"])
+
+        let readBack = ComposeDown.readStateFile(stateFile)
+        XCTAssertEqual(readBack, ["custom-web-name", "custom-db-name"], "Should preserve explicit container names from state file")
+    }
 }

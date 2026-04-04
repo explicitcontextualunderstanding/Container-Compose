@@ -131,6 +131,8 @@ public struct ComposeDown: AsyncParsableCommand {
     // MARK: - Run
 
     public mutating func run() async throws {
+        let statePath = ComposeDown.stateFilePath(cwd: cwd)
+        let previousStateContainers = ComposeDown.readStateFile(statePath)
 
         // Skip CWD scanning if -f was explicitly provided
         if composeFile == nil {
@@ -157,18 +159,18 @@ public struct ComposeDown: AsyncParsableCommand {
             throw YamlError.composeFileNotFound(path)
         }
 
-      // Decode the YAML file into the DockerCompose struct
-      guard let dockerComposeString = String(data: yamlData, encoding: .utf8) else {
-          throw YamlError.invalidYamlEncoding
-      }
+        // Decode the YAML file into the DockerCompose struct
+        guard let dockerComposeString = String(data: yamlData, encoding: .utf8) else {
+            throw YamlError.invalidYamlEncoding
+        }
 
-      // Load .env file early so vars are available for pre-decode substitution
-      let envFilePath = "\(cwd)/.env"
-      let environmentVariables = (try? loadEnvFile(path: envFilePath)) ?? [:]
+        // Load .env file early so vars are available for pre-decode substitution
+        let envFilePath = "\(cwd)/.env"
+        let environmentVariables = (try? loadEnvFile(path: envFilePath)) ?? [:]
 
-      // Pre-decode ${VAR} substitution (Docker Compose compatible with $$ escaping)
-      let resolvedYaml = try resolveYamlVariables(dockerComposeString, with: environmentVariables)
-      let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: resolvedYaml)
+        // Pre-decode ${VAR} substitution (Docker Compose compatible with $$ escaping)
+        let resolvedYaml = try resolveYamlVariables(dockerComposeString, with: environmentVariables)
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: resolvedYaml)
 
         // Determine project name for container naming
         if let name = dockerCompose.name {
@@ -195,7 +197,30 @@ public struct ComposeDown: AsyncParsableCommand {
             })
         }
 
-        let result = try await stopOldStuff(services, remove: false)
+        // Build set of expected container names from compose file
+        var expectedContainerNames: Set<String> = []
+        for (serviceName, service) in services {
+            if let explicitContainerName = service.container_name {
+                expectedContainerNames.insert(explicitContainerName)
+            } else if let projectName = projectName {
+                expectedContainerNames.insert("\(projectName)-\(serviceName)")
+            }
+        }
+
+        // Determine target containers: intersect state file with compose file services
+        var targetContainers: [String]
+        if !previousStateContainers.isEmpty {
+            // Resume from state file: only stop containers that are both in state file AND in compose file
+            targetContainers = previousStateContainers.filter { expectedContainerNames.contains($0) }
+            if !targetContainers.isEmpty {
+                print("Info: Resuming from state file with \(targetContainers.count) container(s)")
+            }
+        } else {
+            // No state file: use compose file services
+            targetContainers = Array(expectedContainerNames)
+        }
+
+        let result = try await stopContainersByName(targetContainers, services: services, statePath: statePath)
 
         // Report summary
         print("Summary: \(result.summary)")
@@ -206,25 +231,20 @@ public struct ComposeDown: AsyncParsableCommand {
         }
     }
 
-    private func stopOldStuff(_ services: [(serviceName: String, service: Service)], remove: Bool) async throws -> DownResult {
+    private func stopContainersByName(_ containerNames: [String], services: [(serviceName: String, service: Service)], statePath: URL) async throws -> DownResult {
         guard let projectName else { return DownResult(stopped: [], timeouts: [], errors: []) }
 
         var stopped: [String] = []
         var timeouts: [String] = []
         var errors: [String] = []
-        var ownedContainerNames: [String] = []
 
+        // Build service lookup for container_name resolution
+        var serviceByName: [String: Service] = [:]
         for (serviceName, service) in services {
-            // Respect explicit container_name, otherwise use default pattern
-            let containerName: String
-            if let explicitContainerName = service.container_name {
-                containerName = explicitContainerName
-            } else {
-                containerName = "\(projectName)-\(serviceName)"
-            }
+            serviceByName[serviceName] = service
+        }
 
-            ownedContainerNames.append(containerName)
-
+        for containerName in containerNames {
             print("Stopping container: \(containerName)")
             guard let container = try? await ClientContainer.get(id: containerName) else {
                 print("Warning: Container '\(containerName)' not found, skipping.")
@@ -240,26 +260,10 @@ public struct ComposeDown: AsyncParsableCommand {
                 print("Warning: Timeout stopping container: \(containerName) (force-stopped)")
                 timeouts.append(containerName)
             }
-
-            if remove {
-                do {
-                    try await container.delete()
-                    print("Successfully removed container: \(containerName)")
-                } catch {
-                    print("Error Removing Container: \(error)")
-                    errors.append(containerName)
-                }
-            }
         }
 
-        // Write state file so a subsequent `down` can resume
-        let statePath = ComposeDown.stateFilePath(cwd: cwd)
-        if ownedContainerNames.isEmpty {
-            // No services to manage — remove state file if it exists (idempotent no-op)
-            ComposeDown.removeStateFile(statePath)
-        } else {
-            ComposeDown.writeStateFile(statePath, containerNames: ownedContainerNames)
-        }
+        // Remove state file only after all containers are confirmed stopped
+        ComposeDown.removeStateFile(statePath)
 
         return DownResult(stopped: stopped, timeouts: timeouts, errors: errors)
     }
