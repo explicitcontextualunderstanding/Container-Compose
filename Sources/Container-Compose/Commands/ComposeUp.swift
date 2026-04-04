@@ -670,8 +670,25 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
     }
 
-    // MARK: Static Helpers for Testing
-    
+// MARK: Static Helpers for Testing
+
+    /// Resolves platform for build/run from service.platform or CONTAINER_DEFAULT_PLATFORM env var.
+    /// - Returns: (os, arch) tuple
+    public static func resolvePlatform(servicePlatform: String?) -> (os: String, arch: String) {
+        let platform = servicePlatform
+            ?? ProcessInfo.processInfo.environment["CONTAINER_DEFAULT_PLATFORM"]
+
+        if let platform = platform {
+            let split = platform.split(separator: "/")
+            let os = String(split.first ?? "linux")
+            let arch = String(split.count >= 2 ? split.last! : "arm64")
+            return (os, arch)
+        }
+
+        // Default fallback
+        return ("linux", "arm64")
+    }
+
     public static func makeNetworkCreateArgs(name: String, config: Network?) -> [String] {
         var commands = [name]
 
@@ -1032,9 +1049,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
         
         // Add OS/Arch
-        let split = service.platform?.split(separator: "/")
-        let os = String(split?.first ?? "linux")
-        let arch = String(((split ?? []).count >= 1 ? split?.last : nil) ?? "arm64")
+        let (os, arch) = Self.resolvePlatform(servicePlatform: service.platform)
         commands.append(contentsOf: ["--os", os])
         commands.append(contentsOf: ["--arch", arch])
         
