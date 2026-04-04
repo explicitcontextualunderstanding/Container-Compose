@@ -39,9 +39,33 @@ public struct DockerCompose: Codable {
     /// Optional top-level secret definitions (primarily for Swarm)
     public let secrets: [String: Secret?]?
     
+    private static let validVersions: Set<String> = {
+        var valid = Set<String>()
+        for major in 2...3 {
+            for minor in 0...((major == 2) ? 4 : 99) {
+                valid.insert("\(major).\(minor)")
+            }
+        }
+        return valid
+    }()
+    
+    private static let validPrefixes = ["3.", "2."]
+    
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decodeIfPresent(String.self, forKey: .version)
+        
+        if let version = version {
+            let isValid = Self.validVersions.contains(version)
+            let hasValidPrefix = Self.validPrefixes.contains { version.hasPrefix($0) }
+            
+            if !isValid && !hasValidPrefix {
+                print("Warning: Unrecognized or invalid version '\(version)'. Valid versions include 2.x (2.0-2.4) and 3.x (3.0-3.99). The file may not parse correctly.")
+            }
+        } else {
+            print("Warning: No 'version:' field found in compose file. This may be a Compose Specification file (requires Docker Compose v2+).")
+        }
+        
         name = try container.decodeIfPresent(String.self, forKey: .name)
         services = try container.decode([String: Service?].self, forKey: .services)
         
