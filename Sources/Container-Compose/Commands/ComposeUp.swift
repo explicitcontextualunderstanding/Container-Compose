@@ -802,7 +802,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         } else if let img = service.image {
             // Use specified image if no build config
             // Pull image if necessary
-            try await pullImage(img, platform: service.platform)
+            try await pullImage(img, platform: service.platform, scheme: service.scheme)
             imageToRun = img
         } else {
             // Should not happen due to Service init validation, but as a fallback
@@ -991,18 +991,22 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
     }
 
-    private func pullImage(_ imageName: String, platform: String?) async throws {
+    private func pullImage(_ imageName: String, platform: String?, scheme: String? = nil) async throws {
         let imageList = try await ClientImage.list()
         guard !imageList.contains(where: { $0.description.reference.components(separatedBy: "/").last == imageName }) else {
             return
         }
 
         print("Pulling Image \(imageName)...")
-        
+
         var commands = [
             imageName
         ]
-        
+
+        if let scheme {
+            commands.append(contentsOf: ["--scheme", scheme])
+        }
+
         if let platform {
             commands.append(contentsOf: ["--platform", platform])
         }
@@ -1152,6 +1156,12 @@ extension ComposeUp {
         }
         runArgs.append("--name")
         runArgs.append(containerName)
+
+        // Add registry scheme override (Apple Container extension)
+        if let scheme = service.scheme {
+            runArgs.append("--scheme")
+            runArgs.append(scheme)
+        }
 
         // Map restart policy if present
         if let restart = service.restart {

@@ -142,6 +142,10 @@ public final class Service: Codable, Hashable {
     /// Platform architecture for the service
     public let platform: String?
 
+    /// Registry scheme override (Apple Container extension: http, https, auto)
+    /// Not part of Docker Compose spec — controls protocol used for image pulls
+    public let scheme: String?
+
     /// Native init flag to request an init process (maps to container --init)
     public let `init`: Bool?
 
@@ -193,7 +197,7 @@ public final class Service: Codable, Hashable {
   // Note: 'env' is a shorthand alias for 'environment' in Docker Compose
   enum CodingKeys: String, CodingKey {
     case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user,
-         container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, runtime, `init`, init_image, dns_search
+         container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns_search
   }
     
     /// Public memberwise initializer for testing
@@ -218,6 +222,7 @@ public final class Service: Codable, Hashable {
         read_only: Bool? = nil,
         working_dir: String? = nil,
         platform: String? = nil,
+        scheme: String? = nil,
         `init`: Bool? = nil,
         configs: [ServiceConfig]? = nil,
         secrets: [ServiceSecret]? = nil,
@@ -248,6 +253,7 @@ public final class Service: Codable, Hashable {
         self.read_only = read_only
         self.working_dir = working_dir
         self.platform = platform
+        self.scheme = scheme
         self.`init` = `init`
         self.configs = configs
         self.secrets = secrets
@@ -394,6 +400,19 @@ public final class Service: Codable, Hashable {
             }
         }
         platform = rawPlatform
+        // Decode optional registry scheme (Apple Container extension: http, https, auto)
+        let rawScheme = try container.decodeIfPresent(String.self, forKey: .scheme)
+        if let sch = rawScheme {
+            let validSchemes = ["http", "https", "auto"]
+            guard validSchemes.contains(sch) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .scheme,
+                    in: container,
+                    debugDescription: "Invalid scheme '\(sch)'. Valid values: \(validSchemes.joined(separator: ", "))"
+                )
+            }
+        }
+        scheme = rawScheme
         // Decode optional init flag (YAML key: init)
         `init` = try container.decodeIfPresent(Bool.self, forKey: .`init`)
         // Validate runtime if present (should not be empty)
