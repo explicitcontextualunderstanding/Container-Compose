@@ -126,11 +126,20 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     @Flag(name: .long, help: "If containers already exist and are running, don't recreate them")
     var noRecreate: Bool = false
 
-    @Flag(name: .long, help: "Recover crashed or stopped containers without recreating them. Mutually exclusive with --build and --force-recreate.")
-    var recover: Bool = false
+@Flag(name: .long, help: "Recover crashed or stopped containers without recreating them. Mutually exclusive with --build and --force-recreate.")
+var recover: Bool = false
 
-    @Flag(name: .long, help: "Do not use cache")
-    var noCache: Bool = false
+enum PullPolicy: String, ExpressibleByArgument, CaseIterable {
+    case missing = "missing"
+    case always = "always"
+    case never = "never"
+}
+
+@Option(name: .long, help: "Pull policy for image updates: missing (default), always, never")
+var pull: PullPolicy = .missing
+
+@Flag(name: .long, help: "Do not use cache")
+var noCache: Bool = false
 
     @OptionGroup
     var process: Flags.Process
@@ -902,39 +911,39 @@ public static func resolvePlatform(
           if recover {
               // Handle different container states in recovery mode
               switch existingContainer.status {
-              case .running:
-                  print("[RECOVER] Container '\(containerName)' is already running - skipping creation")
-                  // External Dependency Health-Gating: Record this service as externally present
-                  // so that dependent services skip their service_healthy wait (crash recovery).
-                  externallyPresentServices.insert(serviceName)
-                  
-                  // Check for configuration drift
-                  if let driftWarnings = checkContainerDrift(container: existingContainer, service: service, expectedImage: imageToRun, env: combinedEnv), !driftWarnings.isEmpty {
-                      for warning in driftWarnings {
-                          print("⚠️  [DRIFT WARNING] Container '\(containerName)': \(warning)")
-                      }
-                  }
-                  
-                  try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
-                  return
-                  
-              case .stopped:
-                  print("[RECOVER] Container '\(containerName)' is stopped - starting it")
-                  
-                  // Check for configuration drift before starting
-                  if let driftWarnings = checkContainerDrift(container: existingContainer, service: service, expectedImage: imageToRun, env: combinedEnv), !driftWarnings.isEmpty {
-                      for warning in driftWarnings {
-                          print("⚠️  [DRIFT WARNING] Container '\(containerName)': \(warning)")
-                      }
-                  }
-                  
-                  let startCommand = try Application.ContainerStart.parse([containerName])
-                  try await startCommand.run()
-                  try await waitUntilContainerIsRunning(containerName)
-                  try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
-                  return
-                  
-              default:
+            case .running:
+                print("[RECOVER] Container '\(containerName)' is already running - skipping creation")
+                // External Dependency Health-Gating: Record this service as externally present
+                // so that dependent services skip their service_healthy wait (crash recovery).
+                externallyPresentServices.insert(serviceName)
+
+                // Check for configuration drift (including image digest check for --pull=always)
+                if let driftWarnings = try await checkContainerDrift(container: existingContainer, service: service, expectedImage: imageToRun, env: combinedEnv, pullPolicy: pull), !driftWarnings.isEmpty {
+                    for warning in driftWarnings {
+                        print("⚠️ [DRIFT WARNING] Container '\(containerName)': \(warning)")
+                    }
+                }
+
+                try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
+                return
+
+        case .stopped:
+            print("[RECOVER] Container '\(containerName)' is stopped - starting it")
+
+            // Check for configuration drift before starting (including image digest check for --pull=always)
+            if let driftWarnings = try await checkContainerDrift(container: existingContainer, service: service, expectedImage: imageToRun, env: combinedEnv, pullPolicy: pull), !driftWarnings.isEmpty {
+                for warning in driftWarnings {
+                    print("⚠️ [DRIFT WARNING] Container '\(containerName)': \(warning)")
+                }
+            }
+
+            let startCommand = try Application.ContainerStart.parse([containerName])
+            try await startCommand.run()
+            try await waitUntilContainerIsRunning(containerName)
+            try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
+            return
+
+        default:
                   // Zombie container states: creating, dead, restarting, etc.
                   // These are invalid states for recovery - purge and recreate
                   print("[RECOVER] Container '\(containerName)' is in invalid state '\(existingContainer.status)' - purging zombie")
@@ -1255,31 +1264,141 @@ public static func resolvePlatform(
 
     /// Check container configuration drift
     /// Returns array of warning messages if configuration differs from compose.yml
-    private func checkContainerDrift(container: ClientContainer, service: Service, expectedImage: String, env: [String: String]) -> [String]? {
+    /// When pullPolicy is .always, also checks image digest for drift detection
+    private func checkContainerDrift(
+        container: ClientContainer,
+        service: Service,
+        expectedImage: String,
+        env: [String: String],
+        pullPolicy: PullPolicy = .missing
+    ) async throws -> [String]? {
         var warnings: [String] = []
-        
+
         // Check image drift (normalize both sides to handle docker.io/library/ prefix)
         let containerImage = normalizeImageRef(container.configuration.image.reference)
         let normalizedExpected = normalizeImageRef(expectedImage)
         if containerImage != normalizedExpected {
             warnings.append("Image changed from \(expectedImage) to \(container.configuration.image.reference)")
         }
-        
+
+        // Check image digest drift when pull policy is 'always' or 'missing'
+        // This detects when a new image was pushed to the registry but container is still running old version
+        if pullPolicy != .never {
+            let digestDrift = try await checkImageDigestDrift(
+                containerImage: containerImage,
+                expectedImage: expectedImage,
+                pullPolicy: pullPolicy
+            )
+            if let digestWarning = digestDrift {
+                warnings.append(digestWarning)
+            }
+        }
+
         // Check environment drift (basic check - just compare keys)
         let containerEnvArray = container.configuration.initProcess.environment
         let containerEnvKeys = Set(containerEnvArray.compactMap { $0.components(separatedBy: "=").first })
         let expectedEnvKeys = Set(env.keys)
         let addedKeys = containerEnvKeys.subtracting(expectedEnvKeys)
         let removedKeys = expectedEnvKeys.subtracting(containerEnvKeys)
-        
+
         if !addedKeys.isEmpty {
             warnings.append("Environment keys added: \(addedKeys.sorted().joined(separator: ", "))")
         }
         if !removedKeys.isEmpty {
             warnings.append("Environment keys removed: \(removedKeys.sorted().joined(separator: ", "))")
         }
-        
+
         return warnings.isEmpty ? nil : warnings
+    }
+
+    /// Check if the running container's image digest differs from the registry
+    /// Returns a warning message if drift is detected, nil otherwise
+    private func checkImageDigestDrift(
+        containerImage: String,
+        expectedImage: String,
+        pullPolicy: PullPolicy
+    ) async throws -> String? {
+        // Only check digest for images with a tag (not for local-only images)
+        // Local images without registry prefix won't have remote digests to compare
+        guard containerImage.contains(":") || expectedImage.contains(":") else {
+            return nil
+        }
+
+        // Skip digest check for build contexts (images built locally)
+        // These don't have registry digests
+        if expectedImage.contains("/") == false && expectedImage.contains(":") {
+            // Likely a local build image like "myapp:latest"
+            return nil
+        }
+
+        // Get the running container's image digest
+        let runningDigest = try await getLocalImageDigest(containerImage.isEmpty ? expectedImage : containerImage)
+
+        // Get the registry image digest (only if pull policy allows it)
+        let registryDigest: String?
+        if pullPolicy == .always {
+            registryDigest = try await getRegistryImageDigest(expectedImage)
+        } else {
+            // For 'missing' policy, only warn if we can fetch registry digest
+            registryDigest = try? await getRegistryImageDigest(expectedImage)
+        }
+
+        // Compare digests
+        if let running = runningDigest, let registry = registryDigest, running != registry {
+            return "Image digest drift detected: running=\(running.prefix(12))..., registry=\(registry.prefix(12))... — pull with --pull=always to update"
+        }
+
+        return nil
+    }
+
+    /// Get the digest of a locally stored image
+    private func getLocalImageDigest(_ imageName: String) async throws -> String? {
+        let imageList = try await ClientImage.list()
+        let matching = imageList.first { img in
+            let ref = img.description.reference
+            return normalizeImageRef(ref) == normalizeImageRef(imageName) || ref == imageName
+        }
+        return matching?.description.digest
+    }
+
+    /// Get the digest of an image from the registry by pulling metadata
+    private func getRegistryImageDigest(_ imageName: String) async throws -> String? {
+        // Use 'container image inspect' to get registry metadata without full pull
+        // This is a lightweight check compared to full image pull
+        let exitCode = try await ContainerComposeCore.streamCommand(
+            "container",
+            args: ["image", "inspect", imageName, "--format", "{{.Digest}}"],
+            cwd: cwd,
+            onStdout: { _ in },
+            onStderr: { _ in }
+        )
+
+        // If inspect succeeds, we can get the digest
+        // Note: This is a best-effort check - if it fails, we skip the digest comparison
+        guard exitCode == 0 else {
+            return nil
+        }
+
+        // Try to pull and get the digest
+        do {
+            let pullCommands = [imageName] + logging.passThroughCommands()
+            try await Self.runImagePullWithSchemeFallback(
+                pullCommands: pullCommands,
+                imageName: imageName,
+                scheme: nil
+            )
+
+            // After pull, get the new digest
+            let imageList = try await ClientImage.list()
+            let matching = imageList.first { img in
+                normalizeImageRef(img.description.reference) == normalizeImageRef(imageName)
+            }
+            return matching?.description.digest
+        } catch {
+            // Pull failed - image might not exist or network issue
+            // Return nil to skip digest comparison
+            return nil
+        }
     }
     
     /// Purge a zombie container (stuck in invalid state)
