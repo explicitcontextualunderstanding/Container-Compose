@@ -227,14 +227,14 @@ public mutating func run() async throws {
       })
     }
 
-    // If state file exists, use its container list (intersected with compose file services) as teardown target
-    let result: DownResult
-    if !stateContainers.isEmpty {
-      print("Info: Found state file with \(stateContainers.count) container(s). Using state file for idempotent teardown.")
-      result = try await stopContainersFromState(stateContainers, services: services, remove: false)
-    } else {
-      result = try await stopOldStuff(services, remove: false)
-    }
+// If state file exists, use its container list (intersected with compose file services) as teardown target
+        let result: DownResult
+        if !stateContainers.isEmpty {
+            print("Info: Found state file with \(stateContainers.count) container(s) and \(state.networks.count) network(s). Using state file for idempotent teardown.")
+            result = try await stopContainersFromState(state, services: services, remove: false)
+        } else {
+            result = try await stopOldStuff(services, remove: false)
+        }
 
     // Report summary
     print("Summary: \(result.summary)")
@@ -246,12 +246,14 @@ public mutating func run() async throws {
   }
 
 /// Stop containers from state file, intersected with compose file services.
-  /// Removes state file only after all containers are confirmed stopped.
-  private func stopContainersFromState(
-    _ stateContainers: [String],
-    services: [(serviceName: String, service: Service)],
-    remove: Bool
-  ) async throws -> DownResult {
+    /// Removes networks and state file only after all containers are confirmed stopped.
+    private func stopContainersFromState(
+        _ state: ComposeState,
+        services: [(serviceName: String, service: Service)],
+        remove: Bool
+    ) async throws -> DownResult {
+        let stateContainers = state.containers
+        let stateNetworks = state.networks
     // Build set of expected container names from compose file
     let composeServiceNames = Set(services.map { serviceName, service -> String in
       if let explicitContainerName = service.container_name {
@@ -300,13 +302,34 @@ public mutating func run() async throws {
       }
     }
 
-    // Remove state file only after all containers are confirmed stopped
-    let statePath = ComposeDown.stateFilePath(cwd: cwd)
-    ComposeDown.removeStateFile(statePath)
-    print("Info: State file removed after teardown.")
+// Remove networks created by compose up
+        if !stateNetworks.isEmpty {
+            print("\n--- Removing Networks ---")
+            for networkName in stateNetworks {
+                do {
+                    // Check if network exists
+                    if let _ = try? await ClientNetwork.get(id: networkName) {
+                        var networkDelete = try Application.NetworkDelete.parse([networkName])
+                        try await networkDelete.run()
+                        print("Removed network: \(networkName)")
+                    } else {
+                        print("Network '\(networkName)' not found, skipping.")
+                    }
+                } catch {
+                    print("Warning: Failed to remove network '\(networkName)': \(error)")
+                    // Don't fail teardown for network removal errors
+                }
+            }
+            print("--- Networks Removed ---\n")
+        }
 
-    return DownResult(stopped: stopped, timeouts: timeouts, errors: errors)
-  }
+        // Remove state file only after all containers and networks are confirmed removed
+        let statePath = ComposeDown.stateFilePath(cwd: cwd)
+        ComposeDown.removeStateFile(statePath)
+        print("Info: State file removed after teardown.")
+
+        return DownResult(stopped: stopped, timeouts: timeouts, errors: errors)
+    }
 
   private func stopOldStuff(_ services: [(serviceName: String, service: Service)], remove: Bool) async throws -> DownResult {
     guard let projectName else { return DownResult(stopped: [], timeouts: [], errors: []) }

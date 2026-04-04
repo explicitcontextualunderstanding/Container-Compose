@@ -328,13 +328,6 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             await waitForever()
         }
     }
-            print("═══════════════════════════════════════════════════════\n")
-        }
-
-        if !detach {
-            await waitForever()
-        }
-    }
 
     func waitForever() async -> Never {
         for await _ in AsyncStream<Void>(unfolding: {}) {
@@ -1166,6 +1159,11 @@ public static func resolvePlatform(
     private static func isUnknownOptionError(_ error: Error) -> Bool {
         let errorString = String(describing: error)
         return errorString.contains("unknownOption") || errorString.contains("unknown option") || errorString.contains("unrecognized option") || errorString.contains("未知的选项")
+    }
+
+    private static func isSchemeUnsupportedError(_ error: Error, scheme: String?) -> Bool {
+        guard scheme != nil else { return false }
+        return isUnknownOptionError(error)
     }
 
     /// Builds Docker Service
