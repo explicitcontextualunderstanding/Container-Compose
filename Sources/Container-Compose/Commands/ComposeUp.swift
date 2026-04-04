@@ -391,8 +391,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         do {
             _ = try await ContainerComposeCore.streamCommand(
                 "container", args: ["logs", "--tail", "\(lines)", containerName], cwd: self.cwd,
-                onStdout: { Task { await collector.append($0) } },
-                onStderr: { Task { await collector.append($0) } }
+                onStdout: { (msg: String) in Task { await collector.append(msg) } },
+                onStderr: { (msg: String) in Task { await collector.append(msg) } }
             )
             let logOutput = await collector.getOutput()
             return logOutput.isEmpty ? "(No logs available)" : logOutput
