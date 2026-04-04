@@ -161,6 +161,10 @@ public final class Service: Codable, Hashable {
     /// Allocate a pseudo-TTY (-t flag for `container run`)
     public let tty: Bool?
 
+    /// DNS server(s) to use for container DNS resolution
+    /// Supports both single string and array of strings
+    public let dns: [String]?
+
     /// DNS search domain(s) for container-to-container name resolution
     /// Supports both single string and array of strings
     public let dns_search: [String]?
@@ -197,7 +201,7 @@ public final class Service: Codable, Hashable {
   // Note: 'env' is a shorthand alias for 'environment' in Docker Compose
   enum CodingKeys: String, CodingKey {
     case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user,
-         container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns_search
+         container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns, dns_search
   }
     
     /// Public memberwise initializer for testing
@@ -228,6 +232,7 @@ public final class Service: Codable, Hashable {
         secrets: [ServiceSecret]? = nil,
         stdin_open: Bool? = nil,
         tty: Bool? = nil,
+        dns: [String]? = nil,
         dns_search: [String]? = nil,
         runtime: String? = nil,
         init_image: String? = nil,
@@ -259,6 +264,7 @@ public final class Service: Codable, Hashable {
         self.secrets = secrets
         self.stdin_open = stdin_open
         self.tty = tty
+        self.dns = dns
         self.dns_search = dns_search
         self.runtime = runtime
         self.init_image = init_image
@@ -427,6 +433,13 @@ public final class Service: Codable, Hashable {
         runtime = rawRuntime
         init_image = try container.decodeIfPresent(String.self, forKey: .init_image)
 
+        // Support both single string and array for dns
+        if let dnsString = try? container.decodeIfPresent(String.self, forKey: .dns) {
+            dns = [dnsString]
+        } else {
+            dns = try container.decodeIfPresent([String].self, forKey: .dns)
+        }
+
         // Support both single string and array for dns_search
         if let dnsSearchString = try? container.decodeIfPresent(String.self, forKey: .dns_search) {
             dns_search = [dnsSearchString]
@@ -511,6 +524,7 @@ public final class Service: Codable, Hashable {
     try container.encodeIfPresent(`init`, forKey: .`init`)
     try container.encodeIfPresent(runtime, forKey: .runtime)
     try container.encodeIfPresent(init_image, forKey: .init_image)
+    try container.encodeIfPresent(dns, forKey: .dns)
     try container.encodeIfPresent(dns_search, forKey: .dns_search)
   }
 
@@ -542,6 +556,7 @@ public final class Service: Codable, Hashable {
     lhs.secrets == rhs.secrets &&
     lhs.stdin_open == rhs.stdin_open &&
     lhs.tty == rhs.tty &&
+    lhs.dns == rhs.dns &&
     lhs.dns_search == rhs.dns_search &&
     lhs.runtime == rhs.runtime &&
     lhs.init_image == rhs.init_image
@@ -573,6 +588,7 @@ public final class Service: Codable, Hashable {
     hasher.combine(secrets)
     hasher.combine(stdin_open)
     hasher.combine(tty)
+    hasher.combine(dns)
     hasher.combine(dns_search)
     hasher.combine(runtime)
     hasher.combine(init_image)

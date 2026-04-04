@@ -1383,6 +1383,14 @@ extension ComposeUp {
             runArgs.append(runtime)
         }
 
+        // Map DNS servers if present (supports array)
+        if let dnsServers = service.dns {
+            for dns in dnsServers {
+                runArgs.append("--dns")
+                runArgs.append(dns)
+            }
+        }
+
         // Map dns search domains if present (supports array)
         if let dnsSearches = service.dns_search {
             for dnsSearch in dnsSearches {
