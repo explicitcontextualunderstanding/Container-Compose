@@ -615,4 +615,50 @@ final class ComposeUpMappingTests: XCTestCase {
             XCTAssertTrue(error is DecodingError, "Expected DecodingError for invalid scheme, got: \(error)")
         }
     }
+
+    // MARK: - Image Reference Normalization (H-1 drift detection fix)
+
+    func testNormalizeDockerIoLibrary() {
+        XCTAssertEqual(ComposeUp.normalizeImageRef("docker.io/library/nginx:alpine"), "nginx:alpine")
+        XCTAssertEqual(ComposeUp.normalizeImageRef("docker.io/library/redis:latest"), "redis:latest")
+    }
+
+    func testNormalizeRegistry1DockerIoLibrary() {
+        XCTAssertEqual(ComposeUp.normalizeImageRef("registry-1.docker.io/library/nginx:alpine"), "nginx:alpine")
+        XCTAssertEqual(ComposeUp.normalizeImageRef("registry-1.docker.io/library/redis:latest"), "redis:latest")
+    }
+
+    func testNormalizeIndexDockerIoLibrary() {
+        XCTAssertEqual(ComposeUp.normalizeImageRef("index.docker.io/library/nginx:alpine"), "nginx:alpine")
+        XCTAssertEqual(ComposeUp.normalizeImageRef("index.docker.io/library/redis:latest"), "redis:latest")
+    }
+
+    func testNormalizeDockerIoNoLibrary() {
+        XCTAssertEqual(ComposeUp.normalizeImageRef("docker.io/nginx:alpine"), "nginx:alpine")
+        XCTAssertEqual(ComposeUp.normalizeImageRef("docker.io/myimage:v1"), "myimage:v1")
+    }
+
+    func testNormalizeNonDockerHubRegistryNotModified() {
+        XCTAssertEqual(ComposeUp.normalizeImageRef("ghcr.io/owner/repo:v1"), "ghcr.io/owner/repo:v1")
+        XCTAssertEqual(ComposeUp.normalizeImageRef("quay.io/namespace/image:tag"), "quay.io/namespace/image:tag")
+        XCTAssertEqual(ComposeUp.normalizeImageRef("registry.example.com:5000/myimage:latest"), "registry.example.com:5000/myimage:latest")
+    }
+
+    func testNormalizeShortFormNotModified() {
+        XCTAssertEqual(ComposeUp.normalizeImageRef("nginx:alpine"), "nginx:alpine")
+        XCTAssertEqual(ComposeUp.normalizeImageRef("redis:latest"), "redis:latest")
+        XCTAssertEqual(ComposeUp.normalizeImageRef("busybox"), "busybox")
+    }
+
+    func testNoDriftWhenNormalizedMatches() {
+        let runtimeImage = "docker.io/library/nginx:alpine"
+        let composeImage = "nginx:alpine"
+        XCTAssertEqual(ComposeUp.normalizeImageRef(runtimeImage), ComposeUp.normalizeImageRef(composeImage))
+    }
+
+    func testDriftDetectedWhenImagesDifferent() {
+        let image1 = "nginx:alpine"
+        let image2 = "nginx:latest"
+        XCTAssertNotEqual(ComposeUp.normalizeImageRef(image1), ComposeUp.normalizeImageRef(image2))
+    }
 }

@@ -1208,9 +1208,17 @@ public static func resolvePlatform(
     }
     
     /// Normalizes an image reference by stripping common registry prefixes.
-    /// Converts "docker.io/library/nginx:alpine" -> "nginx:alpine", "docker.io/nginx" -> "nginx"
-    private func normalizeImageRef(_ image: String) -> String {
-        let prefixes = ["docker.io/library/", "docker.io/"]
+    /// Converts "docker.io/library/nginx:alpine" -> "nginx:alpine"
+    /// Converts "registry-1.docker.io/library/nginx:alpine" -> "nginx:alpine"
+    /// Converts "index.docker.io/library/nginx:alpine" -> "nginx:alpine"
+    /// Does NOT strip non-Docker Hub prefixes (e.g., "ghcr.io/owner/repo:v1" stays as-is)
+    public static func normalizeImageRef(_ image: String) -> String {
+        let prefixes = [
+            "docker.io/library/",
+            "registry-1.docker.io/library/",
+            "index.docker.io/library/",
+            "docker.io/",
+        ]
         for prefix in prefixes {
             if image.hasPrefix(prefix) {
                 return String(image.dropFirst(prefix.count))
@@ -1225,8 +1233,8 @@ public static func resolvePlatform(
         var warnings: [String] = []
         
         // Check image drift (normalize both sides to handle docker.io/library/ prefix)
-        let containerImage = normalizeImageRef(container.configuration.image.reference)
-        let normalizedExpected = normalizeImageRef(expectedImage)
+        let containerImage = Self.normalizeImageRef(container.configuration.image.reference)
+        let normalizedExpected = Self.normalizeImageRef(expectedImage)
         if containerImage != normalizedExpected {
             warnings.append("Image changed from \(expectedImage) to \(container.configuration.image.reference)")
         }
