@@ -249,7 +249,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         if let networks = dockerCompose.networks {
             print("\n--- Processing Networks ---")
             for (networkName, networkConfig) in networks {
-                try await setupNetwork(name: networkName, config: networkConfig)
+                try await self.setupNetwork(name: networkName, config: networkConfig)
             }
             print("--- Networks Processed ---\n")
         }
@@ -646,7 +646,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
     }
 
-    private func setupNetwork(name networkName: String, config networkConfig: Network?) async throws {
+    private mutating func setupNetwork(name networkName: String, config networkConfig: Network?) async throws {
         let actualNetworkName = networkConfig?.name ?? networkName
 
         if let externalNetwork = networkConfig?.external, externalNetwork.isExternal {
@@ -666,6 +666,9 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
             try await networkCreate.run()
             print("Network '\(networkName)' created")
+
+            // Track created network for cleanup during compose down
+            createdNetworks.append(actualNetworkName)
         }
     }
 
@@ -1105,38 +1108,48 @@ public static func resolvePlatform(
         var lastError: Error?
         for attempt in 1...retryConfig.maxRetries {
             do {
-                // Use withTimeout to add timeout protection to the pull operation
-                // Copy commands to local var to avoid capture issues in concurrent closure
                 let pullCommands = commands + logging.passThroughCommands()
                 try await withTimeout(seconds: timeoutSeconds, operation: {
-                    let imagePull = try Application.ImagePull.parse(pullCommands)
-                    try await imagePull.run()
+                    try await Self.runImagePullWithSchemeFallback(pullCommands: pullCommands, imageName: imageName, scheme: scheme)
                 })
                 print("Successfully pulled image \(imageName)")
                 return
             } catch {
                 lastError = error
-
-                // Check if this is a transient error that should be retried
-                if isTransientPullError(error) {
-                    if attempt < retryConfig.maxRetries {
-                        let delay = retryConfig.baseDelay * pow(2.0, Double(attempt - 1))
-                        print("Image pull failed (transient error): \(error). Retrying in \(delay)s (attempt \(attempt)/\(retryConfig.maxRetries))...")
-                        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    } else {
-                        print("Image pull failed after \(retryConfig.maxRetries) attempts: \(error)")
-                        throw ImagePullError("Failed to pull image '\(imageName)' after \(retryConfig.maxRetries) attempts: \(error)", isTransient: false)
-                    }
+                if attempt < retryConfig.maxRetries {
+                    let delay = retryConfig.baseDelay * pow(2.0, Double(attempt - 1))
+                    print("Image pull failed: \(error). Retrying in \(delay)s (attempt \(attempt)/\(retryConfig.maxRetries))...")
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 } else {
-                    // Non-transient error (e.g., 404, auth failure) - don't retry
-                    print("Image pull failed (non-transient error): \(error)")
-                    throw ImagePullError("Failed to pull image '\(imageName)': \(error)", isTransient: false)
+                    print("Image pull failed after \(retryConfig.maxRetries) attempts: \(error)")
+                    throw ImagePullError("Failed to pull image '\(imageName)' after \(retryConfig.maxRetries) attempts: \(error)", isTransient: false)
                 }
             }
         }
-
-        // Should not reach here, but just in case
         throw ImagePullError("Failed to pull image '\(imageName)' after \(retryConfig.maxRetries) attempts", isTransient: true)
+    }
+
+    private static func runImagePullWithSchemeFallback(pullCommands: [String], imageName: String, scheme: String?) async throws {
+        do {
+            let imagePull = try Application.ImagePull.parse(pullCommands)
+            try await imagePull.run()
+        } catch {
+            if let scheme = scheme, isUnknownOptionError(error) {
+                print("⚠️  Warning: Apple Container runtime does not support '--scheme \(scheme)' flag.")
+                print("   Pulling image without scheme override...")
+                var fallbackCommands = pullCommands.filter { $0 != "--scheme" && (pullCommands.firstIndex(of: $0).map { pullCommands[$0 + 1] == scheme } ?? false) == false }
+                fallbackCommands = fallbackCommands.filter { $0 != scheme }
+                let fallbackPull = try Application.ImagePull.parse(fallbackCommands)
+                try await fallbackPull.run()
+            } else {
+                throw error
+            }
+        }
+    }
+
+    private static func isUnknownOptionError(_ error: Error) -> Bool {
+        let errorString = String(describing: error)
+        return errorString.contains("unknownOption") || errorString.contains("unknown option") || errorString.contains("unrecognized option") || errorString.contains("未知的选项")
     }
 
     /// Builds Docker Service
@@ -1172,18 +1185,19 @@ public static func resolvePlatform(
     }
 
     // Add build secrets (Apple Container 0.11.0+)
-    for secret in buildConfig.secrets ?? [] {
-        if let env = secret.env {
-            commands.append(contentsOf: ["--secret", "id=\(secret.id),env=\(env)"])
-        } else if let src = secret.src {
-            commands.append(contentsOf: ["--secret", "id=\(secret.id),src=\(self.cwd)/\(src)"])
+        for secret in buildConfig.secrets ?? [] {
+            if let env = secret.env {
+                commands.append(contentsOf: ["--secret", "id=\(secret.id),env=\(env)"])
+            } else if let src = secret.src {
+                commands.append(contentsOf: ["--secret", "id=\(secret.id),src=\(self.cwd)/\(src)"])
+            }
         }
-    }
 
     // Add caching options
         if noCache {
             commands.append("--no-cache")
         }
+    }
         
         // Add OS/Arch
         let (os, arch) = Self.resolvePlatform(servicePlatform: service.platform)
