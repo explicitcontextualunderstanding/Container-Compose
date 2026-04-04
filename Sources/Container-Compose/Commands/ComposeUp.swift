@@ -683,27 +683,16 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
 // MARK: Static Helpers for Testing
 
-/// Resolves platform for build/run from service.platform or CONTAINER_DEFAULT_PLATFORM env var.
-/// - Parameters:
-///   - servicePlatform: Optional platform string from service configuration
-///   - environment: Environment dictionary to read CONTAINER_DEFAULT_PLATFORM from (defaults to process environment)
-/// - Returns: (os, arch) tuple
-public static func resolvePlatform(
-    servicePlatform: String?,
-    environment: [String: String] = ProcessInfo.processInfo.environment
-) -> (os: String, arch: String) {
-    let platform = servicePlatform
-    ?? environment["CONTAINER_DEFAULT_PLATFORM"]
-
-        if let platform = platform {
-            let split = platform.split(separator: "/")
-            let os = String(split.first ?? "linux")
-            let arch = String(split.count >= 2 ? split.last! : "arm64")
-            return (os, arch)
-        }
-
-        // Default fallback
-        return ("linux", "arm64")
+/// Resolves platform for build/run from service.platform.
+    /// Note: Apple Container 0.11.0+ natively supports CONTAINER_DEFAULT_PLATFORM env var
+    /// when --platform is not specified. We pass through service.platform if set.
+    /// - Parameters:
+    ///   - servicePlatform: Optional platform string from service configuration
+    /// - Returns: Platform string for --platform flag, or nil to use upstream defaults
+    public static func resolvePlatform(servicePlatform: String?) -> String? {
+        // If service.platform is set, use it directly
+        // Otherwise return nil to let upstream handle CONTAINER_DEFAULT_PLATFORM
+        return servicePlatform
     }
 
     public static func makeNetworkCreateArgs(name: String, config: Network?) -> [String] {
@@ -1143,7 +1132,7 @@ public static func resolvePlatform(
             let imagePull = try Application.ImagePull.parse(pullCommands)
             try await imagePull.run()
         } catch {
-            if let scheme = scheme, isUnknownOptionError(error) {
+            if let scheme = scheme, Self.detectUnknownOptionError(error) {
                 print("⚠️  Warning: Apple Container runtime does not support '--scheme \(scheme)' flag.")
                 print("   Pulling image without scheme override...")
                 var fallbackCommands = pullCommands.filter { $0 != "--scheme" && (pullCommands.firstIndex(of: $0).map { pullCommands[$0 + 1] == scheme } ?? false) == false }
@@ -1156,14 +1145,14 @@ public static func resolvePlatform(
         }
     }
 
-    private static func isUnknownOptionError(_ error: Error) -> Bool {
+    private static func detectUnknownOptionError(_ error: Error) -> Bool {
         let errorString = String(describing: error)
         return errorString.contains("unknownOption") || errorString.contains("unknown option") || errorString.contains("unrecognized option") || errorString.contains("未知的选项")
     }
 
     private static func isSchemeUnsupportedError(_ error: Error, scheme: String?) -> Bool {
         guard scheme != nil else { return false }
-        return isUnknownOptionError(error)
+        return Self.detectUnknownOptionError(error)
     }
 
     /// Builds Docker Service
@@ -1212,10 +1201,12 @@ public static func resolvePlatform(
             commands.append("--no-cache")
         }
         
-        // Add OS/Arch
-        let (os, arch) = Self.resolvePlatform(servicePlatform: service.platform)
-        commands.append(contentsOf: ["--os", os])
-        commands.append(contentsOf: ["--arch", arch])
+        // Add platform (Apple Container 0.11.0+ natively supports CONTAINER_DEFAULT_PLATFORM env var)
+        // Only pass --platform if service.platform is explicitly set
+        if let platform = service.platform {
+            commands.append(contentsOf: ["--platform", platform])
+        }
+        // Otherwise let upstream handle CONTAINER_DEFAULT_PLATFORM or use defaults
         
         // Add image name
         commands.append(contentsOf: ["--tag", imageToRun])
