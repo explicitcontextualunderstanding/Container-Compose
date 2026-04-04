@@ -554,41 +554,51 @@ final class ComposeUpMappingTests: XCTestCase {
         XCTAssertNil(args.firstIndex(of: "-v"), "Should skip volumes outside project directory")
     }
 
-    // MARK: - Registry scheme (Apple Container extension)
+// MARK: - Registry scheme (Apple Container 0.11.0+ extension)
 
-    func testSchemeMappingHttps() throws {
-        let yaml = """
-        services:
-          app:
-            image: 192.168.1.86:30500/myimage:latest
-            scheme: https
-        """
-        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
-        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+ func testSchemeMappingHttps() throws {
+ // Skip if running on 0.10.0 runtime
+ guard RuntimeFeatureGate.isAvailable(.scheme) else {
+ throw XCTSkip("Skipping: --scheme flag requires Apple Container 0.11.0+")
+ }
+ 
+ let yaml = """
+ services:
+ app:
+ image: 192.168.1.86:30500/myimage:latest
+ scheme: https
+ """
+ let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+ guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
 
-        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+ let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
 
-        XCTAssertTrue(args.contains("--scheme"), "Expected --scheme flag in args: \(args)")
-        let schemeIdx = args.firstIndex(of: "--scheme")!
-        XCTAssertEqual(args[args.index(after: schemeIdx)], "https", "Expected https scheme value")
-    }
+ XCTAssertTrue(args.contains("--scheme"), "Expected --scheme flag in args: \(args)")
+ let schemeIdx = args.firstIndex(of: "--scheme")!
+ XCTAssertEqual(args[args.index(after: schemeIdx)], "https", "Expected https scheme value")
+ }
 
-    func testSchemeMappingHttp() throws {
-        let yaml = """
-        services:
-          app:
-            image: registry.local:5000/myimage:latest
-            scheme: http
-        """
-        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
-        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+ func testSchemeMappingHttp() throws {
+ // Skip if running on 0.10.0 runtime
+ guard RuntimeFeatureGate.isAvailable(.scheme) else {
+ throw XCTSkip("Skipping: --scheme flag requires Apple Container 0.11.0+")
+ }
+ 
+ let yaml = """
+ services:
+ app:
+ image: registry.local:5000/myimage:latest
+ scheme: http
+ """
+ let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+ guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
 
-        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+ let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
 
-        XCTAssertTrue(args.contains("--scheme"), "Expected --scheme flag in args: \(args)")
-        let schemeIdx = args.firstIndex(of: "--scheme")!
-        XCTAssertEqual(args[args.index(after: schemeIdx)], "http", "Expected http scheme value")
-    }
+ XCTAssertTrue(args.contains("--scheme"), "Expected --scheme flag in args: \(args)")
+ let schemeIdx = args.firstIndex(of: "--scheme")!
+ XCTAssertEqual(args[args.index(after: schemeIdx)], "http", "Expected http scheme value")
+ }
 
     func testSchemeOmitted() throws {
         let yaml = """
