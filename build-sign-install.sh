@@ -14,6 +14,21 @@ echo "Container-Compose Build, Sign & Install"
 echo "=========================================="
 echo ""
 
+# Clean up any leftover test containers from previous runs
+if command -v container &> /dev/null; then
+ echo "Pruning leftover test containers..."
+ TEST_CONTAINERS=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
+ if [ -n "$TEST_CONTAINERS" ]; then
+ echo "$TEST_CONTAINERS" | while read -r container_id; do
+ container stop "$container_id" 2>/dev/null || true
+ container delete "$container_id" 2>/dev/null || true
+ done
+ echo "✓ Leftover test containers cleaned"
+ else
+ echo "✓ No leftover test containers"
+ fi
+fi
+
 # Neutralize conda environment contamination (shared with run-tests.sh)
 # This removes conda's codesign shim and restores Xcode's codesign
 source "$SCRIPT_DIR/scripts/env-setup.sh"
@@ -130,3 +145,17 @@ echo ""
 echo "=========================================="
 echo "Done!"
 echo "=========================================="
+
+# Final cleanup of any test containers created during build
+if command -v container &> /dev/null; then
+ TEST_CONTAINERS=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
+ if [ -n "$TEST_CONTAINERS" ]; then
+ echo ""
+ echo "Final cleanup of test containers..."
+ echo "$TEST_CONTAINERS" | while read -r container_id; do
+ container stop "$container_id" 2>/dev/null || true
+ container delete "$container_id" 2>/dev/null || true
+ done
+ echo "✓ Test containers cleaned"
+ fi
+fi
