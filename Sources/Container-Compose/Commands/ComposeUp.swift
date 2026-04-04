@@ -1100,14 +1100,16 @@ public static func resolvePlatform(
             commands.append(contentsOf: ["--platform", platform])
         }
 
-        var lastError: Error?
-        for attempt in 1...retryConfig.maxRetries {
-            do {
-                // Use withTimeout to add timeout protection to the pull operation
-                try await withTimeout(seconds: timeoutSeconds, operation: {
-                    let imagePull = try Application.ImagePull.parse(commands + logging.passThroughCommands())
-                    try await imagePull.run()
-                })
+	var lastError: Error?
+	let capturedCommands = commands
+	let passThroughCommands = logging.passThroughCommands()
+	for attempt in 1...retryConfig.maxRetries {
+		do {
+			// Use withTimeout to add timeout protection to the pull operation
+			try await withTimeout(seconds: timeoutSeconds, operation: {
+				let imagePull = try Application.ImagePull.parse(capturedCommands + passThroughCommands)
+				try await imagePull.run()
+			})
                 print("Successfully pulled image \(imageName)")
                 return
             } catch {

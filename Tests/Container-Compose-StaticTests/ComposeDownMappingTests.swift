@@ -17,6 +17,7 @@
 import XCTest
 @testable import ContainerComposeCore
 import Foundation
+import Yams
 
 final class ComposeDownMappingTests: XCTestCase {
 
@@ -187,13 +188,80 @@ final class ComposeDownMappingTests: XCTestCase {
         XCTAssertTrue(summary.contains("1 error"))
     }
 
-    func testDownResultSummaryEmpty() throws {
-        let result = ComposeDown.DownResult(
-            stopped: [],
-            timeouts: [],
-            errors: []
-        )
-        let summary = result.summary
-        XCTAssertTrue(summary.contains("0 stopped"))
-    }
+	func testDownResultSummaryEmpty() throws {
+		let result = ComposeDown.DownResult(
+			stopped: [],
+			timeouts: [],
+			errors: []
+		)
+		let summary = result.summary
+		XCTAssertTrue(summary.contains("0 stopped"))
+	}
+
+	// MARK: - YAML Variable Resolution for Compose Down
+
+	func testResolveYamlVariablesInContainerName() throws {
+		let envVars = ["PROJECT": "myproject", "SERVICE": "myservice"]
+		let yaml = """
+			services:
+			  app:
+			    image: nginx:latest
+			    container_name: ${PROJECT}-${SERVICE}
+			"""
+		let resolved = try resolveYamlVariables(yaml, with: envVars)
+		let compose = try YAMLDecoder().decode(DockerCompose.self, from: resolved)
+		XCTAssertEqual(compose.services["app"]??.container_name, "myproject-myservice")
+	}
+
+	func testResolveYamlVariablesInContainerNameWithDefault() throws {
+		let envVars = ["PROJECT": "myproject"]
+		let yaml = """
+			services:
+			  app:
+			    image: nginx:latest
+			    container_name: ${PROJECT}-${SERVICE:-defaultservice}
+			"""
+		let resolved = try resolveYamlVariables(yaml, with: envVars)
+		let compose = try YAMLDecoder().decode(DockerCompose.self, from: resolved)
+		XCTAssertEqual(compose.services["app"]??.container_name, "myproject-defaultservice")
+	}
+
+	func testResolveYamlVariablesInEnvironment() throws {
+		let envVars = ["DB_PASSWORD": "supersecret123"]
+		let yaml = """
+			services:
+			  db:
+			    image: postgres:15
+			    environment:
+			      POSTGRES_PASSWORD: ${DB_PASSWORD}
+			"""
+		let resolved = try resolveYamlVariables(yaml, with: envVars)
+		let compose = try YAMLDecoder().decode(DockerCompose.self, from: resolved)
+		let env = compose.services["db"]??.environment ?? [:]
+		XCTAssertEqual(env["POSTGRES_PASSWORD"], "supersecret123")
+	}
+
+	func testResolveYamlVariablesMissingVarUsesDefault() throws {
+		let yaml = """
+			services:
+			  app:
+			    image: nginx:latest
+			    container_name: ${PROJECT:-fallback}-${SERVICE:-defaultservice}
+			"""
+		let resolved = try resolveYamlVariables(yaml, with: [:])
+		let compose = try YAMLDecoder().decode(DockerCompose.self, from: resolved)
+		XCTAssertEqual(compose.services["app"]??.container_name, "fallback-defaultservice")
+	}
+
+	func testResolveYamlVariablesMissingVarWithoutDefaultThrows() throws {
+		let yaml = """
+			services:
+			  app:
+			    image: nginx:latest
+			    container_name: ${PROJECT:?Project name is required}
+			"""
+		XCTAssertThrowsError(try resolveYamlVariables(yaml, with: [:])) { error in
+			XCTAssertTrue(error is MissingVariableError)
+		}
+	}
 }
