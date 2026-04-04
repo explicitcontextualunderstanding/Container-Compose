@@ -52,6 +52,17 @@ public struct DependencyFailedError: Error, CustomStringConvertible {
     public init(_ message: String) { self.message = message }
 }
 
+/// Error thrown when image pull operations fail.
+public struct ImagePullError: Error, CustomStringConvertible {
+    public let message: String
+    public let isTransient: Bool
+    public var description: String { message }
+    public init(_ message: String, isTransient: Bool = false) {
+        self.message = message
+        self.isTransient = isTransient
+    }
+}
+
 public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     public init() {}
 
@@ -997,7 +1008,79 @@ public static func resolvePlatform(
         }
     }
 
-    private func pullImage(_ imageName: String, platform: String?, scheme: String? = nil) async throws {
+    /// Configuration for retry behavior in pullImage.
+    private struct PullRetryConfig {
+        let maxRetries: Int
+        let baseDelay: TimeInterval
+        static let `default` = PullRetryConfig(maxRetries: 3, baseDelay: 5.0)
+    }
+
+    /// Checks if an error from image pull is transient (retryable).
+    /// - Parameter error: The error to check.
+    /// - Returns: True if the error is transient and should be retried.
+    private func isTransientPullError(_ error: Error) -> Bool {
+        let errorString = String(describing: error).lowercased()
+        let errorMessage = (error as? LocalizedError)?.errorDescription?.lowercased() ?? errorString
+
+        // Transient network errors
+        let transientPatterns = [
+            "timeout",
+            "timed out",
+            "connection reset",
+            "connection refused",
+            "no route to host",
+            "network is unreachable",
+            "tls handshake error",
+            "temporary failure",
+            "server error",  // 5xx
+            "500",
+            "502",
+            "503",
+            "504",
+            "gateway",
+            "dns",
+            "unresolved",
+            "no such host",
+        ]
+
+        // Check for transient patterns
+        for pattern in transientPatterns {
+            if errorString.contains(pattern) || errorMessage.contains(pattern) {
+                return true
+            }
+        }
+
+        // Check for URLError transient codes
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .timedOut,
+                 .cannotConnectToHost,
+                 .networkConnectionLost,
+                 .notConnectedToInternet,
+                 .dnsLookupFailed,
+                 .resourceUnavailable,
+                 .badServerResponse:
+                return true
+            default:
+                return false
+            }
+        }
+
+        return false
+    }
+
+    /// Pulls an image from the registry with retry logic for transient failures.
+    /// - Parameters:
+    ///   - imageName: The name of the image to pull.
+    ///   - platform: Optional platform specifier (e.g., "linux/arm64").
+    ///   - scheme: Optional registry scheme override.
+    ///   - retryConfig: Optional retry configuration (defaults to 3 retries, 5s base delay).
+    private func pullImage(
+        _ imageName: String,
+        platform: String?,
+        scheme: String? = nil,
+        retryConfig: PullRetryConfig = .default
+    ) async throws {
         let imageList = try await ClientImage.list()
         guard !imageList.contains(where: { $0.description.reference.components(separatedBy: "/").last == imageName }) else {
             return
@@ -1017,8 +1100,36 @@ public static func resolvePlatform(
             commands.append(contentsOf: ["--platform", platform])
         }
 
-        let imagePull = try Application.ImagePull.parse(commands + logging.passThroughCommands())
-        try await imagePull.run()
+        var lastError: Error?
+        for attempt in 1...retryConfig.maxRetries {
+            do {
+                let imagePull = try Application.ImagePull.parse(commands + logging.passThroughCommands())
+                try await imagePull.run()
+                print("Successfully pulled image \(imageName)")
+                return
+            } catch {
+                lastError = error
+
+                // Check if this is a transient error that should be retried
+                if isTransientPullError(error) {
+                    if attempt < retryConfig.maxRetries {
+                        let delay = retryConfig.baseDelay * pow(2.0, Double(attempt - 1))
+                        print("Image pull failed (transient error): \(error). Retrying in \(delay)s (attempt \(attempt)/\(retryConfig.maxRetries))...")
+                        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    } else {
+                        print("Image pull failed after \(retryConfig.maxRetries) attempts: \(error)")
+                        throw ImagePullError("Failed to pull image '\(imageName)' after \(retryConfig.maxRetries) attempts: \(error)", isTransient: false)
+                    }
+                } else {
+                    // Non-transient error (e.g., 404, auth failure) - don't retry
+                    print("Image pull failed (non-transient error): \(error)")
+                    throw ImagePullError("Failed to pull image '\(imageName)': \(error)", isTransient: false)
+                }
+            }
+        }
+
+        // Should not reach here, but just in case
+        throw ImagePullError("Failed to pull image '\(imageName)' after \(retryConfig.maxRetries) attempts", isTransient: true)
     }
 
     /// Builds Docker Service
