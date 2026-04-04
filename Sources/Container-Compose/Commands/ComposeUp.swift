@@ -1104,8 +1104,10 @@ public static func resolvePlatform(
         for attempt in 1...retryConfig.maxRetries {
             do {
                 // Use withTimeout to add timeout protection to the pull operation
+                // Copy commands to local var to avoid capture issues in concurrent closure
+                let pullCommands = commands + logging.passThroughCommands()
                 try await withTimeout(seconds: timeoutSeconds, operation: {
-                    let imagePull = try Application.ImagePull.parse(commands + logging.passThroughCommands())
+                    let imagePull = try Application.ImagePull.parse(pullCommands)
                     try await imagePull.run()
                 })
                 print("Successfully pulled image \(imageName)")

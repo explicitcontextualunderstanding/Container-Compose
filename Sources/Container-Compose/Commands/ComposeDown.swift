@@ -108,19 +108,47 @@ public struct ComposeDown: AsyncParsableCommand {
         URL(fileURLWithPath: cwd).appendingPathComponent(".container-compose.state")
     }
 
-    /// Read owned container names from the state file. Returns empty array if file doesn't exist.
-    public static func readStateFile(_ url: URL) -> [String] {
-        guard let data = FileManager.default.contents(atPath: url.path),
-              let content = String(data: data, encoding: .utf8) else {
-            return []
+    /// State file format: JSON with containers and networks arrays
+    public struct ComposeState: Codable {
+        public let containers: [String]
+        public let networks: [String]
+
+        public init(containers: [String] = [], networks: [String] = []) {
+            self.containers = containers
+            self.networks = networks
         }
-        return content.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
     }
 
-    /// Write owned container names to the state file.
+    /// Read state from the state file. Returns empty state if file doesn't exist.
+    public static func readStateFile(_ url: URL) -> ComposeState {
+        guard let data = FileManager.default.contents(atPath: url.path) else {
+            return ComposeState()
+        }
+        do {
+            return try JSONDecoder().decode(ComposeState.self, from: data)
+        } catch {
+            // Fallback: try to read old format (just container names, one per line)
+            if let content = String(data: data, encoding: .utf8) {
+                let containers = content.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+                return ComposeState(containers: containers)
+            }
+            return ComposeState()
+        }
+    }
+
+    /// Write state to the state file.
+    public static func writeStateFile(_ url: URL, state: ComposeState) {
+        do {
+            let data = try JSONEncoder().encode(state)
+            try data.write(to: url)
+        } catch {
+            // Silent fail - state file is best-effort
+        }
+    }
+
+    /// Write owned container names to the state file (backward compatibility).
     public static func writeStateFile(_ url: URL, containerNames: [String]) {
-        let content = containerNames.joined(separator: "\n")
-        try? content.write(to: url, atomically: true, encoding: .utf8)
+        writeStateFile(url, state: ComposeState(containers: containerNames))
     }
 
     /// Remove the state file. No-op if it doesn't exist.
@@ -131,9 +159,10 @@ public struct ComposeDown: AsyncParsableCommand {
     // MARK: - Run
 
 public mutating func run() async throws {
-    // Try to read state file first for idempotent teardown
-    let statePath = ComposeDown.stateFilePath(cwd: cwd)
-    let stateContainers = ComposeDown.readStateFile(statePath)
+        // Try to read state file first for idempotent teardown
+        let statePath = ComposeDown.stateFilePath(cwd: cwd)
+        let state = ComposeDown.readStateFile(statePath)
+        let stateContainers = state.containers
 
     // Skip CWD scanning if -f was explicitly provided
     if composeFile == nil {
