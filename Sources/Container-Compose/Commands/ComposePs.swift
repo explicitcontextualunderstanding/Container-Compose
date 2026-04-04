@@ -326,7 +326,11 @@ public struct ComposePs: AsyncParsableCommand {
         encoder.outputFormatting = .prettyPrinted
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(statuses)
-        return String(data: data, encoding: .utf8) ?? "[]"
+        guard let jsonString = String(data: data, encoding: .utf8) else {
+            throw ComposePsError.invalidJSONSchema(missingFields: ["encoding"])
+        }
+        try ComposePsJSONValidator.validateFromJSONString(jsonString)
+        return jsonString
     }
 
     public static func formatRelativeTime(_ date: Date) -> String {
@@ -348,6 +352,7 @@ public struct ComposePs: AsyncParsableCommand {
 public enum ComposePsError: Error, CustomStringConvertible {
     case serviceNotFound(String)
     case composeFileNotFound(String)
+    case invalidJSONSchema(missingFields: [String])
 
     public var description: String {
         switch self {
@@ -355,6 +360,32 @@ public enum ComposePsError: Error, CustomStringConvertible {
             return "Service '\(name)' not found in compose file"
         case .composeFileNotFound(let cwd):
             return "No compose file found in \(cwd)"
+        case .invalidJSONSchema(let fields):
+            return "Invalid JSON schema, missing required fields: \(fields.joined(separator: ", "))"
         }
+    }
+}
+
+public struct ComposePsJSONValidator {
+    public static let requiredFields = ["service", "container", "state"]
+    public static let optionalFields = ["id", "ip", "ports", "started"]
+
+    public static func validate(_ json: [[String: Any]]) throws {
+        for (index, entry) in json.enumerated() {
+            let missing = requiredFields.filter { entry[$0] == nil }
+            if !missing.isEmpty {
+                throw ComposePsError.invalidJSONSchema(missingFields: missing)
+            }
+        }
+    }
+
+    public static func validateFromJSONString(_ jsonString: String) throws {
+        guard let data = jsonString.data(using: .utf8) else {
+            throw ComposePsError.invalidJSONSchema(missingFields: ["invalid UTF-8"])
+        }
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            throw ComposePsError.invalidJSONSchema(missingFields: ["not an array"])
+        }
+        try validate(json)
     }
 }

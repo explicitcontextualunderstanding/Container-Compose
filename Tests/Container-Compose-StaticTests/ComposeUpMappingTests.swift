@@ -615,22 +615,4 @@ final class ComposeUpMappingTests: XCTestCase {
             XCTAssertTrue(error is DecodingError, "Expected DecodingError for invalid scheme, got: \(error)")
         }
     }
-
-    func testSchemeValidationAtDecodeTime() throws {
-        let yaml = """
-        services:
-          app:
-            image: busybox:latest
-            scheme: invalid
-        """
-        do {
-            _ = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
-            XCTFail("Should have thrown for invalid scheme value")
-        } catch {
-            guard error is DecodingError else {
-                XCTFail("Expected DecodingError, got: \(error)")
-                return
-            }
-        }
-    }
 }
