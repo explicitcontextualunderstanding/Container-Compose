@@ -312,3 +312,25 @@ public func streamCommand(
         }
     }
 }
+
+public func runCommand(
+    _ command: String,
+    args: [String] = [],
+    cwd: String,
+    timeout: TimeInterval = 300
+) async throws {
+    let exitCode = try await streamCommand(
+        command,
+        args: args,
+        cwd: cwd,
+        timeout: timeout,
+        onStdout: { _ in },
+        onStderr: { _ in }
+    )
+    
+    if exitCode != 0 {
+        throw TerminalError.commandFailed(
+            "\(command) \(args.joined(separator: " ")): exit \(exitCode)"
+        )
+    }
+}
