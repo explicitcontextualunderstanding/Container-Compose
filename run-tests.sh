@@ -18,7 +18,7 @@ cleanup_test_containers() {
     # Find and remove only containers created by our tests (CCT_*)
     if command -v container &> /dev/null; then
         local test_containers
-        test_containers=$(container list 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
+ test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
         
         if [ -n "$test_containers" ]; then
             echo "Found test containers to clean up:"
@@ -52,7 +52,7 @@ prune_leftover_test_containers() {
     fi
 
     local test_containers
-    test_containers=$(container list 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
+    test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
 
     if [ -z "$test_containers" ]; then
         return
