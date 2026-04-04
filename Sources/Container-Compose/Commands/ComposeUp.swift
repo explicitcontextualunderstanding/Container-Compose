@@ -1096,15 +1096,28 @@ public static func resolvePlatform(
         return imageToRun
     }
     
+    /// Normalizes an image reference by stripping common registry prefixes.
+    /// Converts "docker.io/library/nginx:alpine" -> "nginx:alpine", "docker.io/nginx" -> "nginx"
+    private func normalizeImageRef(_ image: String) -> String {
+        let prefixes = ["docker.io/library/", "docker.io/"]
+        for prefix in prefixes {
+            if image.hasPrefix(prefix) {
+                return String(image.dropFirst(prefix.count))
+            }
+        }
+        return image
+    }
+
     /// Check container configuration drift
     /// Returns array of warning messages if configuration differs from compose.yml
     private func checkContainerDrift(container: ClientContainer, service: Service, expectedImage: String, env: [String: String]) -> [String]? {
         var warnings: [String] = []
         
-        // Check image drift
-        let containerImage = container.configuration.image.reference
-        if containerImage != expectedImage {
-            warnings.append("Image changed from '\(expectedImage)' to '\(containerImage)'")
+        // Check image drift (normalize both sides to handle docker.io/library/ prefix)
+        let containerImage = normalizeImageRef(container.configuration.image.reference)
+        let normalizedExpected = normalizeImageRef(expectedImage)
+        if containerImage != normalizedExpected {
+            warnings.append("Image changed from \(expectedImage) to \(container.configuration.image.reference)")
         }
         
         // Check environment drift (basic check - just compare keys)
