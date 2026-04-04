@@ -78,13 +78,13 @@ final class ComposeDownMappingTests: XCTestCase {
 
         // Read state
         let readBack = ComposeDown.readStateFile(stateFile)
-        XCTAssertEqual(readBack, containers)
+        XCTAssertEqual(readBack.containers, containers)
     }
 
     func testStateFileMissingReturnsEmpty() throws {
         let stateFile = URL(fileURLWithPath: "/tmp/CCT_nonexistent_\(UUID().uuidString).state")
         let result = ComposeDown.readStateFile(stateFile)
-        XCTAssertTrue(result.isEmpty)
+        XCTAssertTrue(result.containers.isEmpty)
     }
 
     func testStateFileOverwrite() throws {
@@ -99,7 +99,7 @@ final class ComposeDownMappingTests: XCTestCase {
         ComposeDown.writeStateFile(stateFile, containerNames: ["c", "d"])
 
         let readBack = ComposeDown.readStateFile(stateFile)
-        XCTAssertEqual(readBack, ["c", "d"])
+        XCTAssertEqual(readBack.containers, ["c", "d"])
     }
 
     func testRemoveStateFile() throws {
