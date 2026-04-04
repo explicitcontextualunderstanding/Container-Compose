@@ -327,6 +327,77 @@ struct HealthcheckConfigurationTests {
         // The nil fallback in waitForHealthy is: ?? 30 (seconds)
         // So these nil values correctly trigger the defaults
     }
+
+    // MARK: - String form test decoding (M-4 fix)
+
+    @Test("Parse healthcheck with string test form")
+    func parseHealthcheckWithStringTest() throws {
+        let yaml = """
+            test: CMD-SHELL pg_isready -U postgres
+            """
+
+        let decoder = YAMLDecoder()
+        let healthcheck = try decoder.decode(Healthcheck.self, from: yaml)
+
+        #expect(healthcheck.test?.count == 1)
+        #expect(healthcheck.test?.first == "CMD-SHELL pg_isready -U postgres")
+    }
+
+    @Test("Parse healthcheck with string test form with CMD")
+    func parseHealthcheckWithStringCmd() throws {
+        let yaml = """
+            test: CMD curl -f http://localhost
+            """
+
+        let decoder = YAMLDecoder()
+        let healthcheck = try decoder.decode(Healthcheck.self, from: yaml)
+
+        #expect(healthcheck.test?.count == 1)
+        #expect(healthcheck.test?.first == "CMD curl -f http://localhost")
+    }
+
+    @Test("Parse healthcheck with array test form")
+    func parseHealthcheckWithArrayTest() throws {
+        let yaml = """
+            test: ["CMD-SHELL", "pg_isready", "-U", "postgres"]
+            """
+
+        let decoder = YAMLDecoder()
+        let healthcheck = try decoder.decode(Healthcheck.self, from: yaml)
+
+        #expect(healthcheck.test?.count == 4)
+        #expect(healthcheck.test?[0] == "CMD-SHELL")
+        #expect(healthcheck.test?[1] == "pg_isready")
+        #expect(healthcheck.test?[2] == "-U")
+        #expect(healthcheck.test?[3] == "postgres")
+    }
+
+    @Test("Parse healthcheck with complex string test")
+    func parseHealthcheckWithComplexStringTest() throws {
+        let yaml = """
+            test: CMD-SHELL pg_isready -U postgres -h localhost
+            interval: 10s
+            """
+
+        let decoder = YAMLDecoder()
+        let healthcheck = try decoder.decode(Healthcheck.self, from: yaml)
+
+        #expect(healthcheck.test?.count == 1)
+        #expect(healthcheck.test?.first == "CMD-SHELL pg_isready -U postgres -h localhost")
+        #expect(healthcheck.interval == "10s")
+    }
+
+    @Test("Invalid test format throws decoding error")
+    func invalidTestFormatThrowsError() throws {
+        let yaml = """
+            test: 123
+            """
+
+        let decoder = YAMLDecoder()
+        #expect(throws: DecodingError.self) {
+            _ = try decoder.decode(Healthcheck.self, from: yaml)
+        }
+    }
 }
 
 // Test helper structs

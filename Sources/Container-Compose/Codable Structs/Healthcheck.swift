@@ -34,7 +34,7 @@ public struct Healthcheck: Codable, Hashable {
     public let retries: Int?
     /// Timeout for each check
     public let timeout: String?
-    
+
     public init(
         test: [String]? = nil,
         start_period: String? = nil,
@@ -47,5 +47,39 @@ public struct Healthcheck: Codable, Hashable {
         self.interval = interval
         self.retries = retries
         self.timeout = timeout
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case test
+        case start_period
+        case interval
+        case retries
+        case timeout
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Decode test - handle both string and array forms
+        if let testArray = try? container.decode([String].self, forKey: .test) {
+            self.test = testArray
+        } else if let testString = try? container.decode(String.self, forKey: .test) {
+            self.test = [testString]
+        } else if container.contains(.test) {
+            throw DecodingError.typeMismatch(
+                [String].self,
+                DecodingError.Context(
+                    codingPath: [CodingKeys.test],
+                    debugDescription: "test must be either a string or an array of strings"
+                )
+            )
+        } else {
+            self.test = nil
+        }
+
+        self.start_period = try container.decodeIfPresent(String.self, forKey: .start_period)
+        self.interval = try container.decodeIfPresent(String.self, forKey: .interval)
+        self.retries = try container.decodeIfPresent(Int.self, forKey: .retries)
+        self.timeout = try container.decodeIfPresent(String.self, forKey: .timeout)
     }
 }
