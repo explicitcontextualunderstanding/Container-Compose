@@ -477,4 +477,139 @@ final class ComposePsMappingTests: XCTestCase {
         let json = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]
         XCTAssertTrue(json[0]["ports"] is [String])
     }
+
+    // MARK: - Cycle 4: JSON Schema Validation (12 tests)
+
+    func testValidatorAcceptsValidJSON() throws {
+        let validJSON = """
+        [
+            {"service": "web", "container": "myapp-web", "state": "running"},
+            {"service": "db", "container": "myapp-db", "state": "stopped", "id": "abc123"}
+        ]
+        """
+        XCTAssertNoThrow(try ComposePsJSONValidator.validateFromJSONString(validJSON))
+    }
+
+    func testValidatorRejectsMissingRequiredField() throws {
+        let invalidJSON = """
+        [
+            {"service": "web", "container": "myapp-web"},
+            {"container": "myapp-db", "state": "running"}
+        ]
+        """
+        do {
+            try ComposePsJSONValidator.validateFromJSONString(invalidJSON)
+            XCTFail("Expected invalidJSONSchema error")
+        } catch let error as ComposePsError {
+            if case .invalidJSONSchema(let fields) = error {
+                XCTAssertTrue(fields.contains("state") || fields.contains("service"))
+            } else {
+                XCTFail("Expected invalidJSONSchema error")
+            }
+        }
+    }
+
+    func testValidatorRejectsMissingService() throws {
+        let invalidJSON = """
+        [
+            {"container": "myapp-web", "state": "running"}
+        ]
+        """
+        do {
+            try ComposePsJSONValidator.validateFromJSONString(invalidJSON)
+            XCTFail("Expected invalidJSONSchema error")
+        } catch {
+            XCTAssertTrue(error is ComposePsError)
+        }
+    }
+
+    func testValidatorRejectsMissingContainer() throws {
+        let invalidJSON = """
+        [
+            {"service": "web", "state": "running"}
+        ]
+        """
+        do {
+            try ComposePsJSONValidator.validateFromJSONString(invalidJSON)
+            XCTFail("Expected invalidJSONSchema error")
+        } catch {
+            XCTAssertTrue(error is ComposePsError)
+        }
+    }
+
+    func testValidatorRejectsMissingState() throws {
+        let invalidJSON = """
+        [
+            {"service": "web", "container": "myapp-web"}
+        ]
+        """
+        do {
+            try ComposePsJSONValidator.validateFromJSONString(invalidJSON)
+            XCTFail("Expected invalidJSONSchema error")
+        } catch {
+            XCTAssertTrue(error is ComposePsError)
+        }
+    }
+
+    func testValidatorAcceptsOptionalFields() throws {
+        let jsonWithOptional = """
+        [
+            {"service": "web", "container": "myapp-web", "state": "running", "id": "abc123", "ip": "10.0.0.1", "ports": ["80->80/tcp"], "started": "2024-01-01T00:00:00Z"}
+        ]
+        """
+        XCTAssertNoThrow(try ComposePsJSONValidator.validateFromJSONString(jsonWithOptional))
+    }
+
+    func testValidatorRejectsNullRequiredField() throws {
+        let jsonWithNull = """
+        [
+            {"service": null, "container": "myapp-web", "state": "running"}
+        ]
+        """
+        do {
+            try ComposePsJSONValidator.validateFromJSONString(jsonWithNull)
+            XCTFail("Expected invalidJSONSchema error")
+        } catch {
+            XCTAssertTrue(error is ComposePsError)
+        }
+    }
+
+    func testValidatorEmptyArray() throws {
+        let emptyJSON = "[]"
+        XCTAssertNoThrow(try ComposePsJSONValidator.validateFromJSONString(emptyJSON))
+    }
+
+    func testValidatorInvalidJSONFormat() throws {
+        let notArrayJSON = """
+{"service": "web"}
+"""
+        do {
+            try ComposePsJSONValidator.validateFromJSONString(notArrayJSON)
+            XCTFail("Expected invalidJSONSchema error")
+        } catch {
+            XCTAssertTrue(error is ComposePsError)
+        }
+    }
+
+    func testValidatorReportsAllMissingFields() throws {
+        let emptyObj = """
+{}
+"""
+        do {
+            try ComposePsJSONValidator.validateFromJSONString(emptyObj)
+            XCTFail("Expected invalidJSONSchema error")
+        } catch let error as ComposePsError {
+            if case .invalidJSONSchema(let fields) = error {
+                XCTAssertEqual(fields.count, 3)
+            }
+        }
+    }
+
+    func testRequiredFieldsList() throws {
+        XCTAssertEqual(ComposePsJSONValidator.requiredFields, ["service", "container", "state"])
+    }
+
+    func testOptionalFieldsList() throws {
+        XCTAssertEqual(ComposePsJSONValidator.optionalFields, ["id", "ip", "ports", "started"])
+    }
 }
