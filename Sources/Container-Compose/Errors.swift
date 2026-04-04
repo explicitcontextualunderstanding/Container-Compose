@@ -44,7 +44,6 @@ public enum ComposeError: Error, LocalizedError {
     case invalidProjectName
     case invalidResourceConfig(String)
     case healthCheckFailed(String, String)
-    case buildFailed(String)
 
     public var errorDescription: String? {
         switch self {
@@ -56,8 +55,6 @@ public enum ComposeError: Error, LocalizedError {
             return message
         case .healthCheckFailed(let service, let message):
             return "Health check failed for service '\(service)': \(message)"
-        case .buildFailed(let message):
-            return "Build failed: \(message)"
         }
     }
 }
