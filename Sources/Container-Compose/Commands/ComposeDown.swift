@@ -130,139 +130,212 @@ public struct ComposeDown: AsyncParsableCommand {
 
     // MARK: - Run
 
-    public mutating func run() async throws {
+public mutating func run() async throws {
+    // Try to read state file first for idempotent teardown
+    let statePath = ComposeDown.stateFilePath(cwd: cwd)
+    let stateContainers = ComposeDown.readStateFile(statePath)
 
-        // Skip CWD scanning if -f was explicitly provided
-        if composeFile == nil {
-            // Check for supported filenames and extensions
-            let filenames = [
-                "compose.yml",
-                "compose.yaml",
-                "docker-compose.yml",
-                "docker-compose.yaml",
-            ]
-            for filename in filenames {
-                if fileManager.fileExists(atPath: "\(cwd)/\(filename)") {
-                    foundFilename = filename
-                    break
-                }
-            }
+    // Skip CWD scanning if -f was explicitly provided
+    if composeFile == nil {
+      // Check for supported filenames and extensions
+      let filenames = [
+        "compose.yml",
+        "compose.yaml",
+        "docker-compose.yml",
+        "docker-compose.yaml",
+      ]
+      for filename in filenames {
+        if fileManager.fileExists(atPath: "\(cwd)/\(filename)") {
+          foundFilename = filename
+          break
         }
+      }
+    }
 
-        // Read docker-compose.yml content
-        guard let yamlData = fileManager.contents(atPath: composePath) else {
-            let path = URL(fileURLWithPath: composePath)
-                .deletingLastPathComponent()
-                .path
-            throw YamlError.composeFileNotFound(path)
-        }
+    // Read docker-compose.yml content
+    guard let yamlData = fileManager.contents(atPath: composePath) else {
+      let path = URL(fileURLWithPath: composePath)
+        .deletingLastPathComponent()
+        .path
+      throw YamlError.composeFileNotFound(path)
+    }
 
-      // Decode the YAML file into the DockerCompose struct
-      guard let dockerComposeString = String(data: yamlData, encoding: .utf8) else {
-          throw YamlError.invalidYamlEncoding
+    // Decode the YAML file into the DockerCompose struct
+    guard let dockerComposeString = String(data: yamlData, encoding: .utf8) else {
+      throw YamlError.invalidYamlEncoding
+    }
+
+    // Load .env file early so vars are available for pre-decode substitution
+    let envFilePath = "\(cwd)/.env"
+    let environmentVariables = (try? loadEnvFile(path: envFilePath)) ?? [:]
+
+    // Pre-decode ${VAR} substitution (Docker Compose compatible with $$ escaping)
+    let resolvedYaml = try resolveYamlVariables(dockerComposeString, with: environmentVariables)
+    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: resolvedYaml)
+
+    // Determine project name for container naming
+    if let name = dockerCompose.name {
+      projectName = name
+      print("Info: Docker Compose project name parsed as: \(name)")
+      print(
+        "Note: The 'name' field currently only affects container naming (e.g., '\(name)-serviceName'). Full project-level isolation for other resources (networks, implicit volumes) is not implemented by this tool."
+      )
+    } else {
+      projectName = try deriveProjectName(cwd: cwd)
+      print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+    }
+
+    var services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap({ serviceName, service in
+      guard let service else { return nil }
+      return (serviceName, service)
+    })
+    services = try Service.topoSortConfiguredServices(services)
+
+    // Filter for specified services
+    if !self.services.isEmpty {
+      services = services.filter({ serviceName, service in
+        self.services.contains(where: { $0 == serviceName }) || self.services.contains(where: { service.dependedBy.contains($0) })
+      })
+    }
+
+    // If state file exists, use its container list (intersected with compose file services) as teardown target
+    let result: DownResult
+    if !stateContainers.isEmpty {
+      print("Info: Found state file with \(stateContainers.count) container(s). Using state file for idempotent teardown.")
+      result = try await stopContainersFromState(stateContainers, services: services, remove: false)
+    } else {
+      result = try await stopOldStuff(services, remove: false)
+    }
+
+    // Report summary
+    print("Summary: \(result.summary)")
+
+    // Exit with appropriate code
+    if !result.isSuccess {
+      throw ComposeDownError.teardownIncomplete(result)
+    }
+  }
+
+/// Stop containers from state file, intersected with compose file services.
+  /// Removes state file only after all containers are confirmed stopped.
+  private func stopContainersFromState(
+    _ stateContainers: [String],
+    services: [(serviceName: String, service: Service)],
+    remove: Bool
+  ) async throws -> DownResult {
+    // Build set of expected container names from compose file
+    let composeServiceNames = Set(services.map { serviceName, service -> String in
+      if let explicitContainerName = service.container_name {
+        return explicitContainerName
+      }
+      return "\(projectName ?? "")-\(serviceName)"
+    }.filter { !$0.hasPrefix("-") })
+
+    // Intersect state containers with compose services
+    let containersToStop = stateContainers.filter { composeServiceNames.contains($0) }
+
+    if containersToStop.isEmpty {
+      print("Warning: No containers from state file match compose file services.")
+      return DownResult(stopped: [], timeouts: [], errors: [])
+    }
+
+    var stopped: [String] = []
+    var timeouts: [String] = []
+    var errors: [String] = []
+
+    for containerName in containersToStop {
+      print("Stopping container: \(containerName)")
+      guard let container = try? await ClientContainer.get(id: containerName) else {
+        print("Warning: Container '\(containerName)' not found, skipping.")
+        continue
       }
 
-      // Load .env file early so vars are available for pre-decode substitution
-      let envFilePath = "\(cwd)/.env"
-      let environmentVariables = (try? loadEnvFile(path: envFilePath)) ?? [:]
+      // Stop with per-service timeout
+      let didStop = try await stopWithTimeout(container: container, name: containerName, timeout: timeoutSeconds)
+      if didStop {
+        print("Successfully stopped container: \(containerName)")
+        stopped.append(containerName)
+      } else {
+        print("Warning: Timeout stopping container: \(containerName) (force-stopped)")
+        timeouts.append(containerName)
+      }
 
-      // Pre-decode ${VAR} substitution (Docker Compose compatible with $$ escaping)
-      let resolvedYaml = try resolveYamlVariables(dockerComposeString, with: environmentVariables)
-      let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: resolvedYaml)
-
-        // Determine project name for container naming
-        if let name = dockerCompose.name {
-            projectName = name
-            print("Info: Docker Compose project name parsed as: \(name)")
-            print(
-                "Note: The 'name' field currently only affects container naming (e.g., '\(name)-serviceName'). Full project-level isolation for other resources (networks, implicit volumes) is not implemented by this tool."
-            )
-        } else {
-            projectName = try deriveProjectName(cwd: cwd)
-            print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+      if remove {
+        do {
+          try await container.delete()
+          print("Successfully removed container: \(containerName)")
+        } catch {
+          print("Error Removing Container: \(error)")
+          errors.append(containerName)
         }
-
-        var services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap({ serviceName, service in
-            guard let service else { return nil }
-            return (serviceName, service)
-        })
-        services = try Service.topoSortConfiguredServices(services)
-
-        // Filter for specified services
-        if !self.services.isEmpty {
-            services = services.filter({ serviceName, service in
-                self.services.contains(where: { $0 == serviceName }) || self.services.contains(where: { service.dependedBy.contains($0) })
-            })
-        }
-
-        let result = try await stopOldStuff(services, remove: false)
-
-        // Report summary
-        print("Summary: \(result.summary)")
-
-        // Exit with appropriate code
-        if !result.isSuccess {
-            throw ComposeDownError.teardownIncomplete(result)
-        }
+      }
     }
 
-    private func stopOldStuff(_ services: [(serviceName: String, service: Service)], remove: Bool) async throws -> DownResult {
-        guard let projectName else { return DownResult(stopped: [], timeouts: [], errors: []) }
+    // Remove state file only after all containers are confirmed stopped
+    let statePath = ComposeDown.stateFilePath(cwd: cwd)
+    ComposeDown.removeStateFile(statePath)
+    print("Info: State file removed after teardown.")
 
-        var stopped: [String] = []
-        var timeouts: [String] = []
-        var errors: [String] = []
-        var ownedContainerNames: [String] = []
+    return DownResult(stopped: stopped, timeouts: timeouts, errors: errors)
+  }
 
-        for (serviceName, service) in services {
-            // Respect explicit container_name, otherwise use default pattern
-            let containerName: String
-            if let explicitContainerName = service.container_name {
-                containerName = explicitContainerName
-            } else {
-                containerName = "\(projectName)-\(serviceName)"
-            }
+  private func stopOldStuff(_ services: [(serviceName: String, service: Service)], remove: Bool) async throws -> DownResult {
+    guard let projectName else { return DownResult(stopped: [], timeouts: [], errors: []) }
 
-            ownedContainerNames.append(containerName)
+    var stopped: [String] = []
+    var timeouts: [String] = []
+    var errors: [String] = []
+    var ownedContainerNames: [String] = []
 
-            print("Stopping container: \(containerName)")
-            guard let container = try? await ClientContainer.get(id: containerName) else {
-                print("Warning: Container '\(containerName)' not found, skipping.")
-                continue
-            }
+    for (serviceName, service) in services {
+      // Respect explicit container_name, otherwise use default pattern
+      let containerName: String
+      if let explicitContainerName = service.container_name {
+        containerName = explicitContainerName
+      } else {
+        containerName = "\(projectName)-\(serviceName)"
+      }
 
-            // Stop with per-service timeout
-            let didStop = try await stopWithTimeout(container: container, name: containerName, timeout: timeoutSeconds)
-            if didStop {
-                print("Successfully stopped container: \(containerName)")
-                stopped.append(containerName)
-            } else {
-                print("Warning: Timeout stopping container: \(containerName) (force-stopped)")
-                timeouts.append(containerName)
-            }
+      ownedContainerNames.append(containerName)
 
-            if remove {
-                do {
-                    try await container.delete()
-                    print("Successfully removed container: \(containerName)")
-                } catch {
-                    print("Error Removing Container: \(error)")
-                    errors.append(containerName)
-                }
-            }
+      print("Stopping container: \(containerName)")
+      guard let container = try? await ClientContainer.get(id: containerName) else {
+        print("Warning: Container '\(containerName)' not found, skipping.")
+        continue
+      }
+
+      // Stop with per-service timeout
+      let didStop = try await stopWithTimeout(container: container, name: containerName, timeout: timeoutSeconds)
+      if didStop {
+        print("Successfully stopped container: \(containerName)")
+        stopped.append(containerName)
+      } else {
+        print("Warning: Timeout stopping container: \(containerName) (force-stopped)")
+        timeouts.append(containerName)
+      }
+
+      if remove {
+        do {
+          try await container.delete()
+          print("Successfully removed container: \(containerName)")
+        } catch {
+          print("Error Removing Container: \(error)")
+          errors.append(containerName)
         }
-
-        // Write state file so a subsequent `down` can resume
-        let statePath = ComposeDown.stateFilePath(cwd: cwd)
-        if ownedContainerNames.isEmpty {
-            // No services to manage — remove state file if it exists (idempotent no-op)
-            ComposeDown.removeStateFile(statePath)
-        } else {
-            ComposeDown.writeStateFile(statePath, containerNames: ownedContainerNames)
-        }
-
-        return DownResult(stopped: stopped, timeouts: timeouts, errors: errors)
+      }
     }
+
+    // Write state file so a subsequent `down` can resume
+    let statePath = ComposeDown.stateFilePath(cwd: cwd)
+    if ownedContainerNames.isEmpty {
+      // No services to manage — remove state file if it exists (idempotent no-op)
+      ComposeDown.removeStateFile(statePath)
+    } else {
+      ComposeDown.writeStateFile(statePath, containerNames: ownedContainerNames)
+    }
+
+    return DownResult(stopped: stopped, timeouts: timeouts, errors: errors)
+  }
 
     /// Stop a container with a timeout. Returns true if stopped gracefully, false if timed out.
     private func stopWithTimeout(container: ClientContainer, name: String, timeout: Int) async throws -> Bool {
