@@ -59,6 +59,7 @@ subcommands: [
         ComposePs.self,
         CheckpointCommand.self,
         HealthCommand.self,
+        SystemReset.self,
         Version.self
     ])
     

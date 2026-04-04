@@ -138,6 +138,78 @@ final class ComposeUpMappingTests: XCTestCase {
         XCTAssertTrue(args.contains("my-namespace.local"), "Expected dns search value present in args: \(args)")
     }
 
+    func testDNSMappingSingleString() throws {
+        let yaml = """
+        services:
+          app:
+            image: busybox:latest
+            dns: "8.8.8.8"
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+
+        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+
+        XCTAssertTrue(args.contains("--dns"), "Expected --dns flag present in args: \(args)")
+        XCTAssertTrue(args.contains("8.8.8.8"), "Expected DNS value present in args: \(args)")
+    }
+
+    func testDNSMappingArray() throws {
+        let yaml = """
+        services:
+          app:
+            image: busybox:latest
+            dns:
+              - "8.8.8.8"
+              - "1.1.1.1"
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+
+        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+
+        XCTAssertTrue(args.contains("--dns"), "Expected --dns flag present in args: \(args)")
+        XCTAssertTrue(args.contains("8.8.8.8"), "Expected first DNS value present in args: \(args)")
+        XCTAssertTrue(args.contains("1.1.1.1"), "Expected second DNS value present in args: \(args)")
+    }
+
+    func testDNSMappingNil() throws {
+        let yaml = """
+        services:
+          app:
+            image: busybox:latest
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+
+        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+
+        XCTAssertFalse(args.contains("--dns"), "Expected --dns flag NOT present in args: \(args)")
+    }
+
+    func testDNSAndDNSSearchMapping() throws {
+        let yaml = """
+        services:
+          app:
+            image: busybox:latest
+            dns:
+              - "8.8.8.8"
+            dns_search:
+              - "local"
+              - "internal"
+        """
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+        guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
+
+        let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "proj", detach: false, cwd: "/tmp", environmentVariables: [:])
+
+        XCTAssertTrue(args.contains("--dns"), "Expected --dns flag present in args: \(args)")
+        XCTAssertTrue(args.contains("8.8.8.8"), "Expected DNS value present in args: \(args)")
+        XCTAssertTrue(args.contains("--dns-search"), "Expected --dns-search flag present in args: \(args)")
+        XCTAssertTrue(args.contains("local"), "Expected first dns_search value present in args: \(args)")
+        XCTAssertTrue(args.contains("internal"), "Expected second dns_search value present in args: \(args)")
+    }
+
     // MARK: - Previously untested makeRunArgs flags
 
     func testUserMapping() throws {
