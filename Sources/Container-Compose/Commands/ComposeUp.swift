@@ -672,11 +672,17 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
 // MARK: Static Helpers for Testing
 
-    /// Resolves platform for build/run from service.platform or CONTAINER_DEFAULT_PLATFORM env var.
-    /// - Returns: (os, arch) tuple
-    public static func resolvePlatform(servicePlatform: String?) -> (os: String, arch: String) {
-        let platform = servicePlatform
-            ?? ProcessInfo.processInfo.environment["CONTAINER_DEFAULT_PLATFORM"]
+/// Resolves platform for build/run from service.platform or CONTAINER_DEFAULT_PLATFORM env var.
+/// - Parameters:
+///   - servicePlatform: Optional platform string from service configuration
+///   - environment: Environment dictionary to read CONTAINER_DEFAULT_PLATFORM from (defaults to process environment)
+/// - Returns: (os, arch) tuple
+public static func resolvePlatform(
+    servicePlatform: String?,
+    environment: [String: String] = ProcessInfo.processInfo.environment
+) -> (os: String, arch: String) {
+    let platform = servicePlatform
+    ?? environment["CONTAINER_DEFAULT_PLATFORM"]
 
         if let platform = platform {
             let split = platform.split(separator: "/")
