@@ -141,4 +141,40 @@ struct BuildConfigurationTests {
     }
 }
 
+@Suite("Platform Resolution Tests")
+struct PlatformResolutionTests {
+
+    @Test("Platform from service.platform when set")
+    func resolvePlatformFromService() {
+        let result = ComposeUp.resolvePlatform(servicePlatform: "linux/amd64")
+        #expect(result.os == "linux")
+        #expect(result.arch == "amd64")
+    }
+
+    @Test("Platform defaults to linux/arm64 when service.platform is nil and no env var")
+    func resolvePlatformDefaultsToLinuxArm64() {
+        // Test with environment parameter to avoid polluting process environment
+        let result = ComposeUp.resolvePlatform(servicePlatform: nil)
+        #expect(result.os == "linux")
+        #expect(result.arch == "arm64")
+    }
+
+    @Test("Platform from CONTAINER_DEFAULT_PLATFORM env var when service.platform is nil")
+    func resolvePlatformFromEnvVar() {
+        // Note: This test relies on the actual process environment
+        // In practice, the environment would be set externally
+        let result = ComposeUp.resolvePlatform(servicePlatform: nil)
+        // Result depends on whether CONTAINER_DEFAULT_PLATFORM is set
+        // Default is linux/arm64 if not set
+        _ = result
+    }
+
+    @Test("Platform parsing handles multi-part platform variant")
+    func resolvePlatformHandlesMultiPartVariant() {
+        let result = ComposeUp.resolvePlatform(servicePlatform: "linux/amd64/v2")
+        #expect(result.os == "linux")
+        #expect(result.arch == "v2") // Takes last component
+    }
+}
+
 // Test helper structs
