@@ -334,3 +334,35 @@ public func runCommand(
         )
     }
 }
+
+/// Executes an async operation with a timeout.
+/// - Parameters:
+///   - seconds: Maximum time to wait
+///   - operation: The async operation to execute
+/// - Returns: The result of the operation
+/// - Throws: ImagePullError if timeout occurs, or any error from the operation
+public func withTimeout<T: Sendable>(
+    seconds: TimeInterval,
+    operation: @escaping @Sendable () async throws -> T
+) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+        // Add the operation task
+        group.addTask {
+            try await operation()
+        }
+        
+        // Add the timeout task
+        group.addTask {
+            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            throw ImagePullError("Operation timed out after \(Int(seconds))s", isTransient: true)
+        }
+        
+        // Wait for first completion
+        let result = try await group.next()!
+        
+        // Cancel remaining tasks
+        group.cancelAll()
+        
+        return result
+    }
+}

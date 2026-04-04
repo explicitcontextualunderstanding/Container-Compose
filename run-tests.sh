@@ -7,19 +7,95 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Cleanup function - removes only test containers created by this run
+# Apple Container data directory
+AC_DATA_DIR="$HOME/Library/Application Support/com.apple.container"
+AC_SNAPSHOTS_DIR="$AC_DATA_DIR/snapshots"
+
+# Prune orphaned snapshots from test containers (CCT_ prefix).
+# Apple Container leaves behind snapshot directories even after container delete.
+# These accumulate and consume GBs of disk space.
+prune_test_snapshots() {
+    local snapshot_dir="$AC_SNAPSHOTS_DIR"
+    if [ ! -d "$snapshot_dir" ]; then
+        return
+    fi
+
+    # Get IDs of CCT_ containers and all containers from state.json
+    local cct_ids=""
+    local all_ids=""
+    if [ -f "$AC_DATA_DIR/state.json" ] && command -v python3 &> /dev/null; then
+        eval "$(python3 -c "
+import json, os
+state_file = os.path.expanduser(\"$AC_DATA_DIR/state.json\")
+with open(state_file) as f:
+    state = json.load(f)
+containers = state.get(\"containers\", {})
+cct = []
+all_cids = []
+for cid in containers:
+    all_cids.append(cid)
+    cdata = containers[cid].get(\"configuration\", {}) if isinstance(containers[cid], dict) else {}
+    name = cdata.get(\"id\", \"\")
+    if name.startswith(\"CCT_\"):
+        cct.append(cid)
+print(\"CCT_IDS=\" + \" \".join(cct))
+print(\"ALL_IDS=\" + \" \".join(all_cids))
+" 2>/dev/null || true)"
+    fi
+
+    local removed_count=0
+    local removed_mb=0
+
+    # Remove snapshots for CCT_ containers
+    for cid in $CCT_IDS; do
+        if [ -d "$snapshot_dir/$cid" ]; then
+            local size
+            size=$(du -sm "$snapshot_dir/$cid" 2>/dev/null | awk '{print $1}')
+            rm -rf "$snapshot_dir/$cid"
+            removed_count=$((removed_count + 1))
+            removed_mb=$((removed_mb + size))
+        fi
+    done
+
+    # Remove snapshots not referenced by ANY container (orphaned from previous runs)
+    for snap_dir in "$snapshot_dir"/*/; do
+        [ -d "$snap_dir" ] || continue
+        local snap_name
+        snap_name=$(basename "$snap_dir")
+        # Skip if this snapshot belongs to a known container
+        case " $ALL_IDS " in
+            *" $snap_name "*) continue ;;
+        esac
+        local size
+        size=$(du -sm "$snap_dir" 2>/dev/null | awk '{print $1}')
+        rm -rf "$snap_dir"
+        removed_count=$((removed_count + 1))
+        removed_mb=$((removed_mb + size))
+    done
+
+    if [ "$removed_count" -gt 0 ]; then
+        echo "  Pruned $removed_count snapshot(s), reclaimed ${removed_mb}MB"
+    fi
+
+    # Also run container prune to clean up any runtime-level orphans
+    if command -v container &> /dev/null; then
+        container prune 2>/dev/null || true
+    fi
+}
+
+# Cleanup function - removes test containers AND their orphaned snapshots
 cleanup_test_containers() {
     local exit_code=$?
     echo ""
     echo "=========================================="
-    echo "Cleaning up test containers..."
+    echo "Cleaning up test containers and snapshots..."
     echo "=========================================="
-    
+
     # Find and remove only containers created by our tests (CCT_*)
     if command -v container &> /dev/null; then
         local test_containers
- test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
-        
+	test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
+
         if [ -n "$test_containers" ]; then
             echo "Found test containers to clean up:"
             echo "$test_containers" | while read -r container_id; do
@@ -35,9 +111,12 @@ cleanup_test_containers() {
     else
         echo "⚠️ 'container' CLI not available, skipping container cleanup"
     fi
-    
+
+    # Prune orphaned test snapshots
+    prune_test_snapshots
+
     echo "=========================================="
-    
+
     # Exit with the original exit code
     exit $exit_code
 }
@@ -50,6 +129,9 @@ prune_leftover_test_containers() {
     if ! command -v container &> /dev/null; then
         return
     fi
+
+    # First prune snapshots from previous runs
+    prune_test_snapshots
 
     local test_containers
     test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
@@ -118,7 +200,7 @@ if [ -d "$TEMP_DIR" ]; then
         echo ""
         echo " These can cause 'invalid access' errors during build."
         echo ""
-        
+
         if [ "$AUTO_CLEAN" = true ]; then
             should_clean=true
         else
@@ -128,7 +210,7 @@ if [ -d "$TEMP_DIR" ]; then
                 should_clean=true
             fi
         fi
-        
+
         if [ "$should_clean" = true ]; then
             echo "$stale_locks" | while read -r lock; do
                 rm -f "$lock" 2>/dev/null || true
@@ -157,14 +239,14 @@ if [ -d ".build" ] && [ "$EUID" -ne 0 ]; then
             echo ""
         else
             echo "⚠️ Continuing without fixing permissions. Build may fail."
- echo ""
- fi
- fi
- fi
+            echo ""
+        fi
+    fi
+fi
 
- # Set configurable test ports to avoid conflicts with existing services
- # Override these via environment variables if needed
- export TEST_PORT_WORDPRESS="${TEST_PORT_WORDPRESS:-18080}"
+# Set configurable test ports to avoid conflicts with existing services
+# Override these via environment variables if needed
+export TEST_PORT_WORDPRESS="${TEST_PORT_WORDPRESS:-18080}"
 export TEST_PORT_WEB="${TEST_PORT_WEB:-18081}"
 export TEST_PORT_GATEWAY="${TEST_PORT_GATEWAY:-18082}"
 export TEST_PORT_API="${TEST_PORT_API:-18083}"
@@ -219,10 +301,10 @@ if [ -z "$OCI_REGISTRY_URL" ]; then
     echo " - OCI_REGISTRY_URL=ghcr.io"
     echo " - OCI_REGISTRY_URL=docker.io"
     echo ""
-    
+
     # Prompt user for registry URL
     read -p "Enter OCI registry URL (or press Enter to skip database tests): " -r REGISTRY_INPUT
-    
+
     if [ -n "$REGISTRY_INPUT" ]; then
         export OCI_REGISTRY_URL="$REGISTRY_INPUT"
         echo "✓ OCI_REGISTRY_URL set to: $OCI_REGISTRY_URL"
