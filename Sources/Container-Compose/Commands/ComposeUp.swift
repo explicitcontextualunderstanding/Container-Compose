@@ -941,16 +941,28 @@ public static func resolvePlatform(
                   try await purgeZombieContainer(name: containerName)
                   // Fall through to create new container
               }
-          } else {
-              // Non-recovery mode: original behavior
-              if existingContainer.status == .running {
-                  print("[RECOVERY] Container '\(containerName)' is already running — will skip health-gates for dependents")
-                  // External Dependency Health-Gating: Record this service as externally present
-                  // so that dependent services skip their service_healthy wait (crash recovery).
-                  externallyPresentServices.insert(serviceName)
-                  try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
-                  return
-              } else {
+} else {
+                // Non-recovery mode: Check health of pre-existing containers
+                if existingContainer.status == .running {
+                    print("[RECOVERY] Container '\(containerName)' is already running — verifying health before proceeding")
+                    // Verify the running container is healthy before allowing dependents to start.
+                    // This ensures health gates work correctly for pre-existing containers.
+                    if let healthcheck = service.healthcheck {
+                        do {
+                            try await waitForHealthy(
+                                containerName: containerName,
+                                dependencyName: serviceName,
+                                healthcheck: healthcheck
+                            )
+                            print("[RECOVERY] Container '\(containerName)' passed health check")
+                        } catch {
+                            print("[RECOVERY] Container '\(containerName)' failed health check: \(error)")
+                            throw ComposeError.healthCheckFailed(serviceName, "Pre-existing container failed health check: \(error)")
+                        }
+                    }
+                    try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
+                    return
+                } else {
                   // Container exists but is not running
                   if noRecreate {
                       print("Container '\(containerName)' exists with status: \(existingContainer.status). Not recreating (--no-recreate).")

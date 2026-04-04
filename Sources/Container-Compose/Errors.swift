@@ -40,20 +40,23 @@ public enum YamlError: Error, LocalizedError {
 }
 
 public enum ComposeError: Error, LocalizedError {
-  case imageNotFound(String)
-  case invalidProjectName
-  case invalidResourceConfig(String)
+    case imageNotFound(String)
+    case invalidProjectName
+    case invalidResourceConfig(String)
+    case healthCheckFailed(String, String)
 
-  public var errorDescription: String? {
-    switch self {
-    case .imageNotFound(let name):
-      return "Service \(name) must define either 'image' or 'build'."
-    case .invalidProjectName:
-      return "Could not find project name."
-    case .invalidResourceConfig(let message):
-      return message
+    public var errorDescription: String? {
+        switch self {
+        case .imageNotFound(let name):
+            return "Service \(name) must define either 'image' or 'build'."
+        case .invalidProjectName:
+            return "Could not find project name."
+        case .invalidResourceConfig(let message):
+            return message
+        case .healthCheckFailed(let service, let message):
+            return "Health check failed for service '\(service)': \(message)"
+        }
     }
-  }
 }
 
 public enum VolumeConfigError: Error, LocalizedError {
