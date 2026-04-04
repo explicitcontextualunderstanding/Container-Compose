@@ -146,50 +146,27 @@ struct PlatformResolutionTests {
 
     @Test("Platform from service.platform when set")
     func resolvePlatformFromService() {
-        let result = ComposeUp.resolvePlatform(servicePlatform: "linux/amd64", environment: [:])
-        #expect(result.os == "linux")
-        #expect(result.arch == "amd64")
+        let result = ComposeUp.resolvePlatform(servicePlatform: "linux/amd64")
+        #expect(result == "linux/amd64")
     }
 
-    @Test("Platform defaults to linux/arm64 when service.platform is nil and no env var")
-    func resolvePlatformDefaultsToLinuxArm64() {
-        // Test with empty environment to ensure default fallback works
-        let result = ComposeUp.resolvePlatform(servicePlatform: nil, environment: [:])
-        #expect(result.os == "linux")
-        #expect(result.arch == "arm64")
+    @Test("Platform returns nil when service.platform is nil")
+    func resolvePlatformReturnsNilWhenNotSet() {
+        let result = ComposeUp.resolvePlatform(servicePlatform: nil)
+        #expect(result == nil)
     }
 
-    @Test("Platform from CONTAINER_DEFAULT_PLATFORM env var when service.platform is nil")
-    func resolvePlatformFromEnvVar() {
-        // Test with explicit environment dictionary
-        let env = ["CONTAINER_DEFAULT_PLATFORM": "darwin/arm64"]
-        let result = ComposeUp.resolvePlatform(servicePlatform: nil, environment: env)
-        #expect(result.os == "darwin")
-        #expect(result.arch == "arm64")
+    @Test("Platform passes through service.platform value")
+    func resolvePlatformPassthrough() {
+        let result = ComposeUp.resolvePlatform(servicePlatform: "darwin/arm64")
+        #expect(result == "darwin/arm64")
     }
 
-    @Test("service.platform takes precedence over CONTAINER_DEFAULT_PLATFORM")
-    func servicePlatformTakesPrecedenceOverEnvVar() {
-        let env = ["CONTAINER_DEFAULT_PLATFORM": "windows/amd64"]
-        let result = ComposeUp.resolvePlatform(servicePlatform: "linux/amd64", environment: env)
-        #expect(result.os == "linux")
-        #expect(result.arch == "amd64")
-    }
-
-    @Test("Platform parsing handles single os value")
-    func resolvePlatformHandlesSingleOs() {
-        let env = ["CONTAINER_DEFAULT_PLATFORM": "freebsd"]
-        let result = ComposeUp.resolvePlatform(servicePlatform: nil, environment: env)
-        #expect(result.os == "freebsd")
-        #expect(result.arch == "arm64") // default arch when not specified
-    }
-
-    @Test("Platform parsing handles multi-part platform variant")
+    @Test("Platform handles multi-part platform variant")
     func resolvePlatformHandlesMultiPartVariant() {
-        let result = ComposeUp.resolvePlatform(servicePlatform: "linux/amd64/v2", environment: [:])
-        #expect(result.os == "linux")
-        #expect(result.arch == "v2") // Takes last component
-    }
+        let result = ComposeUp.resolvePlatform(servicePlatform: "linux/amd64/v2")
+        #expect(result == "linux/amd64/v2")
+}
 }
 
 // Test helper structs
