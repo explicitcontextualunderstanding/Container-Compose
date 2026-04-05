@@ -1142,44 +1142,47 @@ case .stopped:
           print("[RECOVER] Creating container '\(containerName)' - not found")
       }
 
-        // Start container and capture result
-        let cwd = self.cwd  // Capture before Task
-        let containerTask: Task<Int32, Error> = Task {
-            @Sendable
-            func handleOutput(_ output: String) {
-                print("\(serviceName): \(output)")
-            }
-
-            print("\nStarting service: \(serviceName)")
-            print("Starting \(serviceName)")
-            print("----------------------------------------\n")
-            // Disambiguate to call the global helper, passing the explicit `cwd`
-            let exitCode = try await ContainerComposeCore.streamCommand("container", args: ["run"] + runCommandArgs, cwd: cwd, onStdout: handleOutput, onStderr: handleOutput)
-
-            // If this task was cancelled while waiting, clean up the container
-            if Task.isCancelled {
-                let _ = try? await ContainerComposeCore.streamCommand("container", args: ["stop", containerName], cwd: cwd, onStdout: { _ in }, onStderr: { _ in })
-                throw CancellationError()
-            }
-
-            return exitCode
+      // Start container and capture result with PID for peer verification
+      let cwd = self.cwd // Capture before Task
+      let containerTask: Task<StreamCommandResult, Error> = Task {
+        @Sendable
+        func handleOutput(_ output: String) {
+          print("\(serviceName): \(output)")
         }
 
-        // Wait for container to start and validate it succeeded
-        do {
-            let exitCode = try await containerTask.value
-            guard exitCode == 0 else {
-                throw ContainerRunError("Container run failed with exit code \(exitCode)")
-            }
-            try await waitUntilContainerIsRunning(containerName)
-            try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
-        } catch {
-            print("Error starting service \(serviceName): \(error)")
-            throw error
+        print("\nStarting service: \(serviceName)")
+        print("Starting \(serviceName)")
+        print("----------------------------------------\n")
+        // Use streamCommandWithPID to capture process identifier for Phase 5 verification
+        let result = try await ContainerComposeCore.streamCommandWithPID("container", args: ["run"] + runCommandArgs, cwd: cwd, onStdout: handleOutput, onStderr: handleOutput)
+
+        // If this task was cancelled while waiting, clean up the container
+        if Task.isCancelled {
+          let _ = try? await ContainerComposeCore.streamCommand("container", args: ["stop", containerName], cwd: cwd, onStdout: { _ in }, onStderr: { _ in })
+          throw CancellationError()
         }
+
+        return result
+      }
+
+      // Wait for container to start and validate it succeeded
+      do {
+        let commandResult = try await containerTask.value
+        guard commandResult.exitCode == 0 else {
+          throw ContainerRunError("Container run failed with exit code \(commandResult.exitCode)")
+        }
+        // Capture PID and register with RelayManager for CID/PID verification
+        let containerPID = commandResult.processIdentifier
+        await RelayManager.shared.registerTargetPID(containerPID, forService: serviceName)
+        try await waitUntilContainerIsRunning(containerName)
+        try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
+      } catch {
+        print("Error starting service \(serviceName): \(error)")
+        throw error
+      }
     }
 
-    /// Configuration for retry behavior in pullImage.
+/// Configuration for retry behavior in pullImage.
     private struct PullRetryConfig {
         let maxRetries: Int
         let baseDelay: TimeInterval
