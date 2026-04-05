@@ -48,8 +48,11 @@ private let SUNPATH_MAX = 104
 /// - This relay bridges vsock connections to Unix sockets for container communication
 final actor VsockRelay: RelayProtocol {
     let transportType: RelayTransport
-    private(set) var isRunning = false
-    private(set) var activeConnectionCount = 0
+    private var isRunningValue = false
+    private var activeConnectionCountValue = 0
+    
+    func isRunning() async -> Bool { isRunningValue }
+    func activeConnectionCount() async -> Int { activeConnectionCountValue }
 
     private let cid: UInt32
     private let port: UInt32
@@ -91,11 +94,11 @@ final actor VsockRelay: RelayProtocol {
         logger.info("Initialized vsock relay: CID \(cid), Port \(port) → UNIX:\(unixSocketPath)")
     }
 
-    /// Start listening for vsock connections
-    func start() async throws {
-        guard !isRunning else {
-            throw RelayError.alreadyRunning("vsock-\(port)")
-        }
+/// Start listening for vsock connections
+func start() async throws {
+    guard !isRunningValue else {
+        throw RelayError.alreadyRunning("vsock-\(port)")
+    }
 
         // Create vsock socket
         let sock = socket(AF_VSOCK, SOCK_STREAM, 0)
@@ -129,8 +132,8 @@ final actor VsockRelay: RelayProtocol {
             throw VsockError.deviceUnavailable("Failed to listen on vsock socket: \(errno)")
         }
 
-        self.listenSocket = sock
-        self.isRunning = true
+self.listenSocket = sock
+self.isRunningValue = true
 
         logger.info("Vsock relay started on port \(self.port)")
 
@@ -146,9 +149,9 @@ final actor VsockRelay: RelayProtocol {
         }
     }
 
-    /// Stop the relay and clean up resources
-    func stop() async {
-        guard isRunning else { return }
+/// Stop the relay and clean up resources
+func stop() async {
+    guard isRunningValue else { return }
 
         logger.info("Stopping vsock relay on port \(port)")
 
@@ -166,10 +169,10 @@ final actor VsockRelay: RelayProtocol {
         for connection in activeConnections {
             await connection.close()
         }
-        activeConnections.removeAll()
-        activeConnectionCount = 0
+activeConnections.removeAll()
+activeConnectionCountValue = 0
 
-        isRunning = false
+isRunningValue = false
 
         await eventLog.record(.relayStopped(id: "vsock-\(port)"))
         logger.info("Vsock relay stopped")
@@ -226,8 +229,8 @@ final actor VsockRelay: RelayProtocol {
                 eventLog: eventLog
             )
 
-            activeConnections.insert(connection)
-            activeConnectionCount = activeConnections.count
+activeConnections.insert(connection)
+activeConnectionCountValue = activeConnections.count
 
             await eventLog.record(.connectionEstablished(
                 relayId: "vsock-\(port)",
@@ -246,9 +249,9 @@ final actor VsockRelay: RelayProtocol {
         }
     }
 
-    private func removeConnection(_ connection: VsockConnection) async {
-        activeConnections.remove(connection)
-        activeConnectionCount = activeConnections.count
+private func removeConnection(_ connection: VsockConnection) async {
+    activeConnections.remove(connection)
+    activeConnectionCountValue = activeConnections.count
 
         await eventLog.record(.connectionClosed(
             relayId: "vsock-\(port)",
