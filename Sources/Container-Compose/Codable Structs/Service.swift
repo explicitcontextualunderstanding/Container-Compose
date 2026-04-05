@@ -68,33 +68,26 @@ public enum DependsOnCondition: String, Codable, Hashable {
     case service_completed_successfully
 }
 
-/// Transport type for relay connections (vsock, unix, tcp)
-public enum RelayTransport: String, Codable, Hashable {
-    case vsock
-    case unix
-    case tcp
-}
-
 /// Relay configuration for service-to-service communication
 /// Enables declarative routing in compose files (Phase 5)
 public struct ServiceRelay: Codable, Hashable {
     /// Transport protocol for the relay
-    public let transport: RelayTransport
-
+    public let transport: RelayTransport.TransportType
+    
     /// VSOCK Context ID (for vsock transport only)
     public let cid: UInt32?
-
+    
     /// Target service name to route to
     public let target: String?
-
+    
     /// Port number (for vsock/tcp transports)
     public let port: UInt32?
-
+    
     /// Unix socket path (for unix transport)
     public let socket: String?
-
+    
     public init(
-        transport: RelayTransport,
+        transport: RelayTransport.TransportType,
         cid: UInt32? = nil,
         target: String? = nil,
         port: UInt32? = nil,
