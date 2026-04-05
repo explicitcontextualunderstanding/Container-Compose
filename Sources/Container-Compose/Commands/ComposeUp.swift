@@ -28,6 +28,7 @@ import ContainerAPIClient
 import ContainerCommands
 import ContainerizationExtras
 import Foundation
+import Network
 @preconcurrency import Rainbow
 import Yams
 
@@ -153,7 +154,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
   // Networks created by this compose run, for cleanup during compose down
   private var createdNetworks: [String] = []
 
-    private static let availableContainerConsoleColors: Set<NamedColor> = [
+  private static let availableContainerConsoleColors: Set<NamedColor> = [
         .blue, .cyan, .magenta, .lightBlack, .lightBlue, .lightCyan, .lightYellow, .yellow, .lightGreen, .green,
     ]
 
@@ -300,10 +301,17 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
                 )
                 print("Service '\(serviceName)' completed successfully.")
             }
-        }
-        }
+    }
+  }
 
-// Recovery summary: if any services were already running, emit a prominent banner
+  // MARK: - Socket Relay Management
+
+  // Start socket relays for services with publish_socket configuration
+  print("\n--- Starting Socket Relays ---")
+  let socketRelays = await startSocketRelays(for: services)
+  print("--- Socket Relays Started ---\n")
+
+  // Recovery summary: if any services were already running, emit a prominent banner
         // so the operator knows the system detected a crash-recovery scenario.
         if !externallyPresentServices.isEmpty {
             print("\n═══════════════════════════════════════════════════════")
@@ -315,28 +323,139 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             print("═══════════════════════════════════════════════════════\n")
         }
 
-        // Write state file for compose down to use
-        let state = ComposeDown.ComposeState(
-            containers: services.map { $0.service.container_name ?? "\(projectName ?? "")-\($0.serviceName)" },
-            networks: createdNetworks
-        )
-        let statePath = ComposeDown.stateFilePath(cwd: cwd)
-        ComposeDown.writeStateFile(statePath, state: state)
-        print("Info: State file written with \(state.containers.count) container(s) and \(state.networks.count) network(s).")
+  // Write state file for compose down to use
+  let state = ComposeDown.ComposeState(
+    containers: services.map { $0.service.container_name ?? "\(projectName ?? "")-\($0.serviceName)" },
+    networks: createdNetworks,
+    socketRelays: socketRelays
+  )
+  let statePath = ComposeDown.stateFilePath(cwd: cwd)
+  ComposeDown.writeStateFile(statePath, state: state)
+  print("Info: State file written with \(state.containers.count) container(s), \(state.networks.count) network(s), and \(state.socketRelays.count) socket relay(s).")
 
         if !detach {
             await waitForever()
         }
     }
 
-    func waitForever() async -> Never {
-        for await _ in AsyncStream<Void>(unfolding: {}) {
-            // This will never run
-        }
-        fatalError("unreachable")
+  func waitForever() async -> Never {
+    for await _ in AsyncStream<Void>(unfolding: {}) {
+      // This will never run
+    }
+    fatalError("unreachable")
+  }
+
+  // MARK: - Socket Relay Functions
+
+  /// Start socket relays for services with publish_socket configuration
+  private func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
+    // Check if any services need socket relays
+    let servicesWithSockets = services.filter { $0.service.publish_socket != nil }
+    guard !servicesWithSockets.isEmpty else {
+      print("Info: No socket relays configured")
+      return []
     }
 
-    private func getIPForContainer(_ containerName: String) async throws -> String? {
+    // Initialize relay manager
+    let eventLog = RelayEventLog()
+    let relayManager = RelayManager(eventLog: eventLog)
+    var socketRelays: [ComposeDown.SocketRelayState] = []
+
+    // Start relays for each service
+    for (serviceName, service) in servicesWithSockets {
+      guard let socketConfig = service.publish_socket else { continue }
+
+      // Parse publish_socket config: "containerPath:hostPath" or just "containerPath"
+      let parts = socketConfig.split(separator: ":", omittingEmptySubsequences: false)
+      let hostSocketPath: String
+
+      if parts.count >= 2 {
+        // Format: "containerPath:hostPath"
+        hostSocketPath = String(parts[1])
+      } else {
+        // Format: just "containerPath" - use default host path
+        hostSocketPath = "/tmp/\(projectName ?? "compose")-\(serviceName).sock"
+      }
+
+      // Get TCP port from service.ports (use first port mapping)
+      let tcpPort: UInt16
+      if let firstPort = service.ports?.first,
+         let portRange = firstPort.range(of: ":"),
+         let portNum = UInt16(firstPort[..<portRange.lowerBound]) {
+        tcpPort = portNum
+      } else {
+        // Generate ephemeral port
+        tcpPort = await findAvailablePort()
+      }
+
+      // Create relay configuration
+      let relayId = "\(projectName ?? "")-\(serviceName)"
+      let config = RelayManager.RelayConfiguration(
+        id: relayId,
+        tcpPort: tcpPort,
+        unixSocketPath: hostSocketPath,
+        description: "Socket relay for \(serviceName)"
+      )
+
+      do {
+        print("Starting socket relay for \(serviceName): TCP:\(tcpPort) → \(hostSocketPath)")
+        try await relayManager.startRelay(config)
+
+        // Track the relay for state file
+        let relayState = ComposeDown.SocketRelayState(
+          id: relayId,
+          tcpPort: tcpPort,
+          unixSocketPath: hostSocketPath
+        )
+        socketRelays.append(relayState)
+
+        print("✓ Socket relay started: \(relayId)")
+      } catch {
+        print("⚠️ Failed to start socket relay for \(serviceName): \(error)")
+      }
+    }
+
+    return socketRelays
+  }
+
+  /// Find an available TCP port (ephemeral)
+  private func findAvailablePort() async -> UInt16 {
+    // Create a temporary socket to find an available port
+    let socket = socket(AF_INET, SOCK_STREAM, 0)
+    defer { Darwin.close(socket) }
+
+    var addr = sockaddr_in()
+    addr.sin_family = sa_family_t(AF_INET)
+    addr.sin_addr.s_addr = INADDR_ANY.bigEndian
+    addr.sin_port = 0 // Let system assign port
+
+    let bindResult = withUnsafePointer(to: &addr) { ptr in
+      ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { addrPtr in
+        Darwin.bind(socket, addrPtr, socklen_t(MemoryLayout<sockaddr_in>.size))
+      }
+    }
+
+    guard bindResult == 0 else {
+      // Fallback to random port in high range
+      return UInt16.random(in: 30000...65000)
+    }
+
+    var addrLen = socklen_t(MemoryLayout<sockaddr_in>.size)
+    var assignedAddr = sockaddr_in()
+    let getResult = withUnsafeMutablePointer(to: &assignedAddr) { ptr in
+      ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { addrPtr in
+        getsockname(socket, addrPtr, &addrLen)
+      }
+    }
+
+    guard getResult == 0 else {
+      return UInt16.random(in: 30000...65000)
+    }
+
+    return assignedAddr.sin_port.bigEndian
+  }
+
+  private func getIPForContainer(_ containerName: String) async throws -> String? {
         let container = try await ClientContainer.get(id: containerName)
         let ip = container.networks.compactMap { $0.ipv4Address.address.description }.first
 
