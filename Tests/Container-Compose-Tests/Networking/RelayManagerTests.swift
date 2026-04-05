@@ -101,11 +101,11 @@ final class MockStream: Streamable, @unchecked Sendable {
             return
         }
 
-        if receiveQueue.isEmpty {
-            receiveCompletionHandlers.append(completion)
-            lock.unlock()
-            return
-        }
+if receiveQueue.isEmpty {
+        completion(nil, nil, true, nil)
+        lock.unlock()
+        return
+    }
 
         let data = receiveQueue.removeFirst()
         lock.unlock()
