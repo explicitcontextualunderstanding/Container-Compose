@@ -490,10 +490,43 @@ final class RelayPerformanceTests: XCTestCase {
 @available(macOS 12.0, *)
 final class NWConnectionWrapperTests: XCTestCase {
 
-    func testWrapperConformsToStreamable() {
-        let connection = NWConnection(to: .unix(path: "/tmp/test.sock"), using: .tcp)
-        let wrapper = NWConnectionWrapper(connection: connection)
+  func testWrapperConformsToStreamable() {
+    let connection = NWConnection(to: .unix(path: "/tmp/test.sock"), using: .tcp)
+    let wrapper = NWConnectionWrapper(connection: connection)
 
-        XCTAssertTrue(wrapper is Streamable, "NWConnectionWrapper should conform to Streamable")
-    }
+    XCTAssertTrue(wrapper is Streamable, "NWConnectionWrapper should conform to Streamable")
+  }
+}
+
+// MARK: - RelayConstants Tests
+
+@available(macOS 12.0, *)
+final class RelayConstantsTests: XCTestCase {
+
+  func testSocketPathSanitization() {
+    // Test that paths with dangerous characters are sanitized
+    let path1 = RelayConstants.socketPath(for: "service/db:main")
+    let filename1 = path1.lastPathComponent
+    XCTAssertTrue(filename1.contains("service-db-main"), "Path should sanitize / and : to -, got: \(filename1)")
+
+    // Test with project prefix
+    let path2 = RelayConstants.socketPath(for: "my_service", project: "my-project")
+    let filename2 = path2.lastPathComponent
+    XCTAssertEqual(filename2, "my-project-my_service.sock", "Should include project prefix, got: \(filename2)")
+  }
+
+  func testSocketPathExtension() {
+    let path = RelayConstants.socketPath(for: "db")
+    XCTAssertTrue(path.path.hasSuffix(".sock"), "Socket path should have .sock extension")
+  }
+
+  func testDirectoryPermissions() {
+    // Verify directory permissions constant
+    XCTAssertEqual(RelayConstants.directoryPermissions, 0o700, "Directory should have 0700 permissions")
+  }
+
+  func testSocketPermissions() {
+    // Verify socket permissions constant
+    XCTAssertEqual(RelayConstants.socketPermissions, 0o600, "Socket should have 0600 permissions")
+  }
 }
