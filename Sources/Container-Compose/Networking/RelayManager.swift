@@ -563,17 +563,19 @@ actor BridgeConnection: Hashable {
 
 /// Event log for debugging and diagnostics
 actor RelayEventLog {
-  enum Event {
-    case relayStarted(id: String, port: UInt16, path: String)
-    case relayStopped(id: String)
-    case connectionEstablished(relayId: String, connectionId: UUID)
-    case connectionClosed(relayId: String, connectionId: UUID)
-    /// Security event: connection rejected due to PID mismatch (Phase 5)
-    case connectionRejected(relayId: String, attemptedPID: pid_t, expectedPID: pid_t?)
-    /// Security event: peer verification failed or unavailable
-    case peerVerificationFailed(relayId: String, reason: String)
-    case error(RelayError)
-  }
+    enum Event {
+        case relayStarted(id: String, port: UInt16, path: String)
+        case relayStopped(id: String)
+        case connectionEstablished(relayId: String, connectionId: UUID)
+        case connectionClosed(relayId: String, connectionId: UUID)
+        /// Security event: connection rejected due to PID mismatch (Phase 5)
+        case connectionRejected(relayId: String, attemptedPID: pid_t, expectedPID: pid_t?)
+        /// Security event: connection authorized after PID verification (Phase 5)
+        case connectionAuthorized(relayId: String, pid: pid_t)
+        /// Security event: peer verification failed or unavailable
+        case peerVerificationFailed(relayId: String, reason: String)
+        case error(RelayError)
+    }
     
     private var events: [Event] = []
     
