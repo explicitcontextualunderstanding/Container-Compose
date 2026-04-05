@@ -314,25 +314,146 @@ public func streamCommand(
 }
 
 public func runCommand(
-    _ command: String,
-    args: [String] = [],
-    cwd: String,
-    timeout: TimeInterval = 300
+  _ command: String,
+  args: [String] = [],
+  cwd: String,
+  timeout: TimeInterval = 300
 ) async throws {
-    let exitCode = try await streamCommand(
-        command,
-        args: args,
-        cwd: cwd,
-        timeout: timeout,
-        onStdout: { _ in },
-        onStderr: { _ in }
+  let exitCode = try await streamCommand(
+    command,
+    args: args,
+    cwd: cwd,
+    timeout: timeout,
+    onStdout: { _ in },
+    onStderr: { _ in }
+  )
+
+  if exitCode != 0 {
+    throw TerminalError.commandFailed(
+      "\(command) \(args.joined(separator: " ")): exit \(exitCode)"
     )
+  }
+}
+
+/// Result of a streamed command including PID for peer verification (Phase 5)
+public struct StreamCommandResult: Sendable {
+  public let exitCode: Int32
+  public let processIdentifier: pid_t
+  
+  public init(exitCode: Int32, processIdentifier: pid_t) {
+    self.exitCode = exitCode
+    self.processIdentifier = processIdentifier
+  }
+}
+
+/// Executes a command and streams its output, returning both exit code and PID.
+/// - Parameters:
+///   - command: The command to execute.
+///   - args: The arguments to pass to the command.
+///   - cwd: The current working directory.
+///   - timeout: Maximum time to wait for command completion (default: 300 seconds).
+///   - onStdout: Callback for standard output.
+///   - onStderr: Callback for standard error.
+/// - Returns: StreamCommandResult containing exit code and process identifier.
+/// - Throws: Error if process fails to start, or CommandTimeoutError if timeout exceeded.
+@discardableResult
+public func streamCommandWithPID(
+  _ command: String,
+  args: [String] = [],
+  cwd: String,
+  timeout: TimeInterval = 300,
+  onStdout: @escaping (@Sendable (String) -> Void),
+  onStderr: @escaping (@Sendable (String) -> Void)
+) async throws -> StreamCommandResult {
+  try await withCheckedThrowingContinuation { continuation in
+    let process = Process()
+    let stdoutPipe = Pipe()
+    let stderrPipe = Pipe()
     
-    if exitCode != 0 {
-        throw TerminalError.commandFailed(
-            "\(command) \(args.joined(separator: " ")): exit \(exitCode)"
-        )
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = [command] + args
+    process.currentDirectoryURL = URL(fileURLWithPath: cwd)
+    process.standardOutput = stdoutPipe
+    process.standardError = stderrPipe
+    
+    // Preserve original PATH while adding common locations
+    let originalPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
+    let additionalPaths = "/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin"
+    process.environment = ProcessInfo.processInfo.environment.merging([
+      "PATH": originalPath.isEmpty ? additionalPaths : "\(additionalPaths):\(originalPath)"
+    ]) { _, new in new }
+    
+    let stdoutHandle = stdoutPipe.fileHandleForReading
+    let stderrHandle = stderrPipe.fileHandleForReading
+    
+    // Use async task for timeout instead of Timer to avoid Sendable issues
+    let timeoutTask = Task {
+      try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+      if process.isRunning {
+        process.terminate()
+      }
+      // After timeout, throw - we'll check below
+      throw CommandTimeoutError(command: command, timeout: timeout)
     }
+    
+    stdoutHandle.readabilityHandler = { handle in
+      let data = handle.availableData
+      guard !data.isEmpty else { return }
+      if let string = String(data: data, encoding: .utf8) {
+        onStdout(string)
+      }
+    }
+    
+    stderrHandle.readabilityHandler = { handle in
+      let data = handle.availableData
+      guard !data.isEmpty else { return }
+      if let string = String(data: data, encoding: .utf8) {
+        onStderr(string)
+      }
+    }
+    
+    // Actor to safely share PID between concurrent contexts
+    actor PIDStore {
+      var pid: pid_t = 0
+      func setPID(_ newPID: pid_t) { pid = newPID }
+      func getPID() -> pid_t { pid }
+    }
+    let pidStore = PIDStore()
+    
+    process.terminationHandler = { proc in
+      stdoutHandle.readabilityHandler = nil
+      stderrHandle.readabilityHandler = nil
+      
+      // Ensure handles are closed
+      try? stdoutHandle.close()
+      try? stderrHandle.close()
+      
+      // Cancel timeout task since process completed
+      timeoutTask.cancel()
+      
+      // Get PID from the terminated process
+      let finalPID = proc.processIdentifier
+      
+      Task {
+        await pidStore.setPID(finalPID)
+        let result = StreamCommandResult(
+          exitCode: proc.terminationStatus,
+          processIdentifier: finalPID
+        )
+        continuation.resume(returning: result)
+      }
+    }
+    
+    do {
+      try process.run()
+    } catch {
+      timeoutTask.cancel()
+      stdoutHandle.readabilityHandler = nil
+      stderrHandle.readabilityHandler = nil
+      try? stdoutHandle.close()
+      continuation.resume(throwing: error)
+    }
+  }
 }
 
 /// Executes an async operation with a timeout.
