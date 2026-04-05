@@ -10,19 +10,31 @@ public enum RelayTransport: Hashable, Sendable, Codable {
     case vsock(cid: UInt32, port: UInt32)
     case tcp(host: String, port: UInt16)
     
-    /// Simple transport type for YAML configuration (no associated values)
+/// Simple transport type for YAML configuration (no associated values)
     public enum TransportType: String, Codable, Hashable {
         case vsock
         case unix
         case tcp
     }
-    
+
     /// Get the simple transport type
     public var transportType: TransportType {
         switch self {
         case .unixSocket: return .unix
         case .vsock: return .vsock
         case .tcp: return .tcp
+        }
+    }
+
+    /// Human-readable description of the transport
+    public var description: String {
+        switch self {
+        case .unixSocket(let path):
+            return "unix:\(path)"
+        case .vsock(let cid, let port):
+            return "vsock:\(cid):\(port)"
+        case .tcp(let host, let port):
+            return "tcp:\(host):\(port)"
         }
     }
     
