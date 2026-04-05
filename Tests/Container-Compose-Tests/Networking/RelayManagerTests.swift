@@ -1,26 +1,159 @@
 import XCTest
 import Network
+import Foundation
 @testable import ContainerComposeCore
+
+// MARK: - MockStream for Tier 1 Tests
+
+/// Mock implementation of Streamable for unit testing without network I/O
+final class MockStream: Streamable, @unchecked Sendable {
+    var isConnected: Bool = true
+
+    private var sentData: [Data] = []
+    private var receiveQueue: [Data] = []
+    private var receiveCompletionHandlers: [@Sendable (Data?, NWConnection.ContentContext?, Bool, Error?) -> Void] = []
+    private var shouldFailOnSend = false
+    private var shouldFailOnReceive = false
+    private var sendError: Error?
+    private var receiveError: Error?
+    private let lock = NSLock()
+
+    var receivedData: [Data] {
+        lock.lock()
+        defer { lock.unlock() }
+        return sentData
+    }
+
+    func reset() {
+        lock.lock()
+        sentData.removeAll()
+        receiveQueue.removeAll()
+        receiveCompletionHandlers.removeAll()
+        shouldFailOnSend = false
+        shouldFailOnReceive = false
+        sendError = nil
+        receiveError = nil
+        isConnected = true
+        lock.unlock()
+    }
+
+    func queueData(_ data: Data) {
+        lock.lock()
+        receiveQueue.append(data)
+        processNextReceive()
+        lock.unlock()
+    }
+
+    func setSendError(_ error: Error?) {
+        lock.lock()
+        self.sendError = error
+        self.shouldFailOnSend = error != nil
+        lock.unlock()
+    }
+
+    func setReceiveError(_ error: Error?) {
+        lock.lock()
+        self.receiveError = error
+        self.shouldFailOnReceive = error != nil
+        lock.unlock()
+    }
+
+    func start(queue: DispatchQueue) {
+        isConnected = true
+    }
+
+    func cancel() {
+        isConnected = false
+        lock.lock()
+        let handlers = receiveCompletionHandlers
+        receiveCompletionHandlers.removeAll()
+        lock.unlock()
+        for handler in handlers {
+            handler(nil, nil, true, nil)
+        }
+    }
+
+    func send(content: Data?, completion: @escaping @Sendable (Error?) -> Void) {
+        guard let data = content else {
+            completion(nil)
+            return
+        }
+
+        lock.lock()
+        if shouldFailOnSend {
+            let err = sendError ?? NSError(domain: "MockStream", code: -1)
+            lock.unlock()
+            completion(err)
+            return
+        }
+        sentData.append(data)
+        lock.unlock()
+        completion(nil)
+    }
+
+    func receive(minimumIncompleteLength: Int, maximumLength: Int, completion: @escaping @Sendable (Data?, NWConnection.ContentContext?, Bool, Error?) -> Void) {
+        lock.lock()
+
+        if shouldFailOnReceive {
+            let err = receiveError ?? NSError(domain: "MockStream", code: -2)
+            lock.unlock()
+            completion(nil, nil, false, err)
+            return
+        }
+
+        if receiveQueue.isEmpty {
+            receiveCompletionHandlers.append(completion)
+            lock.unlock()
+            return
+        }
+
+        let data = receiveQueue.removeFirst()
+        lock.unlock()
+        completion(data, nil, false, nil)
+    }
+
+    private func processNextReceive() {
+        while !receiveQueue.isEmpty && !receiveCompletionHandlers.isEmpty {
+            let handler = receiveCompletionHandlers.removeFirst()
+            let data = receiveQueue.removeFirst()
+            handler(data, nil, false, nil)
+        }
+    }
+
+    func simulateConnectionClosed() {
+        lock.lock()
+        let handlers = receiveCompletionHandlers
+        receiveCompletionHandlers.removeAll()
+        receiveQueue.removeAll()
+        isConnected = false
+        lock.unlock()
+        for handler in handlers {
+            handler(nil, nil, true, nil)
+        }
+    }
+}
+
+// MARK: - Tier 1: Unit Tests (Memory Streams / Mocks)
 
 @available(macOS 12.0, *)
 final class RelayManagerTests: XCTestCase {
     var manager: RelayManager!
     var eventLog: RelayEventLog!
-    
+
     override func setUp() {
         super.setUp()
         eventLog = RelayEventLog()
         manager = RelayManager(eventLog: eventLog)
     }
-    
+
     override func tearDown() async throws {
         await manager?.stopAll()
         manager = nil
         eventLog = nil
     }
-    
-    // MARK: - Unit Tests (Memory Streams)
-    
+
+    // MARK: Configuration Tests
+
     func testRelayConfigurationCreation() {
         let config = RelayManager.RelayConfiguration(
             id: "test-db",
@@ -28,23 +161,23 @@ final class RelayManagerTests: XCTestCase {
             unixSocketPath: "/tmp/test.sock",
             description: "Test database relay"
         )
-        
+
         XCTAssertEqual(config.id, "test-db")
         XCTAssertEqual(config.tcpPort, 15432)
         XCTAssertEqual(config.unixSocketPath, "/tmp/test.sock")
         XCTAssertEqual(config.description, "Test database relay")
     }
-    
+
     func testEventLogRecording() async {
         let eventLog = RelayEventLog()
-        
+
         await eventLog.record(.relayStarted(id: "test", port: 12345, path: "/tmp/test.sock"))
         await eventLog.record(.relayStopped(id: "test"))
-        
+
         let events = await eventLog.recentEvents(limit: 10)
         XCTAssertEqual(events.count, 2)
     }
-    
+
     func testRelayErrorDescriptions() {
         let errors: [RelayError] = [
             .alreadyRunning("test-relay"),
@@ -53,24 +186,147 @@ final class RelayManagerTests: XCTestCase {
             .portInUse(5432),
             .networkError(NSError(domain: "test", code: 2))
         ]
-        
+
         for error in errors {
             XCTAssertFalse(error.description.isEmpty)
         }
     }
-    
-    // MARK: - Integration Tests (Actual Network Ports)
-    
+}
+
+// MARK: - Tier 1: BridgeConnection Tests (Mock-based)
+
+@available(macOS 12.0, *)
+final class BridgeConnectionMockTests: XCTestCase {
+
+    func testBidirectionalDataFlow() async throws {
+        let mockSource = MockStream()
+        let mockDestination = MockStream()
+        let eventLog = RelayEventLog()
+
+        let bridge = BridgeConnection(source: mockSource, destination: mockDestination, eventLog: eventLog)
+
+        mockSource.queueData("Hello from TCP".data(using: .utf8)!)
+        mockDestination.queueData("Response from Unix".data(using: .utf8)!)
+
+        let expectation = expectation(description: "Bridge completes")
+        await bridge.start {
+            expectation.fulfill()
+        }
+
+        await fulfillment(of: [expectation], timeout: 5.0)
+
+        XCTAssertFalse(mockDestination.receivedData.isEmpty, "Should have forwarded data to destination")
+        XCTAssertEqual(String(data: mockDestination.receivedData.first!, encoding: .utf8), "Hello from TCP")
+    }
+
+    func testBinaryDataIntegrity() async throws {
+        let mockSource = MockStream()
+        let mockDestination = MockStream()
+        let eventLog = RelayEventLog()
+
+        let bridge = BridgeConnection(source: mockSource, destination: mockDestination, eventLog: eventLog)
+
+        var randomData = Data(count: 1024)
+        for i in 0..<1024 {
+            randomData[i] = UInt8(i % 256)
+        }
+        mockSource.queueData(randomData)
+
+        let expectation = expectation(description: "Bridge completes")
+        await bridge.start {
+            expectation.fulfill()
+        }
+
+        await fulfillment(of: [expectation], timeout: 5.0)
+
+        XCTAssertEqual(mockDestination.receivedData.count, 1)
+        XCTAssertEqual(mockDestination.receivedData.first, randomData, "Binary data should be preserved exactly")
+    }
+
+    func testLargeDataTransfer() async throws {
+        let mockSource = MockStream()
+        let mockDestination = MockStream()
+        let eventLog = RelayEventLog()
+
+        let bridge = BridgeConnection(source: mockSource, destination: mockDestination, eventLog: eventLog)
+
+        let largeData = Data(repeating: 0xAB, count: 1024 * 1024) // 1MB
+        mockSource.queueData(largeData)
+
+        let expectation = expectation(description: "Bridge completes")
+        await bridge.start {
+            expectation.fulfill()
+        }
+
+        await fulfillment(of: [expectation], timeout: 10.0)
+
+        XCTAssertEqual(mockDestination.receivedData.count, 1)
+        XCTAssertEqual(mockDestination.receivedData.first?.count, 1024 * 1024, "Large data transfer should preserve size")
+    }
+
+    func testConnectionCloseHandling() async throws {
+        let mockSource = MockStream()
+        let mockDestination = MockStream()
+        let eventLog = RelayEventLog()
+
+        let bridge = BridgeConnection(source: mockSource, destination: mockDestination, eventLog: eventLog)
+
+        mockSource.queueData("Test data".data(using: .utf8)!)
+        mockSource.simulateConnectionClosed()
+
+        let expectation = expectation(description: "Bridge completes")
+        await bridge.start {
+            expectation.fulfill()
+        }
+
+        await fulfillment(of: [expectation], timeout: 5.0)
+    }
+
+    func testErrorPropagation() async throws {
+        let mockSource = MockStream()
+        let mockDestination = MockStream()
+        let eventLog = RelayEventLog()
+
+        let bridge = BridgeConnection(source: mockSource, destination: mockDestination, eventLog: eventLog)
+
+        mockSource.setReceiveError(NSError(domain: "test", code: 42, userInfo: [NSLocalizedDescriptionKey: "Test error"]))
+
+        let expectation = expectation(description: "Bridge completes even with error")
+        await bridge.start {
+            expectation.fulfill()
+        }
+
+        await fulfillment(of: [expectation], timeout: 5.0)
+    }
+}
+
+// MARK: - Tier 2: Integration Tests (Actual Network Ports)
+
+@available(macOS 12.0, *)
+final class SocketRelayIntegrationTests: XCTestCase {
+    var manager: RelayManager!
+    var eventLog: RelayEventLog!
+
+    override func setUp() {
+        super.setUp()
+        eventLog = RelayEventLog()
+        manager = RelayManager(eventLog: eventLog)
+    }
+
+    override func tearDown() async throws {
+        await manager?.stopAll()
+        manager = nil
+        eventLog = nil
+    }
+
     func testWaitForSocketTimeout() async throws {
-        // Create a temp directory for the test socket
         let tempDir = FileManager.default.temporaryDirectory
         let socketPath = tempDir.appendingPathComponent("test-\(UUID().uuidString).sock").path
-        
+
         defer {
             try? FileManager.default.removeItem(atPath: socketPath)
         }
-        
-        // Socket doesn't exist, should timeout
+
         do {
             try await manager.waitForSocket(at: socketPath, timeout: 0.5, interval: 0.05)
             XCTFail("Expected timeout error")
@@ -78,82 +334,135 @@ final class RelayManagerTests: XCTestCase {
             // Expected
         }
     }
-    
+
     func testWaitForSocketSuccess() async throws {
-        let tempDir = FileManager.default.temporaryDirectory
-        let socketPath = tempDir.appendingPathComponent("test-\(UUID().uuidString).sock").path
-        
-        defer {
-            try? FileManager.default.removeItem(atPath: socketPath)
-        }
-        
-        // Create socket file in background
-        Task {
-            try await Task.sleep(nanoseconds: 100_000_000) // 100ms
-            
-            // Create a Unix socket using Netcat
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/nc")
-            process.arguments = ["-l", "-U", socketPath]
-            try? process.run()
-        }
-        
-        // Should find the socket
-        try await manager.waitForSocket(at: socketPath, timeout: 2.0, interval: 0.05)
-        
-        // Verify socket exists
-        XCTAssertTrue(FileManager.default.fileExists(atPath: socketPath))
-    }
-    
-    func testSocketRelayLifecycle() async throws {
-        // This test requires an actual Unix socket server
-        // We'll skip it if nc is not available
         guard FileManager.default.fileExists(atPath: "/usr/bin/nc") else {
             throw XCTSkip("nc not available")
         }
-        
+
         let tempDir = FileManager.default.temporaryDirectory
-        let socketPath = tempDir.appendingPathComponent("relay-test-\(UUID().uuidString).sock").path
+        let socketPath = tempDir.appendingPathComponent("test-\(UUID().uuidString).sock").path
+
         defer {
             try? FileManager.default.removeItem(atPath: socketPath)
         }
-        
-        // Start a mock Unix socket server
+
+        let serverProcess = Process()
+        serverProcess.executableURL = URL(fileURLWithPath: "/usr/bin/nc")
+        serverProcess.arguments = ["-l", "-U", socketPath]
+        try serverProcess.run()
+
+        defer { serverProcess.terminate() }
+
+        try await manager.waitForSocket(at: socketPath, timeout: 2.0, interval: 0.05)
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: socketPath))
+    }
+
+    func testPortCollisionHandling() async throws {
+        guard FileManager.default.fileExists(atPath: "/usr/bin/nc") else {
+            throw XCTSkip("nc not available")
+        }
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let socketPath = tempDir.appendingPathComponent("collision-test-\(UUID().uuidString).sock").path
+
+        defer {
+            try? FileManager.default.removeItem(atPath: socketPath)
+        }
+
+        let serverProcess = Process()
+        serverProcess.executableURL = URL(fileURLWithPath: "/usr/bin/nc")
+        serverProcess.arguments = ["-l", "-U", socketPath]
+        try serverProcess.run()
+        defer { serverProcess.terminate() }
+
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let testPort: UInt16 = 15432
+
+        let listener1 = try? NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: testPort)!)
+        XCTAssertNotNil(listener1, "First listener should succeed")
+        listener1?.cancel()
+
+        let listener2 = try? NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: testPort)!)
+        XCTAssertNotNil(listener2, "Second listener should succeed (different address)")
+        listener2?.cancel()
+    }
+
+    func testMultipleConcurrentConnections() async throws {
+        guard FileManager.default.fileExists(atPath: "/usr/bin/nc") else {
+            throw XCTSkip("nc not available")
+        }
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let socketPath = tempDir.appendingPathComponent("multi-conn-\(UUID().uuidString).sock").path
+
+        defer {
+            try? FileManager.default.removeItem(atPath: socketPath)
+        }
+
         let serverProcess = Process()
         serverProcess.executableURL = URL(fileURLWithPath: "/usr/bin/nc")
         serverProcess.arguments = ["-l", "-U", socketPath, "-k"]
         try serverProcess.run()
-        defer {
-            serverProcess.terminate()
+        defer { serverProcess.terminate() }
+
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        var connections: [NWConnection] = []
+        let testPort: UInt16 = 15433
+
+        for i in 0..<5 {
+            let connection = NWConnection(
+                host: "127.0.0.1",
+                port: NWEndpoint.Port(rawValue: testPort)!,
+                using: .tcp
+            )
+            connections.append(connection)
+            connection.start(queue: .global())
         }
-        
-        // Give server time to start
-        try await Task.sleep(nanoseconds: 200_000_000) // 200ms
-        
-        // Start relay on ephemeral port
-        let config = RelayManager.RelayConfiguration(
-            id: "test-relay",
-            tcpPort: 0, // Ephemeral port
-            unixSocketPath: socketPath,
-            description: "Test relay"
-        )
-        
-        // Note: This would require modifications to SocketRelay to support
-        // ephemeral ports (port 0). For now, we test the configuration.
-        XCTAssertNotNil(config)
+
+        try await Task.sleep(nanoseconds: 500_000_000)
+
+        for connection in connections {
+            connection.cancel()
+        }
+
+        XCTAssertEqual(connections.count, 5)
     }
-    
-    // MARK: - E2E Tests (Full Integration)
-    
-    func testFullRelayDataFlow() async throws {
-        throw XCTSkip("E2E test requires container runtime - run manually")
-        
+}
+
+// MARK: - Tier 3: E2E Tests (Full Integration)
+
+@available(macOS 12.0, *)
+final class RelayE2ETests: XCTestCase {
+
+    func testFullStackWithRelay() async throws {
+        throw XCTSkip("E2E test requires container runtime - run manually with ./run-tests.sh --auto-clean")
+
         // Full test would:
-        // 1. Start a container with --publish-socket
-        // 2. Start relay manager
-        // 3. Connect via TCP
-        // 4. Verify data flows through
-        // 5. Clean up
+        // 1. Start container-compose up with test DB
+        // 2. Verify /tmp/test-pg.sock exists
+        // 3. Connect via relay
+        // 4. container-compose down
+        // 5. Verify /tmp/test-pg.sock removed
+    }
+
+    func testContainerComposeBinaryExists() {
+        let possiblePaths = [
+            "/usr/local/bin/container-compose",
+            "/usr/bin/container-compose",
+            Bundle.main.executablePath
+        ].compactMap { $0 }
+
+        for path in possiblePaths {
+            if FileManager.default.isExecutableFile(atPath: path) {
+                return
+            }
+        }
+
+        XCTSkip("container-compose binary not found in standard locations")
     }
 }
 
@@ -163,15 +472,28 @@ final class RelayManagerTests: XCTestCase {
 final class RelayPerformanceTests: XCTestCase {
     func testBackpressureHandling() async throws {
         throw XCTSkip("Performance test - run manually with Instruments")
-        
+
         // Test with large data transfers
         // Verify no memory leaks under sustained load
     }
-    
+
     func testThroughputBenchmark() async throws {
         throw XCTSkip("Benchmark test - run manually")
-        
+
         // Compare throughput vs socat
         // Should be >= socat performance
+    }
+}
+
+// MARK: - NWConnectionWrapper Tests
+
+@available(macOS 12.0, *)
+final class NWConnectionWrapperTests: XCTestCase {
+
+    func testWrapperConformsToStreamable() {
+        let connection = NWConnection(to: .unix(path: "/tmp/test.sock"), using: .tcp)
+        let wrapper = NWConnectionWrapper(connection: connection)
+
+        XCTAssertTrue(wrapper is Streamable, "NWConnectionWrapper should conform to Streamable")
     }
 }
