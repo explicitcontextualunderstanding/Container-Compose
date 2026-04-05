@@ -2,6 +2,54 @@ import Foundation
 import Network
 import os.log
 
+// MARK: - Sandbox-Resilient Configuration
+
+/// Sandbox-resilient socket relay configuration
+/// Aligns with Apple's security philosophy for inter-process communication
+enum RelayConstants {
+  /// Relay root directory - sandbox-safe location, configurable via env var
+  /// Priority: 1) CONTAINER_COMPOSE_RELAY_ROOT env var, 2) ~/.container-compose/sockets
+  /// Using user-managed IPC over global /tmp/ which may be restricted in future macOS
+  static let relayRoot: URL = {
+    // Check for environment variable override
+    if let envPath = ProcessInfo.processInfo.environment["CONTAINER_COMPOSE_RELAY_ROOT"],
+       !envPath.isEmpty {
+      return URL(fileURLWithPath: envPath)
+    }
+    // Default to ~/.container-compose/sockets
+    let home = FileManager.default.homeDirectoryForCurrentUser
+    return home.appendingPathComponent(".container-compose/sockets")
+  }()
+
+    /// Socket file permissions - owner read/write only (0600)
+    /// Signals to macOS kernel that this is a private IPC channel
+    static let socketPermissions: UInt16 = 0o600
+
+    /// Relay root directory permissions - owner only (0700)
+    static let directoryPermissions: UInt16 = 0o700
+
+    /// Ensure relay root directory exists with proper permissions
+    static func ensureRelayRoot() throws {
+        let fm = FileManager.default
+
+        if !fm.fileExists(atPath: relayRoot.path) {
+            try fm.createDirectory(
+                at: relayRoot,
+                withIntermediateDirectories: true,
+                attributes: [.posixPermissions: directoryPermissions]
+            )
+        }
+    }
+
+    /// Generate a sandbox-safe socket path
+    static func socketPath(for id: String, project: String? = nil) -> URL {
+        let safeId = id.replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+        let filename = project != nil ? "\(project)-\(safeId).sock" : "\(safeId).sock"
+        return relayRoot.appendingPathComponent(filename)
+    }
+}
+
 // MARK: - Streamable Protocol (for testability)
 
 /// Protocol for abstracting network connections to enable testing with mocks
