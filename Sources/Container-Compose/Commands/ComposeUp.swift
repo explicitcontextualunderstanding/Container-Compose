@@ -347,13 +347,20 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
   // MARK: - Socket Relay Functions
 
-  /// Start socket relays for services with publish_socket configuration
-  private func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
+/// Start socket relays for services with publish_socket configuration
+private func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
     // Check if any services need socket relays
     let servicesWithSockets = services.filter { $0.service.publish_socket != nil }
     guard !servicesWithSockets.isEmpty else {
-      print("Info: No socket relays configured")
-      return []
+        print("Info: No socket relays configured")
+        return []
+    }
+
+    // Ensure sandbox-resilient relay root directory exists
+    do {
+        try RelayConstants.ensureRelayRoot()
+    } catch {
+        print("Warning: Could not create relay root directory: \(error)")
     }
 
     // Initialize relay manager
@@ -367,15 +374,15 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
       // Parse publish_socket config: "containerPath:hostPath" or just "containerPath"
       let parts = socketConfig.split(separator: ":", omittingEmptySubsequences: false)
-      let hostSocketPath: String
+let hostSocketPath: String
 
-      if parts.count >= 2 {
-        // Format: "containerPath:hostPath"
-        hostSocketPath = String(parts[1])
-      } else {
-        // Format: just "containerPath" - use default host path
-        hostSocketPath = "/tmp/\(projectName ?? "compose")-\(serviceName).sock"
-      }
+if parts.count >= 2 {
+    // Format: "containerPath:hostPath"
+    hostSocketPath = String(parts[1])
+} else {
+    // Format: just "containerPath" - use sandbox-resilient default path
+    hostSocketPath = RelayConstants.socketPath(for: serviceName, project: projectName).path
+}
 
       // Get TCP port from service.ports (use first port mapping)
       let tcpPort: UInt16

@@ -41,13 +41,20 @@ enum RelayConstants {
         }
     }
 
-    /// Generate a sandbox-safe socket path
-    static func socketPath(for id: String, project: String? = nil) -> URL {
-        let safeId = id.replacingOccurrences(of: "/", with: "-")
-            .replacingOccurrences(of: ":", with: "-")
-        let filename = project != nil ? "\(project)-\(safeId).sock" : "\(safeId).sock"
-        return relayRoot.appendingPathComponent(filename)
+  /// Generate a sandbox-safe socket path
+  static func socketPath(for id: String, project: String? = nil) -> URL {
+    let safeId = id.replacingOccurrences(of: "/", with: "-")
+      .replacingOccurrences(of: ":", with: "-")
+    let safeProject = project?.replacingOccurrences(of: "/", with: "-")
+      .replacingOccurrences(of: ":", with: "-")
+    let filename: String
+    if let proj = safeProject {
+      filename = "\(proj)-\(safeId).sock"
+    } else {
+      filename = "\(safeId).sock"
     }
+    return relayRoot.appendingPathComponent(filename)
+  }
 }
 
 // MARK: - Streamable Protocol (for testability)
