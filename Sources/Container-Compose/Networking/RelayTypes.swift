@@ -81,12 +81,12 @@ public enum RelayTransport: Hashable, Sendable, Codable {
 }
 
 /// Protocol for all relay implementations
-protocol RelayProtocol: AnyObject, Sendable {
+protocol RelayProtocol: Actor {
     var transportType: RelayTransport { get }
-    
-    func isRunning() async -> Bool
-    func activeConnectionCount() async -> Int
-    
+
+    var isRunning: Bool { get }
+    var activeConnectionCount: Int { get }
+
     func start() async throws
     func stop() async
 }

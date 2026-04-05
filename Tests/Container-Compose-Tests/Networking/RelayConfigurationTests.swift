@@ -95,23 +95,23 @@ final class RelayConfigurationTests: XCTestCase {
         XCTAssertEqual(hasher1.finalize(), hasher2.finalize())
     }
 
-    // MARK: - Transport Type Tests
+// MARK: - Transport Type Tests
 
-    func testRelayTransportRawValues() {
-        XCTAssertEqual(RelayTransport.vsock.rawValue, "vsock")
-        XCTAssertEqual(RelayTransport.unix.rawValue, "unix")
-        XCTAssertEqual(RelayTransport.tcp.rawValue, "tcp")
+func testRelayTransportRawValues() {
+    XCTAssertEqual(RelayTransport.TransportType.vsock.rawValue, "vsock")
+    XCTAssertEqual(RelayTransport.TransportType.unix.rawValue, "unix")
+    XCTAssertEqual(RelayTransport.TransportType.tcp.rawValue, "tcp")
+}
+
+func testRelayTransportCodable() throws {
+    let transports: [RelayTransport.TransportType] = [.vsock, .unix, .tcp]
+
+    for transport in transports {
+        let encoded = try JSONEncoder().encode(transport)
+        let decoded = try JSONDecoder().decode(RelayTransport.TransportType.self, from: encoded)
+        XCTAssertEqual(transport, decoded)
     }
-
-    func testRelayTransportCodable() throws {
-        let transports: [RelayTransport] = [.vsock, .unix, .tcp]
-
-        for transport in transports {
-            let encoded = try JSONEncoder().encode(transport)
-            let decoded = try JSONDecoder().decode(RelayTransport.self, from: encoded)
-            XCTAssertEqual(transport, decoded)
-        }
-    }
+}
 
     // MARK: - YAML Parsing Tests
 

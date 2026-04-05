@@ -48,11 +48,11 @@ private let SUNPATH_MAX = 104
 /// - This relay bridges vsock connections to Unix sockets for container communication
 final actor VsockRelay: RelayProtocol {
     let transportType: RelayTransport
+    var isRunning: Bool { isRunningValue }
+    var activeConnectionCount: Int { activeConnectionCountValue }
+
     private var isRunningValue = false
     private var activeConnectionCountValue = 0
-    
-    func isRunning() async -> Bool { isRunningValue }
-    func activeConnectionCount() async -> Int { activeConnectionCountValue }
 
     private let cid: UInt32
     private let port: UInt32
