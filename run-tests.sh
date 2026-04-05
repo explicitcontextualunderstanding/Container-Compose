@@ -200,29 +200,6 @@ echo "=========================================="
 echo "Container-Compose Test Runner"
 echo "=========================================="
 echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            should_clean=true
-        fi
-    fi
-
-    if [ "$should_clean" = true ]; then
-        local stopped=0 deleted=0
-        echo "$test_containers" | while read -r container_id; do
-            container stop "$container_id" 2>/dev/null && ((stopped++)) || true
-            container delete "$container_id" 2>/dev/null && ((deleted++)) || true
-        done
-        echo "✓ Cleaned up leftover test containers"
-        echo ""
-    else
-        echo "Skipping cleanup."
-        echo ""
-    fi
-}
-
-echo "=========================================="
-echo "Container-Compose Test Runner"
-echo "=========================================="
-echo ""
 
 # Neutralize conda environment contamination (shared with build-sign-install.sh)
 source "$SCRIPT_DIR/scripts/env-setup.sh"
