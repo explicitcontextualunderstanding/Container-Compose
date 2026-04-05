@@ -4,10 +4,71 @@ import Virtualization
 // MARK: - Relay Protocol and Types
 
 /// Transport types for relay connections
-enum RelayTransport: Hashable, Sendable {
+/// Used by both relay implementations and YAML configuration
+public enum RelayTransport: Hashable, Sendable, Codable {
     case unixSocket(path: String)
     case vsock(cid: UInt32, port: UInt32)
     case tcp(host: String, port: UInt16)
+    
+    /// Simple transport type for YAML configuration (no associated values)
+    public enum TransportType: String, Codable, Hashable {
+        case vsock
+        case unix
+        case tcp
+    }
+    
+    /// Get the simple transport type
+    public var transportType: TransportType {
+        switch self {
+        case .unixSocket: return .unix
+        case .vsock: return .vsock
+        case .tcp: return .tcp
+        }
+    }
+    
+    /// Coding keys for Codable conformance
+    enum CodingKeys: String, CodingKey {
+        case type
+        case path
+        case cid
+        case port
+        case host
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(TransportType.self, forKey: .type)
+        
+        switch type {
+        case .unix:
+            let path = try container.decode(String.self, forKey: .path)
+            self = .unixSocket(path: path)
+        case .vsock:
+            let cid = try container.decode(UInt32.self, forKey: .cid)
+            let port = try container.decode(UInt32.self, forKey: .port)
+            self = .vsock(cid: cid, port: port)
+        case .tcp:
+            let host = try container.decode(String.self, forKey: .host)
+            let port = try container.decode(UInt16.self, forKey: .port)
+            self = .tcp(host: host, port: port)
+        }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(transportType, forKey: .type)
+        
+        switch self {
+        case .unixSocket(let path):
+            try container.encode(path, forKey: .path)
+        case .vsock(let cid, let port):
+            try container.encode(cid, forKey: .cid)
+            try container.encode(port, forKey: .port)
+        case .tcp(let host, let port):
+            try container.encode(host, forKey: .host)
+            try container.encode(port, forKey: .port)
+        }
+    }
 }
 
 /// Protocol for all relay implementations

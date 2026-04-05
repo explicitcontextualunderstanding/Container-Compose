@@ -58,31 +58,6 @@ enum RelayConstants {
     }
 }
 
-// MARK: - RelayTransport Abstraction (Plan 77 - Phase 1)
-
-/// Transport abstraction for relay connections
-/// Supports both POSIX Unix sockets and hardware-isolated vsock
-enum RelayTransport: Sendable {
-    /// Unix Domain Socket - filesystem-based IPC (Plan 75/76)
-    case unixSocket(path: String)
-
-    /// virtio-vsock - hardware-isolated IPC (Plan 77)
-    /// - Parameters:
-    /// - cid: Context ID assigned by virtualization layer
-    /// - port: Port number within the VM context
-    case vsock(cid: UInt32, port: UInt32)
-
-    /// Human-readable description of the transport
-    var description: String {
-        switch self {
-        case .unixSocket(let path):
-            return "unix:\(path)"
-        case .vsock(let cid, let port):
-            return "vsock:\(cid):\(port)"
-        }
-    }
-}
-
 // MARK: - Streamable Protocol (for testability)
 
 /// Protocol for abstracting network connections to enable testing with mocks
