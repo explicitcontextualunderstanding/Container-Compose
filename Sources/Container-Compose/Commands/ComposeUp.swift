@@ -153,6 +153,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
   private var externallyPresentServices: Set<String> = []
   // Networks created by this compose run, for cleanup during compose down
   private var createdNetworks: [String] = []
+  // Service PIDs for socket relay peer verification (Phase 5)
+  private var servicePIDs: [String: pid_t] = [:]
 
   private static let availableContainerConsoleColors: Set<NamedColor> = [
         .blue, .cyan, .magenta, .lightBlack, .lightBlue, .lightCyan, .lightYellow, .yellow, .lightGreen, .green,
