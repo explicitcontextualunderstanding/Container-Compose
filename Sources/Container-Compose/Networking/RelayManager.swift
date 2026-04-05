@@ -109,10 +109,88 @@ var fileDescriptor: Int32 {
     }
 }
 
+// MARK: - Supporting Types
+
+/// Event log for debugging and diagnostics
+actor RelayEventLog {
+    enum Event {
+        case relayStarted(id: String, port: UInt16, path: String)
+        case relayStopped(id: String)
+        case connectionEstablished(relayId: String, connectionId: UUID)
+        case connectionClosed(relayId: String, connectionId: UUID)
+        case connectionRejected(relayId: String, attemptedPID: pid_t, expectedPID: pid_t?)
+        case connectionAuthorized(relayId: String, pid: pid_t)
+        case peerVerificationFailed(relayId: String, reason: String)
+        case error(RelayError)
+    }
+
+    private var events: [Event] = []
+
+    func record(_ event: Event) {
+        events.append(event)
+    }
+
+    func recentEvents(limit: Int = 100) -> [Event] {
+        Array(events.suffix(limit))
+    }
+}
+
+/// Status of a running relay
+struct RelayStatus {
+    let id: String
+    let isRunning: Bool
+    let tcpPort: UInt16
+    let unixSocketPath: String
+    let activeConnections: Int
+}
+
+/// Errors that can occur in relay operations
+enum RelayError: Error, CustomStringConvertible {
+    case alreadyRunning(String)
+    case unixSocketUnavailable(String, Error)
+    case vsockUnavailable(String, Error)
+    case timeout(String)
+    case portInUse(UInt16)
+    case networkError(Error)
+    case notImplemented(String)
+
+    var description: String {
+        switch self {
+        case .alreadyRunning(let id):
+            return "Relay '\(id)' is already running"
+        case .unixSocketUnavailable(let path, let error):
+            return "Unix socket at \(path) unavailable: \(error.localizedDescription)"
+        case .vsockUnavailable(let message, let error):
+            return "Vsock unavailable: \(message) - \(error.localizedDescription)"
+        case .timeout(let message):
+            return "Timeout: \(message)"
+        case .portInUse(let port):
+            return "Port \(port) is already in use"
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
+        case .notImplemented(let feature):
+            return "Feature not implemented: \(feature)"
+        }
+    }
+}
+
+// MARK: - Relay Protocol
+
+protocol RelayProtocol: AnyObject {
+    var isRunning: Bool { get }
+    var tcpPort: UInt16 { get }
+    var activeConnectionCount: Int { get }
+    var unixSocketPath: String { get }
+    var transportType: RelayTransport { get }
+    func start() async throws
+    func stop() async
+}
+
+
 // MARK: - RelayManager
 /// Enables container-to-container communication via host-mediated socket relay
 actor RelayManager {
-    private var relays: [String: SocketRelay] = [:]
+    private var relays: [String: any RelayProtocol] = [:]
     private let eventLog: RelayEventLog
     private let logger = Logger(subsystem: "com.container-compose.relay", category: "RelayManager")
 
@@ -166,20 +244,35 @@ actor RelayManager {
         guard relays[config.id] == nil else {
             throw RelayError.alreadyRunning(config.id)
         }
-        
-        logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → UNIX:\(config.unixSocketPath)")
-        
-        let relay = try await SocketRelay(
-            tcpPort: config.tcpPort,
-            unixPath: config.unixSocketPath,
-            eventLog: eventLog
-        )
-        
-relays[config.id] = relay
-try await relay.start()
 
-await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: config.unixSocketPath))
-logger.info("Relay \(config.id) started successfully")
+        let relay: any RelayProtocol
+
+        switch config.transport {
+        case .unixSocket(let path):
+            logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → UNIX:\(path)")
+            relay = try await SocketRelay(
+                tcpPort: config.tcpPort,
+                unixPath: path,
+                eventLog: eventLog,
+                targetPID: config.targetPID
+            )
+            await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: path))
+
+        case .vsock(let cid, let port):
+            logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → VSOCK:\(cid):\(port)")
+            relay = try await VsockRelay(
+                tcpPort: config.tcpPort,
+                vsockCid: cid,
+                vsockPort: port,
+                eventLog: eventLog,
+                targetPID: config.targetPID
+            )
+            await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock:\(cid):\(port)"))
+        }
+
+        relays[config.id] = relay
+        try await relay.start()
+        logger.info("Relay \(config.id) started successfully")
     }
     
     /// Stop a specific relay by ID
@@ -188,15 +281,16 @@ logger.info("Relay \(config.id) started successfully")
             logger.warning("Attempted to stop non-existent relay: \(id)")
             return
         }
-        
-logger.info("Stopping relay \(id)")
-await relay.stop()
-relays.removeValue(forKey: id)
-await eventLog.record(.relayStopped(id: id))
-        
-        // Clean up socket file
-        if let relay = relays[id] {
-            try? FileManager.default.removeItem(atPath: relay.unixSocketPath)
+
+        logger.info("Stopping relay \(id)")
+        let socketPath = relay.unixSocketPath
+        await relay.stop()
+        relays.removeValue(forKey: id)
+        await eventLog.record(.relayStopped(id: id))
+
+        // Clean up socket file if it's a Unix socket relay
+        if case .unixSocket = relay.transportType, !socketPath.isEmpty {
+            try? FileManager.default.removeItem(atPath: socketPath)
         }
     }
     
@@ -258,7 +352,9 @@ cleanupSocketFiles()
     
     /// Clean up orphaned socket files
     private func cleanupSocketFiles() {
-        let socketPaths = relays.values.map { $0.unixSocketPath }
+        let socketPaths = relays.values
+            .map { $0.unixSocketPath }
+            .filter { !$0.isEmpty }
         for path in socketPaths {
             do {
                 try FileManager.default.removeItem(atPath: path)
@@ -266,13 +362,20 @@ cleanupSocketFiles()
             } catch {
                 logger.warning("Failed to clean up socket file \(path): \(error.localizedDescription)")
             }
-        }
     }
 }
 
 // MARK: - SocketRelay
 
 /// Individual socket relay managing a single TCP↔UDS bridge
+actor SocketRelay: RelayProtocol {
+
+// MARK: - SocketRelay
+
+// MARK: - SocketRelay
+
+/// Individual socket relay managing a single TCP↔UDS bridge
+actor SocketRelay: RelayProtocol {
 actor SocketRelay {
   private var listener: NWListener?
   private var activeConnections: Set<BridgeConnection> = []
@@ -280,11 +383,14 @@ actor SocketRelay {
   private let logger: Logger
   private let targetPID: pid_t?  // Phase 5: Expected container PID
 
-  let tcpPort: UInt16
-  let unixSocketPath: String
-  let isRunning: Bool
-  let activeConnectionCount: Int
+    let tcpPort: UInt16
+    let unixSocketPath: String
+    let isRunning: Bool
+    let activeConnectionCount: Int
 
+    var transportType: RelayTransport {
+        .unixSocket(path: unixSocketPath)
+    }
   init(tcpPort: UInt16, unixPath: String, eventLog: RelayEventLog, targetPID: pid_t? = nil) async throws {
     self.tcpPort = tcpPort
     self.unixSocketPath = unixPath
@@ -380,6 +486,60 @@ logger.info("Relay stopped")
     }
 }
 }
+
+// MARK: - VsockRelay
+
+/// Vsock relay managing TCP↔virtio-vsock bridge (Plan 77)
+/// Provides hardware-isolated IPC between host and container
+actor VsockRelay: RelayProtocol {
+    private var listener: NWListener?
+    private var activeConnections: Set<BridgeConnection> = []
+    private let eventLog: RelayEventLog
+    private let logger: Logger
+    private let targetPID: pid_t?
+
+    let tcpPort: UInt16
+    let vsockCid: UInt32
+    let vsockPort: UInt32
+    let isRunning: Bool
+    let activeConnectionCount: Int
+
+    var unixSocketPath: String { "" }
+
+    var transportType: RelayTransport {
+        .vsock(cid: vsockCid, port: vsockPort)
+    }
+
+    init(tcpPort: UInt16, vsockCid: UInt32, vsockPort: UInt32, eventLog: RelayEventLog, targetPID: pid_t? = nil) async throws {
+        self.tcpPort = tcpPort
+        self.vsockCid = vsockCid
+        self.vsockPort = vsockPort
+        self.eventLog = eventLog
+        self.targetPID = targetPID
+        self.logger = Logger(subsystem: "com.container-compose.relay", category: "VsockRelay-\(tcpPort)")
+        self.isRunning = false
+        self.activeConnectionCount = 0
+
+        throw RelayError.notImplemented("VsockRelay requires virtio-vsock kernel support and will be implemented in Phase 1b")
+    }
+
+    func start() async throws {
+        throw RelayError.notImplemented("VsockRelay requires virtio-vsock kernel support and will be implemented in Phase 1b")
+    }
+
+    func stop() async {
+        listener?.cancel()
+        listener = nil
+
+        for connection in activeConnections {
+            await connection.close()
+        }
+        activeConnections.removeAll()
+
+        logger.info("VsockRelay stopped")
+    }
+}
+
 
 // MARK: - PID Verification (Phase 5 Security)
 
@@ -581,64 +741,3 @@ actor BridgeConnection: Hashable {
     }
 }
 
-// MARK: - Supporting Types
-
-/// Event log for debugging and diagnostics
-actor RelayEventLog {
-    enum Event {
-        case relayStarted(id: String, port: UInt16, path: String)
-        case relayStopped(id: String)
-        case connectionEstablished(relayId: String, connectionId: UUID)
-        case connectionClosed(relayId: String, connectionId: UUID)
-        /// Security event: connection rejected due to PID mismatch (Phase 5)
-        case connectionRejected(relayId: String, attemptedPID: pid_t, expectedPID: pid_t?)
-        /// Security event: connection authorized after PID verification (Phase 5)
-        case connectionAuthorized(relayId: String, pid: pid_t)
-        /// Security event: peer verification failed or unavailable
-        case peerVerificationFailed(relayId: String, reason: String)
-        case error(RelayError)
-    }
-    
-    private var events: [Event] = []
-    
-    func record(_ event: Event) {
-        events.append(event)
-    }
-    
-    func recentEvents(limit: Int = 100) -> [Event] {
-        Array(events.suffix(limit))
-    }
-}
-
-/// Status of a running relay
-struct RelayStatus {
-    let id: String
-    let isRunning: Bool
-    let tcpPort: UInt16
-    let unixSocketPath: String
-    let activeConnections: Int
-}
-
-/// Errors that can occur in relay operations
-enum RelayError: Error, CustomStringConvertible {
-    case alreadyRunning(String)
-    case unixSocketUnavailable(String, Error)
-    case timeout(String)
-    case portInUse(UInt16)
-    case networkError(Error)
-    
-    var description: String {
-        switch self {
-        case .alreadyRunning(let id):
-            return "Relay '\(id)' is already running"
-        case .unixSocketUnavailable(let path, let error):
-            return "Unix socket at \(path) unavailable: \(error.localizedDescription)"
-        case .timeout(let message):
-            return "Timeout: \(message)"
-        case .portInUse(let port):
-            return "Port \(port) is already in use"
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
-        }
-    }
-}
