@@ -397,14 +397,15 @@ if parts.count >= 2 {
         tcpPort = await findAvailablePort()
       }
 
-      // Create relay configuration
-      let relayId = "\(projectName ?? "")-\(serviceName)"
-      let config = RelayManager.RelayConfiguration(
-        id: relayId,
-        tcpPort: tcpPort,
-        unixSocketPath: hostSocketPath,
-        description: "Socket relay for \(serviceName)"
-      )
+// Create relay configuration with captured container PID for security verification
+let relayId = "\(projectName ?? "")-\(serviceName)"
+let config = RelayManager.RelayConfiguration(
+id: relayId,
+tcpPort: tcpPort,
+unixSocketPath: hostSocketPath,
+description: "Socket relay for \(serviceName)",
+targetPID: self.servicePIDs[serviceName]
+)
 
       do {
         print("Starting socket relay for \(serviceName): TCP:\(tcpPort) → \(hostSocketPath)")
@@ -1142,9 +1143,9 @@ case .stopped:
           print("[RECOVER] Creating container '\(containerName)' - not found")
       }
 
-        // Start container and capture result
-        let cwd = self.cwd  // Capture before Task
-        let containerTask: Task<Int32, Error> = Task {
+// Start container and capture result with PID for relay verification
+let cwd = self.cwd // Capture before Task
+let containerTask: Task<ContainerComposeCore.StreamCommandResult, Error> = Task {
             @Sendable
             func handleOutput(_ output: String) {
                 print("\(serviceName): \(output)")
@@ -1153,8 +1154,8 @@ case .stopped:
             print("\nStarting service: \(serviceName)")
             print("Starting \(serviceName)")
             print("----------------------------------------\n")
-            // Disambiguate to call the global helper, passing the explicit `cwd`
-            let exitCode = try await ContainerComposeCore.streamCommand("container", args: ["run"] + runCommandArgs, cwd: cwd, onStdout: handleOutput, onStderr: handleOutput)
+// Use streamCommandWithPID to capture the container process identifier for Phase 5 security verification
+let result = try await ContainerComposeCore.streamCommandWithPID("container", args: ["run"] + runCommandArgs, cwd: cwd, onStdout: handleOutput, onStderr: handleOutput)
 
             // If this task was cancelled while waiting, clean up the container
             if Task.isCancelled {
@@ -1162,21 +1163,24 @@ case .stopped:
                 throw CancellationError()
             }
 
-            return exitCode
-        }
+return result
+}
 
-        // Wait for container to start and validate it succeeded
-        do {
-            let exitCode = try await containerTask.value
-            guard exitCode == 0 else {
-                throw ContainerRunError("Container run failed with exit code \(exitCode)")
-            }
-            try await waitUntilContainerIsRunning(containerName)
-            try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
-        } catch {
-            print("Error starting service \(serviceName): \(error)")
-            throw error
-        }
+// Wait for container to start and validate it succeeded
+do {
+let result = try await containerTask.value
+guard result.exitCode == 0 else {
+throw ContainerRunError("Container run failed with exit code \(result.exitCode)")
+}
+// Store the container PID for relay verification (Phase 5 security)
+self.servicePIDs[serviceName] = result.processIdentifier
+print("Container '\(containerName)' started with PID: \(result.processIdentifier)")
+try await waitUntilContainerIsRunning(containerName)
+try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
+} catch {
+print("Error starting service \(serviceName): \(error)")
+throw error
+}
     }
 
     /// Configuration for retry behavior in pullImage.
