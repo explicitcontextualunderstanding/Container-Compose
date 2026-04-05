@@ -2,7 +2,51 @@ import Foundation
 import Network
 import os.log
 
-/// Manages socket relay bridges between TCP ports and Unix Domain Sockets
+// MARK: - Streamable Protocol (for testability)
+
+/// Protocol for abstracting network connections to enable testing with mocks
+/// Conforms to Sendable for Swift concurrency safety
+protocol Streamable: AnyObject, Sendable {
+    var isConnected: Bool { get }
+    func start(queue: DispatchQueue)
+    func cancel()
+    func send(content: Data?, completion: @escaping @Sendable (Error?) -> Void)
+    func receive(minimumIncompleteLength: Int, maximumLength: Int, completion: @escaping @Sendable (Data?, NWConnection.ContentContext?, Bool, Error?) -> Void)
+}
+
+/// NWConnection wrapper conforming to Streamable
+final class NWConnectionWrapper: Streamable {
+    private let connection: NWConnection
+
+    var isConnected: Bool {
+        if case .ready = connection.state { return true }
+        return false
+    }
+
+    init(connection: NWConnection) {
+        self.connection = connection
+    }
+
+    func start(queue: DispatchQueue) {
+        connection.start(queue: queue)
+    }
+
+    func cancel() {
+        connection.cancel()
+    }
+
+    func send(content: Data?, completion: @escaping (Error?) -> Void) {
+        connection.send(content: content, completion: .contentProcessed { error in
+            completion(error)
+        })
+    }
+
+    func receive(minimumIncompleteLength: Int, maximumLength: Int, completion: @escaping (Data?, NWConnection.ContentContext?, Bool, Error?) -> Void) {
+        connection.receive(minimumIncompleteLength: minimumIncompleteLength, maximumLength: maximumLength, completion: completion)
+    }
+}
+
+// MARK: - RelayManager
 /// Enables container-to-container communication via host-mediated socket relay
 actor RelayManager {
     private var relays: [String: SocketRelay] = [:]
@@ -234,55 +278,66 @@ await eventLog.record(.connectionEstablished(relayId: "\(self.tcpPort)", connect
 // MARK: - BridgeConnection
 
 /// Manages bidirectional data flow between TCP and Unix socket
+/// Now uses Streamable protocol for testability with mocks
 actor BridgeConnection: Hashable {
     let id: UUID
-    private let tcpConnection: NWConnection
-    private let unixConnection: NWConnection
+    private let source: Streamable
+    private let destination: Streamable
     private let eventLog: RelayEventLog
     private let logger: Logger
-    
+
     nonisolated func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
-    
+
     nonisolated static func == (lhs: BridgeConnection, rhs: BridgeConnection) -> Bool {
         lhs.id == rhs.id
     }
-    
+
+    /// Initialize with raw NWConnections (production use)
     init(tcpConnection: NWConnection, unixSocketPath: String, eventLog: RelayEventLog) {
         self.id = UUID()
-        self.tcpConnection = tcpConnection
-        self.unixConnection = NWConnection(to: .unix(path: unixSocketPath), using: .tcp)
+        self.source = NWConnectionWrapper(connection: tcpConnection)
+        self.destination = NWConnectionWrapper(connection: NWConnection(to: .unix(path: unixSocketPath), using: .tcp))
         self.eventLog = eventLog
         self.logger = Logger(subsystem: "com.container-compose.relay", category: "Bridge-\(id.uuidString.prefix(8))")
     }
-    
+
+    /// Initialize with Streamable connections (testing use)
+    init(source: Streamable, destination: Streamable, eventLog: RelayEventLog = RelayEventLog()) {
+        self.id = UUID()
+        self.source = source
+        self.destination = destination
+        self.eventLog = eventLog
+        self.logger = Logger(subsystem: "com.container-compose.relay", category: "Bridge-\(id.uuidString.prefix(8))")
+    }
+
     func start(completion: @escaping () -> Void) async {
-        tcpConnection.start(queue: .global())
-        unixConnection.start(queue: .global())
-        
+        source.start(queue: .global())
+        destination.start(queue: .global())
+
         // Start bidirectional piping
-        async let tcpToUnix: () = pipe(from: tcpConnection, to: unixConnection, label: "TCP→UDS")
-        async let unixToTcp: () = pipe(from: unixConnection, to: tcpConnection, label: "UDS→TCP")
-        
+        async let forward: () = pipe(from: source, to: destination, label: "TCP→UDS")
+        async let reverse: () = pipe(from: destination, to: source, label: "UDS→TCP")
+
         // Wait for either direction to complete (connection closed)
-        _ = await (tcpToUnix, unixToTcp)
-        
+        _ = await (forward, reverse)
+
         close()
         completion()
     }
-    
-    private func pipe(from source: NWConnection, to destination: NWConnection, label: String) async {
+
+    private func pipe(from input: Streamable, to output: Streamable, label: String) async {
         while true {
             do {
-                let data = try await receive(from: source)
+                let data = try await receive(from: input)
                 guard !data.isEmpty else {
                     logger.debug("\(label): Empty data, connection likely closing")
                     break
                 }
-                
-                try await send(data: data, to: destination)
-                
+
+                try await send(data: data, to: output)
+
                 // Log large transfers
                 if data.count > 1024 * 1024 { // 1MB
                     logger.debug("\(label): Transferred \(data.count) bytes")
@@ -293,8 +348,8 @@ actor BridgeConnection: Hashable {
             }
         }
     }
-    
-    private func receive(from connection: NWConnection) async throws -> Data {
+
+    private func receive(from connection: Streamable) async throws -> Data {
         return try await withCheckedThrowingContinuation { continuation in
             connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, isComplete, error in
                 if let error = error {
@@ -304,30 +359,29 @@ actor BridgeConnection: Hashable {
                 } else if isComplete {
                     continuation.resume(returning: Data())
                 } else {
-                    // No data yet, continue waiting (shouldn't happen with minimumIncompleteLength: 1)
                     continuation.resume(returning: Data())
                 }
             }
         }
     }
-    
-  private func send(data: Data, to connection: NWConnection) async throws {
-    return try await withCheckedThrowingContinuation { continuation in
-      connection.send(content: data, completion: .contentProcessed { error in
-        if let error = error {
-          continuation.resume(throwing: error)
-        } else {
-          continuation.resume()
+
+    private func send(data: Data, to connection: Streamable) async throws {
+        return try await withCheckedThrowingContinuation { continuation in
+            connection.send(content: data) { error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
         }
-      })
     }
-  }
-    
-  func close() {
-    tcpConnection.cancel()
-    unixConnection.cancel()
-    logger.debug("Connection \(self.id.uuidString.prefix(8)) closed")
-  }
+
+    func close() {
+        source.cancel()
+        destination.cancel()
+        logger.debug("Connection \(self.id.uuidString.prefix(8)) closed")
+    }
 }
 
 // MARK: - Supporting Types
