@@ -9,6 +9,45 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Mutex lock to prevent concurrent builds
+LOCK_DIR="/tmp/container-compose-build"
+LOCK_FILE="$LOCK_DIR/build.lock"
+PID_FILE="$LOCK_DIR/build.pid"
+
+acquire_lock() {
+    mkdir -p "$LOCK_DIR" 2>/dev/null || true
+    
+    # Try to acquire lock (non-blocking)
+    if ! (set -C; echo $$ > "$LOCK_FILE") 2>/dev/null; then
+        # Lock acquisition failed - check if process is still running
+        if [ -f "$PID_FILE" ]; then
+            OLD_PID=$(cat "$PID_FILE" 2>/dev/null)
+            if kill -0 "$OLD_PID" 2>/dev/null; then
+                echo "❌ Another build is already running (PID: $OLD_PID)"
+                echo "   If this is stale, run: rm -rf $LOCK_DIR"
+                exit 1
+            else
+                echo "⚠️  Removing stale lock (PID $OLD_PID no longer exists)"
+                rm -rf "$LOCK_DIR"
+            fi
+        else
+            echo "❌ Another build is already running"
+            echo "   If this is stale, run: rm -rf $LOCK_DIR"
+            exit 1
+        fi
+    fi
+    
+    # Write PID file
+    echo $$ > "$PID_FILE"
+    
+    # Ensure cleanup on exit
+    trap 'rm -rf "$LOCK_DIR"' EXIT
+    
+    echo "✓ Build lock acquired (PID: $$)"
+}
+
+acquire_lock
+
 # Apple Container data directory
 AC_SNAPSHOTS_DIR="$HOME/Library/Application Support/com.apple.container/snapshots"
 
