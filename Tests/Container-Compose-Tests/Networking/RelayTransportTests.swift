@@ -1,5 +1,5 @@
 import XCTest
-@testable import Container_Compose
+@testable import ContainerComposeCore
 
 final class RelayTransportTests: XCTestCase {
     
@@ -40,7 +40,7 @@ final class RelayTransportTests: XCTestCase {
     // MARK: - RelayConfiguration Tests
     
     func testRelayConfigurationLegacyInitializer() {
-        let config = RelayConfiguration(
+        let config = RelayManager.RelayConfiguration(
             id: "test-relay",
             tcpPort: 5432,
             unixSocketPath: "/tmp/test.sock",
@@ -55,7 +55,7 @@ final class RelayTransportTests: XCTestCase {
     
     func testRelayConfigurationTransportInitializer() {
         let transport = RelayTransport.vsock(cid: 5, port: 5432)
-        let config = RelayConfiguration(
+        let config = RelayManager.RelayConfiguration(
             id: "vsock-relay",
             tcpPort: 5432,
             transport: transport,
@@ -70,7 +70,7 @@ final class RelayTransportTests: XCTestCase {
     
     func testRelayConfigurationWithTargetPID() {
         let pid: pid_t = 12345
-        let config = RelayConfiguration(
+        let config = RelayManager.RelayConfiguration(
             id: "secure-relay",
             tcpPort: 5432,
             unixSocketPath: "/tmp/test.sock",
@@ -83,7 +83,7 @@ final class RelayTransportTests: XCTestCase {
     
     func testRelayConfigurationUnixSocketBackwardCompatibility() {
         // Test that legacy code using unixSocketPath still works
-        let config = RelayConfiguration(
+        let config = RelayManager.RelayConfiguration(
             id: "legacy-relay",
             tcpPort: 5432,
             unixSocketPath: "/tmp/legacy.sock",
@@ -103,7 +103,7 @@ final class RelayTransportTests: XCTestCase {
     
     func testRelayConfigurationVsockTransport() {
         let transport = RelayTransport.vsock(cid: 10, port: 9000)
-        let config = RelayConfiguration(
+        let config = RelayManager.RelayConfiguration(
             id: "vsock-config",
             tcpPort: 9000,
             transport: transport,
