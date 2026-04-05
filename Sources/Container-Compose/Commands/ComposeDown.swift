@@ -317,31 +317,46 @@ public mutating func run() async throws {
       }
     }
 
-// Remove networks created by compose up
-        if !stateNetworks.isEmpty {
-            print("\n--- Removing Networks ---")
-            for networkName in stateNetworks {
-                do {
-                    // Check if network exists
-                    if let _ = try? await ClientNetwork.get(id: networkName) {
-                        var networkDelete = try Application.NetworkDelete.parse([networkName])
-                        try await networkDelete.run()
-                        print("Removed network: \(networkName)")
-                    } else {
-                        print("Network '\(networkName)' not found, skipping.")
-                    }
-                } catch {
-                    print("Warning: Failed to remove network '\(networkName)': \(error)")
-                    // Don't fail teardown for network removal errors
-                }
-            }
-            print("--- Networks Removed ---\n")
+  // Remove networks created by compose up
+  if !stateNetworks.isEmpty {
+    print("\n--- Removing Networks ---")
+    for networkName in stateNetworks {
+      do {
+        // Check if network exists
+        if let _ = try? await ClientNetwork.get(id: networkName) {
+          var networkDelete = try Application.NetworkDelete.parse([networkName])
+          try await networkDelete.run()
+          print("Removed network: \(networkName)")
+        } else {
+          print("Network '\(networkName)' not found, skipping.")
         }
+      } catch {
+        print("Warning: Failed to remove network '\(networkName)': \(error)")
+        // Don't fail teardown for network removal errors
+      }
+    }
+    print("--- Networks Removed ---\n")
+  }
 
-        // Remove state file only after all containers and networks are confirmed removed
-        let statePath = ComposeDown.stateFilePath(cwd: cwd)
-        ComposeDown.removeStateFile(statePath)
-        print("Info: State file removed after teardown.")
+  // Remove socket relays
+  let stateSocketRelays = state.socketRelays
+  if !stateSocketRelays.isEmpty {
+    print("\n--- Stopping Socket Relays ---")
+    let eventLog = RelayEventLog()
+    let relayManager = RelayManager(eventLog: eventLog)
+    for relayState in stateSocketRelays {
+      await relayManager.stopRelay(id: relayState.id)
+      print("Stopped socket relay: \(relayState.id)")
+      // Clean up socket file
+      try? FileManager.default.removeItem(atPath: relayState.unixSocketPath)
+    }
+    print("--- Socket Relays Stopped ---\n")
+  }
+
+  // Remove state file only after all containers, networks, and relays are confirmed removed
+  let statePath = ComposeDown.stateFilePath(cwd: cwd)
+  ComposeDown.removeStateFile(statePath)
+  print("Info: State file removed after teardown.")
 
         return DownResult(stopped: stopped, timeouts: timeouts, errors: errors)
     }
