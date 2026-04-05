@@ -1,6 +1,7 @@
 import Foundation
 import Darwin
 import os.log
+import Virtualization
 
 // MARK: - Vsock Constants
 
