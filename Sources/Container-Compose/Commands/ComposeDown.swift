@@ -108,16 +108,31 @@ public struct ComposeDown: AsyncParsableCommand {
         URL(fileURLWithPath: cwd).appendingPathComponent(".container-compose.state")
     }
 
-    /// State file format: JSON with containers and networks arrays
-    public struct ComposeState: Codable {
-        public let containers: [String]
-        public let networks: [String]
+  /// Socket relay configuration for state tracking
+  public struct SocketRelayState: Codable {
+    public let id: String
+    public let tcpPort: UInt16
+    public let unixSocketPath: String
 
-        public init(containers: [String] = [], networks: [String] = []) {
-            self.containers = containers
-            self.networks = networks
-        }
+    public init(id: String, tcpPort: UInt16, unixSocketPath: String) {
+      self.id = id
+      self.tcpPort = tcpPort
+      self.unixSocketPath = unixSocketPath
     }
+  }
+
+  /// State file format: JSON with containers, networks, and socket relays
+  public struct ComposeState: Codable {
+    public let containers: [String]
+    public let networks: [String]
+    public let socketRelays: [SocketRelayState]
+
+    public init(containers: [String] = [], networks: [String] = [], socketRelays: [SocketRelayState] = []) {
+      self.containers = containers
+      self.networks = networks
+      self.socketRelays = socketRelays
+    }
+  }
 
     /// Read state from the state file. Returns empty state if file doesn't exist.
     public static func readStateFile(_ url: URL) -> ComposeState {

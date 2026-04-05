@@ -172,11 +172,15 @@ public final class Service: Codable, Hashable {
     /// Native runtime to use for this service (maps to container --runtime)
     public let runtime: String?
 
-    /// Native init-image to use for this service (maps to container --init-image)
-    public let init_image: String?
+  /// Native init-image to use for this service (maps to container --init-image)
+  public let init_image: String?
 
-    /// Other services that depend on this service
-    public var dependedBy: [String] = []
+  /// Socket to publish from container to host (Apple Container extension: --publish-socket)
+  /// Format: "containerPath:hostPath" or just "containerPath" (uses /tmp/{service}.sock)
+  public let publish_socket: String?
+
+  /// Other services that depend on this service
+  public var dependedBy: [String] = []
 
     /// Flat list of dependency service names (from both short and long form).
     public var dependencyNames: [String] {
@@ -200,44 +204,44 @@ public final class Service: Codable, Hashable {
   // Defines custom coding keys to map YAML keys to Swift properties
   // Note: 'env' is a shorthand alias for 'environment' in Docker Compose
   enum CodingKeys: String, CodingKey {
-    case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user,
-         container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns, dns_search
+    case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user, container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns, dns_search, publish_socket
   }
     
     /// Public memberwise initializer for testing
-    public init(
-        image: String? = nil,
-        build: Build? = nil,
-        deploy: Deploy? = nil,
-        restart: String? = nil,
-        healthcheck: Healthcheck? = nil,
-        volumes: [String]? = nil,
-        environment: [String: String]? = nil,
-        env_file: [String]? = nil,
-        ports: [String]? = nil,
-        command: [String]? = nil,
-        depends_on: [String: DependsOnEntry]? = nil,
-        user: String? = nil,
-        container_name: String? = nil,
-        networks: [String]? = nil,
-        hostname: String? = nil,
-        entrypoint: [String]? = nil,
-        privileged: Bool? = nil,
-        read_only: Bool? = nil,
-        working_dir: String? = nil,
-        platform: String? = nil,
-        scheme: String? = nil,
-        `init`: Bool? = nil,
-        configs: [ServiceConfig]? = nil,
-        secrets: [ServiceSecret]? = nil,
-        stdin_open: Bool? = nil,
-        tty: Bool? = nil,
-        dns: [String]? = nil,
-        dns_search: [String]? = nil,
-        runtime: String? = nil,
-        init_image: String? = nil,
-        dependedBy: [String] = []
-    ) {
+  public init(
+    image: String? = nil,
+    build: Build? = nil,
+    deploy: Deploy? = nil,
+    restart: String? = nil,
+    healthcheck: Healthcheck? = nil,
+    volumes: [String]? = nil,
+    environment: [String: String]? = nil,
+    env_file: [String]? = nil,
+    ports: [String]? = nil,
+    command: [String]? = nil,
+    depends_on: [String: DependsOnEntry]? = nil,
+    user: String? = nil,
+    container_name: String? = nil,
+    networks: [String]? = nil,
+    hostname: String? = nil,
+    entrypoint: [String]? = nil,
+    privileged: Bool? = nil,
+    read_only: Bool? = nil,
+    working_dir: String? = nil,
+    platform: String? = nil,
+    scheme: String? = nil,
+    `init`: Bool? = nil,
+    configs: [ServiceConfig]? = nil,
+    secrets: [ServiceSecret]? = nil,
+    stdin_open: Bool? = nil,
+    tty: Bool? = nil,
+    dns: [String]? = nil,
+    dns_search: [String]? = nil,
+    runtime: String? = nil,
+    init_image: String? = nil,
+    publish_socket: String? = nil,
+    dependedBy: [String] = []
+  ) {
         self.image = image
         self.build = build
         self.deploy = deploy
@@ -266,12 +270,13 @@ public final class Service: Codable, Hashable {
         self.tty = tty
         self.dns = dns
         self.dns_search = dns_search
-        self.runtime = runtime
-        self.init_image = init_image
-        self.dependedBy = dependedBy
-    }
+    self.runtime = runtime
+    self.init_image = init_image
+    self.publish_socket = publish_socket
+    self.dependedBy = dependedBy
+  }
 
-    /// Custom initializer to handle decoding and basic validation.
+  /// Custom initializer to handle decoding and basic validation.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         image = try container.decodeIfPresent(String.self, forKey: .image)
@@ -431,9 +436,10 @@ public final class Service: Codable, Hashable {
             )
         }
         runtime = rawRuntime
-        init_image = try container.decodeIfPresent(String.self, forKey: .init_image)
+    init_image = try container.decodeIfPresent(String.self, forKey: .init_image)
+    publish_socket = try container.decodeIfPresent(String.self, forKey: .publish_socket)
 
-        // Support both single string and array for dns
+    // Support both single string and array for dns
         if let dnsString = try? container.decodeIfPresent(String.self, forKey: .dns) {
             dns = [dnsString]
         } else {

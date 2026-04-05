@@ -147,11 +147,11 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     private var containerIps: [String: String] = [:]
     private var containerPorts: [String: String] = [:]
     private var containerConsoleColors: [String: NamedColor] = [:]
-    // Services that were already present and running before this compose run. Used to
-    // avoid blocking 'service_healthy' checks against externally managed containers.
-    private var externallyPresentServices: Set<String> = []
-    // Networks created by this compose run, for cleanup during compose down
-    private var createdNetworks: [String] = []
+  // Services that were already present and running before this compose run. Used to
+  // avoid blocking 'service_healthy' checks against externally managed containers.
+  private var externallyPresentServices: Set<String> = []
+  // Networks created by this compose run, for cleanup during compose down
+  private var createdNetworks: [String] = []
 
     private static let availableContainerConsoleColors: Set<NamedColor> = [
         .blue, .cyan, .magenta, .lightBlack, .lightBlue, .lightCyan, .lightYellow, .yellow, .lightGreen, .green,
