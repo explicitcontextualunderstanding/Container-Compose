@@ -1,3 +1,4 @@
+import Darwin  // For pid_t, getsockopt
 import Foundation
 import Network
 import os.log
@@ -112,20 +113,23 @@ actor RelayManager {
         self.eventLog = eventLog
     }
     
-    /// Configuration for a socket relay
-    struct RelayConfiguration {
-        let id: String
-        let tcpPort: UInt16
-        let unixSocketPath: String
-        let description: String
-        
-        init(id: String, tcpPort: UInt16, unixSocketPath: String, description: String) {
-            self.id = id
-            self.tcpPort = tcpPort
-            self.unixSocketPath = unixSocketPath
-            self.description = description
-        }
+  /// Configuration for a socket relay
+  struct RelayConfiguration {
+    let id: String
+    let tcpPort: UInt16
+    let unixSocketPath: String
+    let description: String
+    /// Expected PID of the container process for peer verification (Phase 5 security)
+    let targetPID: pid_t?
+
+    init(id: String, tcpPort: UInt16, unixSocketPath: String, description: String, targetPID: pid_t? = nil) {
+      self.id = id
+      self.tcpPort = tcpPort
+      self.unixSocketPath = unixSocketPath
+      self.description = description
+      self.targetPID = targetPID
     }
+  }
     
     /// Start a new relay with the given configuration
     /// - Throws: RelayError if the relay cannot be started
@@ -309,17 +313,22 @@ logger.info("Relay stopped")
     activeConnections.remove(connection)
   }
 
-  private func handleNewConnection(_ tcpConnection: NWConnection) async {
+  private func handleNewConnection(_ tcpConnection: NWConnection, targetPID: pid_t? = nil) async {
     logger.debug("New TCP connection on port \(self.tcpPort)")
 
-let bridge = BridgeConnection(
-tcpConnection: tcpConnection,
-unixSocketPath: unixSocketPath,
-eventLog: eventLog
-)
+    let bridge = BridgeConnection(
+      tcpConnection: tcpConnection,
+      unixSocketPath: unixSocketPath,
+      eventLog: eventLog,
+      targetPID: targetPID,
+      relayId: "\(self.tcpPort)"
+    )
 
-activeConnections.insert(bridge)
-await eventLog.record(.connectionEstablished(relayId: "\(self.tcpPort)", connectionId: bridge.id))
+    // TODO: Phase 5 - Implement peer verification before inserting
+    // Currently operates in permissive mode (targetPID: nil)
+
+    activeConnections.insert(bridge)
+    await eventLog.record(.connectionEstablished(relayId: "\(self.tcpPort)", connectionId: bridge.id))
 
     await bridge.start { [weak self] in
       Task { [weak self] in
@@ -330,42 +339,105 @@ await eventLog.record(.connectionEstablished(relayId: "\(self.tcpPort)", connect
 }
 }
 
+// MARK: - PID Verification (Phase 5 Security)
+
+/// Security utilities for peer verification using LOCAL_PEERPID
+/// Note: Network.framework abstracts file descriptors, so direct getsockopt is limited
+enum PeerVerification {
+  /// Attempt to verify peer PID using LOCAL_PEERPID (macOS) or SO_PEERCRED (Linux)
+  /// - Parameters:
+  ///   - fileDescriptor: The socket file descriptor
+  ///   - expectedPID: The expected container process ID
+  /// - Returns: true if PID matches, false otherwise
+  /// - Note: Returns true in "permissive mode" if verification unavailable
+  static func verifyPID(fileDescriptor: Int32, expectedPID: pid_t?) -> Bool {
+    guard let expected = expectedPID else {
+      // No target PID specified, allow connection (backward compatible)
+      return true
+    }
+
+    var peerPID: pid_t = 0
+    var length = socklen_t(MemoryLayout<pid_t>.size)
+
+    #if os(macOS)
+    // SOL_LOCAL = 0, LOCAL_PEERPID = 2 on macOS
+    let result = getsockopt(fileDescriptor, 0, 2, &peerPID, &length)
+    #else
+    // Linux: SO_PEERCRED
+    var cred = ucred()
+    var credLen = socklen_t(MemoryLayout<ucred>.size)
+    let result = getsockopt(fileDescriptor, SOL_SOCKET, SO_PEERCRED, &cred, &credLen)
+    peerPID = cred.pid
+    #endif
+
+    guard result == 0 else {
+      // Verification failed, log but allow (permissive mode)
+      return true
+    }
+
+    return peerPID == expected
+  }
+
+  /// Log security event for rejected connection
+  static func logRejection(relayId: String, attemptedPID: pid_t, expectedPID: pid_t?, eventLog: RelayEventLog) async {
+    await eventLog.record(.connectionRejected(relayId: relayId, attemptedPID: attemptedPID, expectedPID: expectedPID))
+  }
+}
+
 // MARK: - BridgeConnection
 
 /// Manages bidirectional data flow between TCP and Unix socket
 /// Now uses Streamable protocol for testability with mocks
 actor BridgeConnection: Hashable {
-    let id: UUID
-    private let source: Streamable
-    private let destination: Streamable
-    private let eventLog: RelayEventLog
-    private let logger: Logger
+  let id: UUID
+  private let source: Streamable
+  private let destination: Streamable
+  private let eventLog: RelayEventLog
+  private let logger: Logger
+  private let targetPID: pid_t?
+  private let relayId: String
 
-    nonisolated func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
+  nonisolated func hash(into hasher: inout Hasher) {
+    hasher.combine(id)
+  }
 
-    nonisolated static func == (lhs: BridgeConnection, rhs: BridgeConnection) -> Bool {
-        lhs.id == rhs.id
-    }
+  nonisolated static func == (lhs: BridgeConnection, rhs: BridgeConnection) -> Bool {
+    lhs.id == rhs.id
+  }
 
-    /// Initialize with raw NWConnections (production use)
-    init(tcpConnection: NWConnection, unixSocketPath: String, eventLog: RelayEventLog) {
-        self.id = UUID()
-        self.source = NWConnectionWrapper(connection: tcpConnection)
-        self.destination = NWConnectionWrapper(connection: NWConnection(to: .unix(path: unixSocketPath), using: .tcp))
-        self.eventLog = eventLog
-        self.logger = Logger(subsystem: "com.container-compose.relay", category: "Bridge-\(id.uuidString.prefix(8))")
-    }
+  /// Initialize with raw NWConnections (production use)
+  /// - Parameters:
+  ///   - tcpConnection: The incoming TCP connection
+  ///   - unixSocketPath: Path to the Unix domain socket
+  ///   - eventLog: Event logging actor
+  ///   - targetPID: Expected container PID for verification (Phase 5)
+  ///   - relayId: Relay identifier for logging
+  init(
+    tcpConnection: NWConnection,
+    unixSocketPath: String,
+    eventLog: RelayEventLog,
+    targetPID: pid_t? = nil,
+    relayId: String = "unknown"
+  ) {
+    self.id = UUID()
+    self.source = NWConnectionWrapper(connection: tcpConnection)
+    self.destination = NWConnectionWrapper(connection: NWConnection(to: .unix(path: unixSocketPath), using: .tcp))
+    self.eventLog = eventLog
+    self.targetPID = targetPID
+    self.relayId = relayId
+    self.logger = Logger(subsystem: "com.container-compose.relay", category: "Bridge-\(id.uuidString.prefix(8))")
+  }
 
-    /// Initialize with Streamable connections (testing use)
-    init(source: Streamable, destination: Streamable, eventLog: RelayEventLog = RelayEventLog()) {
-        self.id = UUID()
-        self.source = source
-        self.destination = destination
-        self.eventLog = eventLog
-        self.logger = Logger(subsystem: "com.container-compose.relay", category: "Bridge-\(id.uuidString.prefix(8))")
-    }
+  /// Initialize with Streamable connections (testing use)
+  init(source: Streamable, destination: Streamable, eventLog: RelayEventLog = RelayEventLog()) {
+    self.id = UUID()
+    self.source = source
+    self.destination = destination
+    self.eventLog = eventLog
+    self.targetPID = nil
+    self.relayId = "test"
+    self.logger = Logger(subsystem: "com.container-compose.relay", category: "Bridge-\(id.uuidString.prefix(8))")
+  }
 
     func start(completion: @escaping () -> Void) async {
         source.start(queue: .global())
@@ -443,13 +515,17 @@ actor BridgeConnection: Hashable {
 
 /// Event log for debugging and diagnostics
 actor RelayEventLog {
-    enum Event {
-        case relayStarted(id: String, port: UInt16, path: String)
-        case relayStopped(id: String)
-        case connectionEstablished(relayId: String, connectionId: UUID)
-        case connectionClosed(relayId: String, connectionId: UUID)
-        case error(RelayError)
-    }
+  enum Event {
+    case relayStarted(id: String, port: UInt16, path: String)
+    case relayStopped(id: String)
+    case connectionEstablished(relayId: String, connectionId: UUID)
+    case connectionClosed(relayId: String, connectionId: UUID)
+    /// Security event: connection rejected due to PID mismatch (Phase 5)
+    case connectionRejected(relayId: String, attemptedPID: pid_t, expectedPID: pid_t?)
+    /// Security event: peer verification failed or unavailable
+    case peerVerificationFailed(relayId: String, reason: String)
+    case error(RelayError)
+  }
     
     private var events: [Event] = []
     
