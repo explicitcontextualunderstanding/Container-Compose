@@ -1,6 +1,11 @@
 #!/bin/bash
 # Run Container-Compose tests with proper privilege handling
 # Usage: ./run-tests.sh [--auto-clean] [--no-sudo] [test-filter]
+#
+# CLEANUP STRATEGY:
+# 1. PRE-CLEAN: Aggressively remove ALL CCT_* containers and snapshots BEFORE testing
+# 2. POST-CLEAN: Remove ALL CCT_* containers and snapshots AFTER testing (via trap)
+# 3. This prevents resource exhaustion from accumulated test artifacts
 
 set -e
 
@@ -83,77 +88,118 @@ print(\"ALL_IDS=\" + \" \".join(all_cids))
     fi
 }
 
-# Cleanup function - removes test containers AND their orphaned snapshots
-cleanup_test_containers() {
-    local exit_code=$?
-    echo ""
-    echo "=========================================="
-    echo "Cleaning up test containers and snapshots..."
-    echo "=========================================="
+# Aggressive cleanup function - removes ALL test containers AND their snapshots
+# This is called BEFORE tests start to ensure clean state
+aggressive_cleanup_before_tests() {
+echo "=========================================="
+echo "PRE-TEST CLEANUP: Removing ALL CCT_* artifacts"
+echo "=========================================="
 
-    # Find and remove only containers created by our tests (CCT_*)
-    if command -v container &> /dev/null; then
-        local test_containers
-	test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
+if ! command -v container &> /dev/null; then
+echo "⚠️ 'container' CLI not available"
+return 1
+fi
 
-        if [ -n "$test_containers" ]; then
-            echo "Found test containers to clean up:"
-            echo "$test_containers" | while read -r container_id; do
-                echo "  - Stopping: $container_id"
-                container stop "$container_id" 2>/dev/null || true
-                echo "  - Deleting: $container_id"
-                container delete "$container_id" 2>/dev/null || true
-            done
-            echo "✓ Test containers cleaned up"
-        else
-            echo "✓ No test containers to clean up"
-        fi
-    else
-        echo "⚠️ 'container' CLI not available, skipping container cleanup"
-    fi
+local test_containers
+test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
 
-    # Prune orphaned test snapshots
-    prune_test_snapshots
+if [ -n "$test_containers" ]; then
+local count
+count=$(echo "$test_containers" | wc -l | tr -d ' ')
+echo "Found $count CCT_* container(s) to remove:"
 
-    echo "=========================================="
+echo "$test_containers" | while read -r container_id; do
+echo " - Stopping: $container_id"
+container stop "$container_id" 2>/dev/null || true
+echo " - Deleting: $container_id"
+container delete "$container_id" 2>/dev/null || true
+done
+fi
 
-    # Exit with the original exit code
-    exit $exit_code
+# Remove ALL CCT_* snapshots
+local snapshot_dir="$AC_SNAPSHOTS_DIR"
+if [ -d "$snapshot_dir" ]; then
+echo "Removing orphaned snapshots..."
+local removed_count=0
+local removed_mb=0
+
+for snap_dir in "$snapshot_dir"/*/; do
+[ -d "$snap_dir" ] || continue
+local snap_name
+snap_name=$(basename "$snap_dir")
+
+# Check if this is a CCT_* snapshot or orphaned
+if [[ "$snap_name" == CCT_* ]] || ! container list --all 2>/dev/null | grep -q "$snap_name"; then
+local size
+size=$(du -sm "$snap_dir" 2>/dev/null | awk '{print $1}')
+rm -rf "$snap_dir"
+removed_count=$((removed_count + 1))
+removed_mb=$((removed_mb + size))
+fi
+done
+
+if [ "$removed_count" -gt 0 ]; then
+echo "✓ Removed $removed_count snapshot(s), reclaimed ${removed_mb}MB"
+fi
+fi
+
+# Final prune
+container prune 2>/dev/null || true
+
+echo "✓ Pre-test cleanup complete"
+echo "=========================================="
+echo ""
 }
 
-# Register cleanup function to run on exit
+# Cleanup function - removes test containers AND their orphaned snapshots (POST-TEST)
+cleanup_test_containers() {
+local exit_code=$?
+echo ""
+echo "=========================================="
+echo "POST-TEST CLEANUP: Removing ALL CCT_* artifacts"
+echo "=========================================="
+
+# Find and remove only containers created by our tests (CCT_*)
+if command -v container &> /dev/null; then
+local test_containers
+test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
+
+if [ -n "$test_containers" ]; then
+echo "Found test containers to clean up:"
+echo "$test_containers" | while read -r container_id; do
+echo " - Stopping: $container_id"
+container stop "$container_id" 2>/dev/null || true
+echo " - Deleting: $container_id"
+container delete "$container_id" 2>/dev/null || true
+done
+echo "✓ Test containers cleaned up"
+else
+echo "✓ No test containers to clean up"
+fi
+else
+echo "⚠️ 'container' CLI not available, skipping container cleanup"
+fi
+
+# Prune orphaned test snapshots
+prune_test_snapshots
+
+echo "=========================================="
+
+# Exit with the original exit code
+exit $exit_code
+}
+
+# Register cleanup function to run on exit (POST-TEST)
 trap cleanup_test_containers EXIT
 
-# Prune leftover test containers from previous runs
-prune_leftover_test_containers() {
-    if ! command -v container &> /dev/null; then
-        return
-    fi
+# Aggressive PRE-TEST cleanup - ALWAYS run before tests
+# This ensures a clean state and prevents resource exhaustion
+aggressive_cleanup_before_tests
 
-    # First prune snapshots from previous runs
-    prune_test_snapshots
-
-    local test_containers
-    test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
-
-    if [ -z "$test_containers" ]; then
-        return
-    fi
-
-    local count
-    count=$(echo "$test_containers" | wc -l | tr -d ' ')
-
-    echo "Found $count leftover test container(s) from previous runs:"
-    echo "$test_containers" | while read -r container_id; do
-        echo "  - $container_id"
-    done
-
-    local should_clean=false
-    if [ "$AUTO_CLEAN" = true ] || [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
-        should_clean=true
-    else
-        read -p "Remove them? [y/N] " -n 1 -r
-        echo ""
+echo "=========================================="
+echo "Container-Compose Test Runner"
+echo "=========================================="
+echo ""
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             should_clean=true
         fi
@@ -272,9 +318,6 @@ for arg in "$@"; do
         EARLY_FILTERED_ARGS+=("$arg")
     fi
 done
-
-# Prune leftover test containers from previous runs
-prune_leftover_test_containers
 
 # Check if we're in CI
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
