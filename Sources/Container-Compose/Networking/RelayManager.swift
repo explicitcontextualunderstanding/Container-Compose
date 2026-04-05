@@ -115,9 +115,31 @@ actor RelayManager {
     private var relays: [String: SocketRelay] = [:]
     private let eventLog: RelayEventLog
     private let logger = Logger(subsystem: "com.container-compose.relay", category: "RelayManager")
-    
+
+    /// Shared instance for global access
+    static let shared = RelayManager()
+
+    /// Service PIDs for socket relay peer verification (Phase 5)
+    private var servicePIDs: [String: pid_t] = [:]
+
     init(eventLog: RelayEventLog = RelayEventLog()) {
         self.eventLog = eventLog
+    }
+
+    /// Register a target PID for a service for CID/PID verification
+    /// - Parameters:
+    ///   - pid: The process identifier of the container
+    ///   - serviceName: The name of the service
+    func registerTargetPID(_ pid: pid_t, forService serviceName: String) {
+        servicePIDs[serviceName] = pid
+        logger.info("Registered target PID \(pid) for service '\(serviceName)'")
+    }
+
+    /// Get the registered PID for a service
+    /// - Parameter serviceName: The name of the service
+    /// - Returns: The PID if registered, nil otherwise
+    func getTargetPID(forService serviceName: String) -> pid_t? {
+        return servicePIDs[serviceName]
     }
     
   /// Configuration for a socket relay
