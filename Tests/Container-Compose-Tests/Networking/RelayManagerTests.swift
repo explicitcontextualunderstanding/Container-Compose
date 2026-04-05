@@ -515,12 +515,20 @@ final class RelayPerformanceTests: XCTestCase {
 @available(macOS 12.0, *)
 final class NWConnectionWrapperTests: XCTestCase {
 
-  func testWrapperConformsToStreamable() {
-    let connection = NWConnection(to: .unix(path: "/tmp/test.sock"), using: .tcp)
-    let wrapper = NWConnectionWrapper(connection: connection)
+    func testWrapperConformsToStreamable() {
+        let connection = NWConnection(to: .unix(path: "/tmp/test.sock"), using: .tcp)
+        let wrapper = NWConnectionWrapper(connection: connection)
 
-    XCTAssertTrue(wrapper is Streamable, "NWConnectionWrapper should conform to Streamable")
-  }
+        XCTAssertTrue(wrapper is Streamable, "NWConnectionWrapper should conform to Streamable")
+    }
+
+    func testWrapperFileDescriptorReturnsMinusOne() {
+        // NWConnection doesn't expose fd, so should return -1
+        let connection = NWConnection(to: .unix(path: "/tmp/test.sock"), using: .tcp)
+        let wrapper = NWConnectionWrapper(connection: connection)
+
+        XCTAssertEqual(wrapper.fileDescriptor, -1, "File descriptor should be -1 (Network.framework limitation)")
+    }
 }
 
 // MARK: - RelayConstants Tests
@@ -589,26 +597,5 @@ final class PeerVerificationTests: XCTestCase {
         // When file descriptor is invalid, verification should allow (graceful degradation)
         let result = PeerVerification.verifyPID(fileDescriptor: -1, expectedPID: 1234)
         XCTAssertTrue(result, "Should allow connection when fd unavailable (graceful degradation)")
-    }
-}
-
-// MARK: - NWConnectionWrapper Tests
-
-@available(macOS 12.0, *)
-final class NWConnectionWrapperTests: XCTestCase {
-
-    func testWrapperConformsToStreamable() {
-        let connection = NWConnection(to: .unix(path: "/tmp/test.sock"), using: .tcp)
-        let wrapper = NWConnectionWrapper(connection: connection)
-
-        XCTAssertTrue(wrapper is Streamable, "NWConnectionWrapper should conform to Streamable")
-    }
-
-    func testWrapperFileDescriptorReturnsMinusOne() {
-        // NWConnection doesn't expose fd, so should return -1
-        let connection = NWConnection(to: .unix(path: "/tmp/test.sock"), using: .tcp)
-        let wrapper = NWConnectionWrapper(connection: connection)
-
-        XCTAssertEqual(wrapper.fileDescriptor, -1, "File descriptor should be -1 (Network.framework limitation)")
     }
 }
