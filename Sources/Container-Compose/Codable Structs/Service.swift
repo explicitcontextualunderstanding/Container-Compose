@@ -68,6 +68,46 @@ public enum DependsOnCondition: String, Codable, Hashable {
     case service_completed_successfully
 }
 
+/// Transport type for relay connections (vsock, unix, tcp)
+public enum RelayTransport: String, Codable, Hashable {
+    case vsock
+    case unix
+    case tcp
+}
+
+/// Relay configuration for service-to-service communication
+/// Enables declarative routing in compose files (Phase 5)
+public struct ServiceRelay: Codable, Hashable {
+    /// Transport protocol for the relay
+    public let transport: RelayTransport
+
+    /// VSOCK Context ID (for vsock transport only)
+    public let cid: UInt32?
+
+    /// Target service name to route to
+    public let target: String?
+
+    /// Port number (for vsock/tcp transports)
+    public let port: UInt32?
+
+    /// Unix socket path (for unix transport)
+    public let socket: String?
+
+    public init(
+        transport: RelayTransport,
+        cid: UInt32? = nil,
+        target: String? = nil,
+        port: UInt32? = nil,
+        socket: String? = nil
+    ) {
+        self.transport = transport
+        self.cid = cid
+        self.target = target
+        self.port = port
+        self.socket = socket
+    }
+}
+
 /// A single entry in the long-form `depends_on` map.
 public struct DependsOnEntry: Codable, Hashable {
     public let condition: DependsOnCondition?
@@ -175,12 +215,16 @@ public final class Service: Codable, Hashable {
   /// Native init-image to use for this service (maps to container --init-image)
   public let init_image: String?
 
-  /// Socket to publish from container to host (Apple Container extension: --publish-socket)
-  /// Format: "containerPath:hostPath" or just "containerPath" (uses /tmp/{service}.sock)
-  public let publish_socket: String?
+    /// Socket to publish from container to host (Apple Container extension: --publish-socket)
+    /// Format: "containerPath:hostPath" or just "containerPath" (uses /tmp/{service}.sock)
+    public let publish_socket: String?
 
-  /// Other services that depend on this service
-  public var dependedBy: [String] = []
+    /// Relay configuration for declarative routing (Phase 5)
+    /// Enables vsock/tcp/unix socket routing to other services
+    public let relay: ServiceRelay?
+
+    /// Other services that depend on this service
+    public var dependedBy: [String] = []
 
     /// Flat list of dependency service names (from both short and long form).
     public var dependencyNames: [String] {
@@ -201,47 +245,48 @@ public final class Service: Codable, Hashable {
         }.sorted() ?? []
     }
     
-  // Defines custom coding keys to map YAML keys to Swift properties
-  // Note: 'env' is a shorthand alias for 'environment' in Docker Compose
-  enum CodingKeys: String, CodingKey {
-    case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user, container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns, dns_search, publish_socket
-  }
+    // Defines custom coding keys to map YAML keys to Swift properties
+    // Note: 'env' is a shorthand alias for 'environment' in Docker Compose
+    enum CodingKeys: String, CodingKey {
+        case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user, container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns, dns_search, publish_socket, relay
+    }
     
     /// Public memberwise initializer for testing
-  public init(
-    image: String? = nil,
-    build: Build? = nil,
-    deploy: Deploy? = nil,
-    restart: String? = nil,
-    healthcheck: Healthcheck? = nil,
-    volumes: [String]? = nil,
-    environment: [String: String]? = nil,
-    env_file: [String]? = nil,
-    ports: [String]? = nil,
-    command: [String]? = nil,
-    depends_on: [String: DependsOnEntry]? = nil,
-    user: String? = nil,
-    container_name: String? = nil,
-    networks: [String]? = nil,
-    hostname: String? = nil,
-    entrypoint: [String]? = nil,
-    privileged: Bool? = nil,
-    read_only: Bool? = nil,
-    working_dir: String? = nil,
-    platform: String? = nil,
-    scheme: String? = nil,
-    `init`: Bool? = nil,
-    configs: [ServiceConfig]? = nil,
-    secrets: [ServiceSecret]? = nil,
-    stdin_open: Bool? = nil,
-    tty: Bool? = nil,
-    dns: [String]? = nil,
-    dns_search: [String]? = nil,
-    runtime: String? = nil,
-    init_image: String? = nil,
-    publish_socket: String? = nil,
-    dependedBy: [String] = []
-  ) {
+    public init(
+        image: String? = nil,
+        build: Build? = nil,
+        deploy: Deploy? = nil,
+        restart: String? = nil,
+        healthcheck: Healthcheck? = nil,
+        volumes: [String]? = nil,
+        environment: [String: String]? = nil,
+        env_file: [String]? = nil,
+        ports: [String]? = nil,
+        command: [String]? = nil,
+        depends_on: [String: DependsOnEntry]? = nil,
+        user: String? = nil,
+        container_name: String? = nil,
+        networks: [String]? = nil,
+        hostname: String? = nil,
+        entrypoint: [String]? = nil,
+        privileged: Bool? = nil,
+        read_only: Bool? = nil,
+        working_dir: String? = nil,
+        platform: String? = nil,
+        scheme: String? = nil,
+        `init`: Bool? = nil,
+        configs: [ServiceConfig]? = nil,
+        secrets: [ServiceSecret]? = nil,
+        stdin_open: Bool? = nil,
+        tty: Bool? = nil,
+        dns: [String]? = nil,
+        dns_search: [String]? = nil,
+        runtime: String? = nil,
+        init_image: String? = nil,
+        publish_socket: String? = nil,
+        relay: ServiceRelay? = nil,
+        dependedBy: [String] = []
+    ) {
         self.image = image
         self.build = build
         self.deploy = deploy
@@ -270,11 +315,12 @@ public final class Service: Codable, Hashable {
         self.tty = tty
         self.dns = dns
         self.dns_search = dns_search
-    self.runtime = runtime
-    self.init_image = init_image
-    self.publish_socket = publish_socket
-    self.dependedBy = dependedBy
-  }
+        self.runtime = runtime
+        self.init_image = init_image
+        self.publish_socket = publish_socket
+        self.relay = relay
+        self.dependedBy = dependedBy
+    }
 
   /// Custom initializer to handle decoding and basic validation.
     public init(from decoder: Decoder) throws {
@@ -446,13 +492,16 @@ public final class Service: Codable, Hashable {
             dns = try container.decodeIfPresent([String].self, forKey: .dns)
         }
 
-        // Support both single string and array for dns_search
-        if let dnsSearchString = try? container.decodeIfPresent(String.self, forKey: .dns_search) {
-            dns_search = [dnsSearchString]
-        } else {
-            dns_search = try container.decodeIfPresent([String].self, forKey: .dns_search)
-        }
+    // Support both single string and array for dns_search
+    if let dnsSearchString = try? container.decodeIfPresent(String.self, forKey: .dns_search) {
+      dns_search = [dnsSearchString]
+    } else {
+      dns_search = try container.decodeIfPresent([String].self, forKey: .dns_search)
     }
+
+    // Decode relay configuration if present (Phase 5)
+    relay = try container.decodeIfPresent(ServiceRelay.self, forKey: .relay)
+  }
     
     /// Returns the services in topological order based on `depends_on` relationships.
     public static func topoSortConfiguredServices(
@@ -532,9 +581,11 @@ public final class Service: Codable, Hashable {
     try container.encodeIfPresent(init_image, forKey: .init_image)
     try container.encodeIfPresent(dns, forKey: .dns)
     try container.encodeIfPresent(dns_search, forKey: .dns_search)
+    try container.encodeIfPresent(publish_socket, forKey: .publish_socket)
+    try container.encodeIfPresent(relay, forKey: .relay)
   }
 
-  // MARK: - Hashable Conformance (class requires explicit implementation)
+// MARK: - Hashable Conformance (class requires explicit implementation)
 
   public static func == (lhs: Service, rhs: Service) -> Bool {
     lhs.image == rhs.image &&
@@ -565,7 +616,9 @@ public final class Service: Codable, Hashable {
     lhs.dns == rhs.dns &&
     lhs.dns_search == rhs.dns_search &&
     lhs.runtime == rhs.runtime &&
-    lhs.init_image == rhs.init_image
+    lhs.init_image == rhs.init_image &&
+    lhs.publish_socket == rhs.publish_socket &&
+    lhs.relay == rhs.relay
   }
 
   public func hash(into hasher: inout Hasher) {
@@ -598,5 +651,7 @@ public final class Service: Codable, Hashable {
     hasher.combine(dns_search)
     hasher.combine(runtime)
     hasher.combine(init_image)
+    hasher.combine(publish_socket)
+    hasher.combine(relay)
   }
 }

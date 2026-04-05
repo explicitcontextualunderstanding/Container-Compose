@@ -148,13 +148,13 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     private var containerIps: [String: String] = [:]
     private var containerPorts: [String: String] = [:]
     private var containerConsoleColors: [String: NamedColor] = [:]
-  // Services that were already present and running before this compose run. Used to
-  // avoid blocking 'service_healthy' checks against externally managed containers.
-  private var externallyPresentServices: Set<String> = []
-  // Networks created by this compose run, for cleanup during compose down
-  private var createdNetworks: [String] = []
-  // Service PIDs for socket relay peer verification (Phase 5)
-  private var servicePIDs: [String: pid_t] = [:]
+    // Services that were already present and running before this compose run. Used to
+    // avoid blocking 'service_healthy' checks against externally managed containers.
+    private var externallyPresentServices: Set<String> = []
+    // Networks created by this compose run, for cleanup during compose down
+    private var createdNetworks: [String] = []
+    // Service PIDs for socket relay peer verification (Phase 5)
+    private var servicePIDs: [String: pid_t] = [:]
 
   private static let availableContainerConsoleColors: Set<NamedColor> = [
         .blue, .cyan, .magenta, .lightBlack, .lightBlue, .lightCyan, .lightYellow, .yellow, .lightGreen, .green,
@@ -349,82 +349,235 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
   // MARK: - Socket Relay Functions
 
-/// Start socket relays for services with publish_socket configuration
-private func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
-    // Check if any services need socket relays
-    let servicesWithSockets = services.filter { $0.service.publish_socket != nil }
-    guard !servicesWithSockets.isEmpty else {
-        print("Info: No socket relays configured")
-        return []
-    }
+  /// Validates relay configurations for CID uniqueness and target existence
+  private func validateRelayConfigurations(
+      _ services: [(serviceName: String, service: Service)]
+  ) throws {
+      var seenCIDs: [UInt32: String] = [:]
+      let serviceNames = Set(services.map { $0.serviceName })
 
-    // Ensure sandbox-resilient relay root directory exists
-    do {
-        try RelayConstants.ensureRelayRoot()
-    } catch {
-        print("Warning: Could not create relay root directory: \(error)")
-    }
+      for (serviceName, service) in services {
+          guard let relay = service.relay else { continue }
 
-    // Initialize relay manager
-    let eventLog = RelayEventLog()
-    let relayManager = RelayManager(eventLog: eventLog)
-    var socketRelays: [ComposeDown.SocketRelayState] = []
+          // Validate CID uniqueness (for vsock transport)
+          if let cid = relay.cid {
+              if let existingService = seenCIDs[cid] {
+                  throw ValidationError(
+                      "Duplicate CID \(cid) in service '\(serviceName)' - already used by '\(existingService)'"
+                  )
+              }
+              seenCIDs[cid] = serviceName
+          }
 
-    // Start relays for each service
-    for (serviceName, service) in servicesWithSockets {
-      guard let socketConfig = service.publish_socket else { continue }
+          // Validate target service exists (if specified)
+          if let target = relay.target {
+              guard serviceNames.contains(target) else {
+                  throw ValidationError(
+                      "Relay target '\(target)' in service '\(serviceName)' does not exist in services"
+                  )
+              }
+          }
 
-      // Parse publish_socket config: "containerPath:hostPath" or just "containerPath"
-      let parts = socketConfig.split(separator: ":", omittingEmptySubsequences: false)
-let hostSocketPath: String
-
-if parts.count >= 2 {
-    // Format: "containerPath:hostPath"
-    hostSocketPath = String(parts[1])
-} else {
-    // Format: just "containerPath" - use sandbox-resilient default path
-    hostSocketPath = RelayConstants.socketPath(for: serviceName, project: projectName).path
-}
-
-      // Get TCP port from service.ports (use first port mapping)
-      let tcpPort: UInt16
-      if let firstPort = service.ports?.first,
-         let portRange = firstPort.range(of: ":"),
-         let portNum = UInt16(firstPort[..<portRange.lowerBound]) {
-        tcpPort = portNum
-      } else {
-        // Generate ephemeral port
-        tcpPort = await findAvailablePort()
+          // Validate transport compatibility
+          switch relay.transport {
+          case .vsock:
+              guard relay.cid != nil || relay.target != nil else {
+                  throw ValidationError(
+                      "VSOCK relay in service '\(serviceName)' requires either 'cid' or 'target'"
+                  )
+              }
+          case .unix:
+              guard relay.socket != nil else {
+                  throw ValidationError(
+                      "UNIX relay in service '\(serviceName)' requires 'socket' path"
+                  )
+              }
+          case .tcp:
+              guard relay.port != nil || relay.target != nil else {
+                  throw ValidationError(
+                      "TCP relay in service '\(serviceName)' requires either 'port' or 'target'"
+                  )
+              }
+          }
       }
+  }
+
+  /// Resolves target CID from service name (for relay configuration)
+  private func resolveCID(target: String?, services: [(serviceName: String, service: Service)]) -> UInt32? {
+      guard let targetName = target else { return nil }
+
+      // Find the target service and return its CID
+      for (serviceName, service) in services {
+          if serviceName == targetName {
+              return service.relay?.cid
+          }
+      }
+      return nil
+  }
+
+  /// Start socket relays for services with publish_socket or relay configuration
+  private func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
+    // Validate relay configurations first
+    do {
+      try validateRelayConfigurations(services)
+      } catch {
+          print("⚠️ Relay validation failed: \(error)")
+          // Continue with partial functionality - don't fail entire compose
+      }
+
+      // Check for both publish_socket and relay configurations
+      let servicesWithRelays = services.filter {
+          $0.service.publish_socket != nil || $0.service.relay != nil
+      }
+
+      guard !servicesWithRelays.isEmpty else {
+          print("Info: No socket relays configured")
+          return []
+      }
+
+      // Ensure sandbox-resilient relay root directory exists
+      do {
+          try RelayConstants.ensureRelayRoot()
+      } catch {
+          print("Warning: Could not create relay root directory: \(error)")
+      }
+
+      // Initialize relay manager
+      let eventLog = RelayEventLog()
+      let relayManager = RelayManager(eventLog: eventLog)
+      var socketRelays: [ComposeDown.SocketRelayState] = []
+
+      // Start relays for each service
+      for (serviceName, service) in servicesWithRelays {
+          // Check for declarative relay configuration first (Phase 5)
+          if let relay = service.relay {
+              let relayState = await startDeclarativeRelay(
+                  serviceName: serviceName,
+                  service: service,
+                  relay: relay,
+                  services: services,
+                  relayManager: relayManager
+              )
+              if let state = relayState {
+                  socketRelays.append(state)
+              }
+              continue
+          }
+
+          // Legacy publish_socket configuration
+          guard let socketConfig = service.publish_socket else { continue }
+
+          // Parse publish_socket config: "containerPath:hostPath" or just "containerPath"
+          let parts = socketConfig.split(separator: ":", omittingEmptySubsequences: false)
+          let hostSocketPath: String
+
+          if parts.count >= 2 {
+              // Format: "containerPath:hostPath"
+              hostSocketPath = String(parts[1])
+          } else {
+              // Format: just "containerPath" - use sandbox-resilient default path
+              hostSocketPath = RelayConstants.socketPath(for: serviceName, project: projectName).path
+          }
+
+          // Get TCP port from service.ports (use first port mapping)
+          let tcpPort: UInt16
+          if let firstPort = service.ports?.first,
+             let portRange = firstPort.range(of: ":"),
+             let portNum = UInt16(firstPort[..<portRange.lowerBound]) {
+              tcpPort = portNum
+          } else {
+              // Generate ephemeral port
+              tcpPort = await findAvailablePort()
+          }
+
+          // Create relay configuration
+          let relayId = "\(projectName ?? "")-\(serviceName)"
+          let config = RelayManager.RelayConfiguration(
+              id: relayId,
+              tcpPort: tcpPort,
+              unixSocketPath: hostSocketPath,
+              description: "Socket relay for \(serviceName)"
+          )
+
+          do {
+              print("Starting socket relay for \(serviceName): TCP:\(tcpPort) → \(hostSocketPath)")
+              try await relayManager.startRelay(config)
+
+              // Track the relay for state file
+              let relayState = ComposeDown.SocketRelayState(
+                  id: relayId,
+                  tcpPort: tcpPort,
+                  unixSocketPath: hostSocketPath
+              )
+      socketRelays.append(relayState)
+
+      print("✓ Socket relay started: \(relayId)")
+          } catch {
+              print("⚠️ Failed to start socket relay for \(serviceName): \(error)")
+          }
+      }
+
+      return socketRelays
+  }
+
+  /// Start a relay from declarative YAML configuration (Phase 5)
+  private func startDeclarativeRelay(
+      serviceName: String,
+      service: Service,
+      relay: ServiceRelay,
+      services: [(serviceName: String, service: Service)],
+      relayManager: RelayManager
+  ) async -> ComposeDown.SocketRelayState? {
+      // Determine the socket path based on transport type
+      let hostSocketPath: String
+      switch relay.transport {
+      case .vsock, .tcp:
+          // Generate socket path based on service name
+          hostSocketPath = RelayConstants.socketPath(for: serviceName, project: projectName).path
+      case .unix:
+          // Use specified socket path
+          hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
+      }
+
+    // Determine TCP port
+    let tcpPort: UInt16
+    if let port = relay.port {
+      tcpPort = UInt16(port)
+    } else if let firstPort = service.ports?.first,
+              let portRange = firstPort.range(of: ":"),
+              let portNum = UInt16(firstPort[..<portRange.lowerBound]) {
+      tcpPort = portNum
+    } else {
+      tcpPort = await findAvailablePort()
+    }
+
+      // Resolve target CID if specified
+      let targetCID = resolveCID(target: relay.target, services: services)
 
       // Create relay configuration
       let relayId = "\(projectName ?? "")-\(serviceName)"
       let config = RelayManager.RelayConfiguration(
-        id: relayId,
-        tcpPort: tcpPort,
-        unixSocketPath: hostSocketPath,
-        description: "Socket relay for \(serviceName)"
-      )
-
-      do {
-        print("Starting socket relay for \(serviceName): TCP:\(tcpPort) → \(hostSocketPath)")
-        try await relayManager.startRelay(config)
-
-        // Track the relay for state file
-        let relayState = ComposeDown.SocketRelayState(
           id: relayId,
           tcpPort: tcpPort,
-          unixSocketPath: hostSocketPath
-        )
-        socketRelays.append(relayState)
+          unixSocketPath: hostSocketPath,
+          description: "\(relay.transport.rawValue.uppercased()) relay for \(serviceName)"
+      )
 
-        print("✓ Socket relay started: \(relayId)")
-      } catch {
-        print("⚠️ Failed to start socket relay for \(serviceName): \(error)")
+    do {
+      print("Starting \(relay.transport.rawValue) relay for \(serviceName): TCP:\(tcpPort) → \(hostSocketPath)")
+      try await relayManager.startRelay(config)
+
+      print("✓ \(relay.transport.rawValue.uppercased()) relay started: \(relayId) (CID: \(targetCID.map(String.init) ?? "auto"))")
+
+      return ComposeDown.SocketRelayState(
+        id: relayId,
+        tcpPort: tcpPort,
+        unixSocketPath: hostSocketPath
+      )
+    } catch {
+          print("⚠️ Failed to start \(relay.transport.rawValue) relay for \(serviceName): \(error)")
+          return nil
       }
-    }
-
-    return socketRelays
   }
 
   /// Find an available TCP port (ephemeral)
