@@ -58,6 +58,31 @@ enum RelayConstants {
   }
 }
 
+// MARK: - RelayTransport Abstraction (Plan 77 - Phase 1)
+
+/// Transport abstraction for relay connections
+/// Supports both POSIX Unix sockets and hardware-isolated vsock
+enum RelayTransport: Sendable {
+    /// Unix Domain Socket - filesystem-based IPC (Plan 75/76)
+    case unixSocket(path: String)
+    
+    /// virtio-vsock - hardware-isolated IPC (Plan 77)
+    /// - Parameters:
+    ///   - cid: Context ID assigned by virtualization layer
+    ///   - port: Port number within the VM context
+    case vsock(cid: UInt32, port: UInt32)
+    
+    /// Human-readable description of the transport
+    var description: String {
+        switch self {
+        case .unixSocket(let path):
+            return "unix:\(path)"
+        case .vsock(let cid, let port):
+            return "vsock:\(cid):\(port)"
+        }
+    }
+}
+
 // MARK: - Streamable Protocol (for testability)
 
 /// Protocol for abstracting network connections to enable testing with mocks
@@ -120,23 +145,41 @@ actor RelayManager {
         self.eventLog = eventLog
     }
     
-  /// Configuration for a socket relay
-  struct RelayConfiguration {
-    let id: String
-    let tcpPort: UInt16
-    let unixSocketPath: String
-    let description: String
-    /// Expected PID of the container process for peer verification (Phase 5 security)
-    let targetPID: pid_t?
+	/// Configuration for a socket relay
+	struct RelayConfiguration {
+		let id: String
+		let tcpPort: UInt16
+		let transport: RelayTransport
+		let description: String
+		/// Expected PID of the container process for peer verification (Phase 5 security)
+		let targetPID: pid_t?
 
-    init(id: String, tcpPort: UInt16, unixSocketPath: String, description: String, targetPID: pid_t? = nil) {
-      self.id = id
-      self.tcpPort = tcpPort
-      self.unixSocketPath = unixSocketPath
-      self.description = description
-      self.targetPID = targetPID
-    }
-  }
+		/// Legacy initializer for backward compatibility
+		init(id: String, tcpPort: UInt16, unixSocketPath: String, description: String, targetPID: pid_t? = nil) {
+			self.id = id
+			self.tcpPort = tcpPort
+			self.transport = .unixSocket(path: unixSocketPath)
+			self.description = description
+			self.targetPID = targetPID
+		}
+
+		/// New initializer with transport abstraction (Plan 77)
+		init(id: String, tcpPort: UInt16, transport: RelayTransport, description: String, targetPID: pid_t? = nil) {
+			self.id = id
+			self.tcpPort = tcpPort
+			self.transport = transport
+			self.description = description
+			self.targetPID = targetPID
+		}
+
+		/// Convenience accessor for Unix socket path (backward compatibility)
+		var unixSocketPath: String {
+			if case .unixSocket(let path) = transport {
+				return path
+			}
+			return ""
+		}
+	}
     
     /// Start a new relay with the given configuration
     /// - Throws: RelayError if the relay cannot be started
