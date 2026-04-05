@@ -153,7 +153,7 @@ self.isRunningValue = true
 func stop() async {
     guard isRunningValue else { return }
 
-        logger.info("Stopping vsock relay on port \(port)")
+        logger.info("Stopping vsock relay on port \(self.port)")
 
         // Cancel accept task
         acceptTask?.cancel()
