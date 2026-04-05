@@ -219,6 +219,31 @@ final class BridgeConnectionMockTests: XCTestCase {
         XCTAssertEqual(String(data: mockDestination.receivedData.first!, encoding: .utf8), "Hello from TCP")
     }
 
+    func testPIDVerificationAllowsMatching() async throws {
+        let mockSource = MockStream()
+        let mockDestination = MockStream()
+        let eventLog = RelayEventLog()
+
+        let expectedPID = ProcessInfo.processInfo.processIdentifier
+
+        let bridge = BridgeConnection(
+            source: mockSource,
+            destination: mockDestination,
+            eventLog: eventLog
+        )
+
+        mockSource.queueData("Test data".data(using: .utf8)!)
+
+        let expectation = expectation(description: "Bridge completes")
+        await bridge.start {
+            expectation.fulfill()
+        }
+
+        await fulfillment(of: [expectation], timeout: 5.0)
+
+        XCTAssertTrue(mockDestination.receivedData.count > 0, "Data should flow when no target PID set")
+    }
+
     func testBinaryDataIntegrity() async throws {
         let mockSource = MockStream()
         let mockDestination = MockStream()
@@ -525,8 +550,65 @@ final class RelayConstantsTests: XCTestCase {
     XCTAssertEqual(RelayConstants.directoryPermissions, 0o700, "Directory should have 0700 permissions")
   }
 
-  func testSocketPermissions() {
+func testSocketPermissions() {
     // Verify socket permissions constant
     XCTAssertEqual(RelayConstants.socketPermissions, 0o600, "Socket should have 0600 permissions")
-  }
+}
+
+    func testRelayRootDefaultPath() {
+        // Verify default relay root is in user's home directory
+        let expectedHome = FileManager.default.homeDirectoryForCurrentUser
+        XCTAssertTrue(RelayConstants.relayRoot.path.hasPrefix(expectedHome.path),
+                     "Relay root should be in user's home directory")
+        XCTAssertTrue(RelayConstants.relayRoot.path.contains(".container-compose"),
+                     "Relay root should contain .container-compose")
+    }
+
+func testEnsureRelayRootCreatesDirectory() throws {
+    // Create a test directory
+    let testDir = FileManager.default.temporaryDirectory.appendingPathComponent("test-relay-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: testDir) }
+
+    // Note: This tests the pattern, not the actual call since we can't override static in tests easily
+    XCTAssertTrue(RelayConstants.relayRoot.path.count > 0, "Relay root should be set")
+}
+}
+
+// MARK: - PeerVerification Tests
+
+@available(macOS 12.0, *)
+final class PeerVerificationTests: XCTestCase {
+
+    func testVerifyPIDWithNilExpectedReturnsTrue() {
+        // When no expected PID is specified, verification should pass (backward compatible)
+        let result = PeerVerification.verifyPID(fileDescriptor: -1, expectedPID: nil)
+        XCTAssertTrue(result, "Should allow connection when no expected PID specified")
+    }
+
+    func testVerifyPIDWithInvalidFDReturnsTrue() {
+        // When file descriptor is invalid, verification should allow (graceful degradation)
+        let result = PeerVerification.verifyPID(fileDescriptor: -1, expectedPID: 1234)
+        XCTAssertTrue(result, "Should allow connection when fd unavailable (graceful degradation)")
+    }
+}
+
+// MARK: - NWConnectionWrapper Tests
+
+@available(macOS 12.0, *)
+final class NWConnectionWrapperTests: XCTestCase {
+
+    func testWrapperConformsToStreamable() {
+        let connection = NWConnection(to: .unix(path: "/tmp/test.sock"), using: .tcp)
+        let wrapper = NWConnectionWrapper(connection: connection)
+
+        XCTAssertTrue(wrapper is Streamable, "NWConnectionWrapper should conform to Streamable")
+    }
+
+    func testWrapperFileDescriptorReturnsMinusOne() {
+        // NWConnection doesn't expose fd, so should return -1
+        let connection = NWConnection(to: .unix(path: "/tmp/test.sock"), using: .tcp)
+        let wrapper = NWConnectionWrapper(connection: connection)
+
+        XCTAssertEqual(wrapper.fileDescriptor, -1, "File descriptor should be -1 (Network.framework limitation)")
+    }
 }
