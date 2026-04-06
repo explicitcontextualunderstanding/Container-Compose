@@ -219,12 +219,22 @@ struct ComposePsTests {
             ])
             try await composeUp.run()
 
-            var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
-            try? await composeDown.run()
+var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
+try? await composeDown.run()
 
-            let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
-            #expect(statuses.count == 1)
-            #expect(statuses[0].state == .stopped, "After down, service should be stopped (compose down stops but doesn't remove containers)")
+// Wait for container to actually stop (compose down returns before container is fully stopped)
+let deadline = Date().addingTimeInterval(10)
+while Date() < deadline {
+let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
+if statuses.count == 1 && statuses[0].state == .stopped {
+break
+}
+try await Task.sleep(nanoseconds: 500_000_000) // 0.5s poll
+}
+
+let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
+#expect(statuses.count == 1)
+#expect(statuses[0].state == .stopped, "After down, service should be stopped (compose down stops but doesn't remove containers)")
         }
     }
 }
