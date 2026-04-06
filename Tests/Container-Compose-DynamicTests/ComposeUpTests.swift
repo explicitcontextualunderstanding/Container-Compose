@@ -18,12 +18,12 @@ import Testing
 import Foundation
 import ContainerCommands
 import ContainerAPIClient
-import ContainerizationError
 import TestHelpers
 @testable import ContainerComposeCore
 
 @Suite("Compose Up Tests - Real-World Compose Files", .containerDependent, .serialized)
 struct ComposeUpTests {
+    private let reliabilityHelper = ContainerReliabilityHelper()
     
     @Test("Test WordPress with MySQL compose file")
     func testWordPressCompose() async throws {
@@ -306,11 +306,10 @@ struct ComposeUpTests {
         guard let container = containersAfterFirstUp.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
           throw Errors.containerNotFound
         }
-        #expect(container.status == .running)
+#expect(container.status == .running)
 
-        // Stop the container using container CLI
-        var stopCommand = try Application.ContainerStop.parse([container.configuration.id])
-        try await stopCommand.run()
+    // Stop the container using container CLI with retry
+    try await reliabilityHelper.stopWithRetry(container: container, name: container.configuration.id)
 
         // Verify container is stopped
         let stoppedContainers = try await ClientContainer.list()
@@ -542,20 +541,11 @@ services:
             }
             #expect(container1.status == .running, "Container should be running after initial up")
 
-    // Step 2: Stop the container via API with XPC timeout handling
-    // Under heavy test load, the XPC runtime may timeout on stop requests
-    let containerName = container1.configuration.id
-    do {
-      try await container1.stop()
-    } catch {
-      // Check for XPC timeout under load - container likely stopped despite timeout
-      let errorDesc = "\(error)"
-      if errorDesc.contains("XPC") || errorDesc.contains("timeout") {
-        print("Warning: XPC timeout on stop (runtime under load), continuing...")
-      } else {
-        throw error
-      }
-    }
+// Step 2: Stop the container via API with XPC timeout handling
+// Under heavy test load, the XPC runtime may timeout on stop requests
+let containerName = container1.configuration.id
+let helper = ContainerReliabilityHelper()
+try await helper.stopWithRetry(container: container1, name: containerName)
 
             // Wait for runtime to register the stopped state
             let deadline = Date().addingTimeInterval(30)
