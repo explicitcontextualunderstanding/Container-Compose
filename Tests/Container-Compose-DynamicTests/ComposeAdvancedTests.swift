@@ -120,7 +120,7 @@ final class ComposeAdvancedTests {
         }
     }
 
-    @Test("Test ${VAR:-default} substitution with existing variable", .disabled("YAML parsing issue with environment variables"))
+    @Test("Test ${VAR:-default} substitution with existing variable")
     func testEnvVarDefaultSubstitutionExisting() async throws {
         let testPort = DockerComposeYamlFiles.getAvailablePort()
 
@@ -304,7 +304,7 @@ final class ComposeAdvancedTests {
 
     // MARK: - Resource Limit Tests
 
-    @Test("Test CPU limit configuration", .disabled("YAML parsing issue with deploy.resources.limits"))
+    @Test("Test CPU limit configuration")
     func testCPULimitConfiguration() async throws {
         let testPort = DockerComposeYamlFiles.getAvailablePort()
 
@@ -770,7 +770,7 @@ final class ComposeAdvancedTests {
     // NOTE: This test has a YAML parsing issue that needs investigation
     // The same YAML works when run directly with container-compose
 
-    @Test("Test bind mount to /tmp works", .disabled("YAML parsing issue - needs investigation"))
+    @Test("Test bind mount to /tmp works")
     func testTmpBindMount() async throws {
         let testPort = DockerComposeYamlFiles.getAvailablePort()
 
