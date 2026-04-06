@@ -1,7 +1,6 @@
 import Foundation
-import ContainerComposeCore
-import ContainerCommands
 import ContainerAPIClient
+import Testing
 
 public enum ContainerTestError: Error, CustomStringConvertible {
     case xpcTimeout(String)
@@ -64,21 +63,21 @@ public actor ContainerReliabilityHelper {
 
     public func waitForState(
         container: ClientContainer,
-        expectedState: ContainerStatus,
+        expectedStatus: String,
         timeout: TimeInterval? = nil
     ) async throws {
         let deadline = Date().addingTimeInterval(timeout ?? statePollingTimeout)
 
         while Date() < deadline {
             let refreshed = try await ClientContainer.get(id: container.configuration.id)
-            if refreshed.status == expectedState {
+            if String(describing: refreshed.status) == expectedStatus {
                 return
             }
             try await Task.sleep(nanoseconds: 500_000_000)
         }
 
         throw ContainerTestError.stateMismatch(
-            expected: String(describing: expectedState),
+            expected: expectedStatus,
             actual: String(describing: container.status)
         )
     }
@@ -119,22 +118,6 @@ public actor ContainerReliabilityHelper {
             }
         } catch {
             print("Warning: Failed to cleanup container \(id): \(error)")
-        }
-    }
-}
-
-public struct ContainerTestCleanup: @unchecked Sendable {
-    private let helper: ContainerReliabilityHelper
-    private let containerIds: [String]
-
-    public init(ids: [String]) {
-        self.helper = ContainerReliabilityHelper()
-        self.containerIds = ids
-    }
-
-    public func perform() async {
-        for id in containerIds {
-            await helper.cleanupContainer(id: id)
         }
     }
 }
