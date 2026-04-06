@@ -24,36 +24,36 @@ public enum RuntimeFeatureGate {
     // MARK: - Version Detection
     
     /// Cached runtime version (computed once)
-    private static let cachedVersion: String? = {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["container", "version"]
-        
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-        
-        do {
-            try process.run()
-            process.waitUntilExit()
-            
-            guard process.terminationStatus == 0 else { return nil }
-            
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            
-            // Parse "container version X.Y.Z (git: ...)"
-            let versionPattern = #"container version (\d+\.\d+\.\d+)"#
-            guard let range = output.range(of: versionPattern, options: .regularExpression) else {
-                return nil
-            }
-            
-            let versionString = String(output[range].dropFirst("container version ".count))
-            return versionString
-        } catch {
-            return nil
-        }
-    }()
+private static let cachedVersion: String? = {
+let process = Process()
+process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+process.arguments = ["container", "--version"]
+
+let pipe = Pipe()
+process.standardOutput = pipe
+process.standardError = FileHandle.nullDevice
+
+do {
+try process.run()
+process.waitUntilExit()
+
+guard process.terminationStatus == 0 else { return nil }
+
+let data = pipe.fileHandleForReading.readDataToEndOfFile()
+let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+// Parse "container CLI version X.Y.Z (git: ...)"
+let versionPattern = #"container CLI version (\d+\.\d+\.\d+)"#
+guard let range = output.range(of: versionPattern, options: .regularExpression) else {
+return nil
+}
+
+let versionString = String(output[range].dropFirst("container CLI version ".count))
+return versionString
+} catch {
+return nil
+}
+}()
     
     /// Get current runtime version
     public static var currentVersion: String {
