@@ -108,12 +108,14 @@ local count
 count=$(echo "$test_containers" | wc -l | tr -d ' ')
 echo "Found $count CCT_* container(s) to remove:"
 
-echo "$test_containers" | while read -r container_id; do
+# Use process substitution to avoid subshell
+while read -r container_id; do
 echo " - Stopping: $container_id"
 container stop "$container_id" 2>/dev/null || true
 echo " - Deleting: $container_id"
 container delete "$container_id" 2>/dev/null || true
-done
+done < <(echo "$test_containers")
+echo "✓ Stopped and deleted $count containers"
 fi
 
 # Remove ALL CCT_* snapshots
@@ -309,30 +311,12 @@ fi
 echo "Local development environment detected"
 echo ""
 
-# Check for OCI_REGISTRY_URL (required for database tests)
+# Set default registry URL if not provided
 if [ -z "$OCI_REGISTRY_URL" ]; then
-    echo "⚠️ OCI_REGISTRY_URL environment variable is not set."
-    echo ""
-    echo "Database tests require an OCI container registry accessible via HTTPS."
-    echo "Apple Container does not support HTTP for RFC1918 private IPs."
-    echo ""
-    echo "Examples:"
-    echo " - OCI_REGISTRY_URL=registry.rossollc.com"
-    echo " - OCI_REGISTRY_URL=ghcr.io"
-    echo " - OCI_REGISTRY_URL=docker.io"
-    echo ""
-
-    # Prompt user for registry URL
-    read -p "Enter OCI registry URL (or press Enter to skip database tests): " -r REGISTRY_INPUT
-
-    if [ -n "$REGISTRY_INPUT" ]; then
-        export OCI_REGISTRY_URL="$REGISTRY_INPUT"
-        echo "✓ OCI_REGISTRY_URL set to: $OCI_REGISTRY_URL"
-        echo ""
-    else
-        echo "⚠️ Skipping database tests (OCI_REGISTRY_URL not set)"
-        echo ""
-    fi
+export OCI_REGISTRY_URL="registry.rossollc.com"
+echo "✓ OCI_REGISTRY_URL set to default: $OCI_REGISTRY_URL"
+echo ""
+fi
 fi
 
 # Check if container runtime is available
