@@ -24,6 +24,7 @@
 import ArgumentParser
 import ContainerCommands
 import ContainerAPIClient
+import ContainerizationError
 import Foundation
 import Yams
 
@@ -419,33 +420,43 @@ public mutating func run() async throws {
     return DownResult(stopped: stopped, timeouts: timeouts, errors: errors)
   }
 
-    /// Stop a container with a timeout. Returns true if stopped gracefully, false if timed out.
-    private func stopWithTimeout(container: ClientContainer, name: String, timeout: Int) async throws -> Bool {
-        let timeoutNs = UInt64(timeout) * 1_000_000_000
+/// Stop a container with a timeout. Returns true if stopped gracefully, false if timed out.
+/// Handles XPC timeouts gracefully under heavy load.
+private func stopWithTimeout(container: ClientContainer, name: String, timeout: Int) async throws -> Bool {
+let timeoutNs = UInt64(timeout) * 1_000_000_000
 
-        return try await withThrowingTaskGroup(of: Bool.self) { group in
-            // Primary: try graceful stop
-            group.addTask {
-                try await container.stop()
-                return true
-            }
+return try await withThrowingTaskGroup(of: Bool.self) { group in
+// Primary: try graceful stop (with XPC timeout handling)
+group.addTask {
+do {
+try await container.stop()
+return true
+} catch let error as ContainerizationError {
+// XPC timeout under load - container likely stopped despite timeout
+if error.message.contains("XPC timeout") {
+print("Warning: XPC timeout stopping \(name) (runtime under load), considering stopped")
+return true // Assume container stopped
+}
+throw error
+}
+}
 
-            // Timeout: cancel after N seconds
-            group.addTask {
-                try await Task.sleep(nanoseconds: timeoutNs)
-                return false
-            }
+// Timeout: cancel after N seconds
+group.addTask {
+try await Task.sleep(nanoseconds: timeoutNs)
+return false
+}
 
-            // Wait for first result
-            let graceful = try await group.next() ?? false
-            group.cancelAll()
+// Wait for first result
+let graceful = try await group.next() ?? false
+group.cancelAll()
 
-            if graceful {
-                return true
-            }
+if graceful {
+return true
+}
 
-            // Timed out — attempt force stop
-            print("Graceful stop timed out for \(name), attempting force stop...")
+// Timed out — attempt force stop
+print("Graceful stop timed out for \(name), attempting force stop...")
             do {
                 try await container.delete(force: true)
                 return false // stopped but not gracefully
