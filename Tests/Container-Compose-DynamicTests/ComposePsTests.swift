@@ -73,8 +73,9 @@ struct ComposePsTests {
             ])
             try await composeUp.run()
 
-            let container = try await ClientContainer.get(id: containerName)
-            try await container.stop()
+let container = try await ClientContainer.get(id: containerName)
+let helper = ContainerReliabilityHelper()
+try await helper.stopWithRetry(container: container, name: containerName)
 
             let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
             let status = statuses.first { $0.service == "web" }
@@ -107,11 +108,12 @@ struct ComposePsTests {
                 try await Task.sleep(nanoseconds: 1_000_000_000)
             }
 
-            let allContainers = try await ClientContainer.list()
-                .filter({ $0.configuration.id.contains(project.name) && $0.status == .running })
-            if let busybox = allContainers.first(where: { $0.configuration.id.contains("busybox") }) {
-                try await busybox.stop()
-            }
+let allContainers = try await ClientContainer.list()
+.filter({ $0.configuration.id.contains(project.name) && $0.status == .running })
+if let busybox = allContainers.first(where: { $0.configuration.id.contains("busybox") }) {
+let helper = ContainerReliabilityHelper()
+try await helper.stopWithRetry(container: busybox, name: busybox.configuration.id)
+}
 
             let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
             #expect(statuses.count == 2, "Expected 2 services in compose file")

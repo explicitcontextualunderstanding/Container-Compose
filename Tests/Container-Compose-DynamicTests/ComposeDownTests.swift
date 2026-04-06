@@ -16,14 +16,14 @@
 
 import ContainerAPIClient
 import ContainerCommands
+import ContainerComposeCore
 import Foundation
 import TestHelpers
 import Testing
 
-@testable import ContainerComposeCore
-
 @Suite("Compose Down Tests", .containerDependent, .serialized)
 struct ComposeDownTests {
+    private let reliabilityHelper = ContainerReliabilityHelper()
 
     @Test("What goes up must come down - three containers")
     func testUpAndDownComplex() async throws {
@@ -152,16 +152,9 @@ struct ComposeDownTests {
     "Expected container \(containerName) to be running, found status: \(containers.map(\.status))"
 )
 
-do {
+try await reliabilityHelper.withRetry(maxAttempts: 3) {
     var composeDown = try ComposeDown.parse(["--cwd", project.base.path(percentEncoded: false)])
     try await composeDown.run()
-} catch {
-    let errorString = String(describing: error)
-    if errorString.contains("XPC timeout") || errorString.contains("failed to stop") {
-        print("Warning: XPC timeout during compose down - container may still be stopping")
-    } else {
-        throw error
-    }
 }
 
         containers = try await ClientContainer.list()
