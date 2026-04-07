@@ -12,196 +12,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Create log directory and timestamped log file
-LOG_DIR="$SCRIPT_DIR/logs"
-mkdir -p "$LOG_DIR"
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-LOG_FILE="$LOG_DIR/test_run_$TIMESTAMP.log"
+# Load library modules
+source "$SCRIPT_DIR/scripts/lib/container-cleanup.sh"
+source "$SCRIPT_DIR/scripts/lib/test-runner.sh"
+source "$SCRIPT_DIR/scripts/env-setup.sh"
 
-# Redirect stdout and stderr to both console and log file
-exec > >(tee -a "$LOG_FILE") 2>&1
-
-echo "Logging to: $LOG_FILE"
-echo ""
-
-# Apple Container data directory
-AC_DATA_DIR="$HOME/Library/Application Support/com.apple.container"
-AC_SNAPSHOTS_DIR="$AC_DATA_DIR/snapshots"
-
-# Prune orphaned snapshots from test containers (CCT_ prefix).
-# Apple Container leaves behind snapshot directories even after container delete.
-# These accumulate and consume GBs of disk space.
-prune_test_snapshots() {
-    local snapshot_dir="$AC_SNAPSHOTS_DIR"
-    if [ ! -d "$snapshot_dir" ]; then
-        return
-    fi
-
-    # Get IDs of CCT_ containers and all containers from state.json
-    local cct_ids=""
-    local all_ids=""
-    if [ -f "$AC_DATA_DIR/state.json" ] && command -v python3 &> /dev/null; then
-        eval "$(python3 -c "
-import json, os
-state_file = os.path.expanduser(\"$AC_DATA_DIR/state.json\")
-with open(state_file) as f:
-    state = json.load(f)
-containers = state.get(\"containers\", {})
-cct = []
-all_cids = []
-for cid in containers:
-    all_cids.append(cid)
-    cdata = containers[cid].get(\"configuration\", {}) if isinstance(containers[cid], dict) else {}
-    name = cdata.get(\"id\", \"\")
-    if name.startswith(\"CCT_\"):
-        cct.append(cid)
-print(\"CCT_IDS=\" + \" \".join(cct))
-print(\"ALL_IDS=\" + \" \".join(all_cids))
-" 2>/dev/null || true)"
-    fi
-
-    local removed_count=0
-    local removed_mb=0
-
-    # Remove snapshots for CCT_ containers
-    for cid in $CCT_IDS; do
-        if [ -d "$snapshot_dir/$cid" ]; then
-            local size
-            size=$(du -sm "$snapshot_dir/$cid" 2>/dev/null | awk '{print $1}')
-            rm -rf "$snapshot_dir/$cid"
-            removed_count=$((removed_count + 1))
-            removed_mb=$((removed_mb + size))
-        fi
-    done
-
-    # Remove snapshots not referenced by ANY container (orphaned from previous runs)
-    for snap_dir in "$snapshot_dir"/*/; do
-        [ -d "$snap_dir" ] || continue
-        local snap_name
-        snap_name=$(basename "$snap_dir")
-        # Skip if this snapshot belongs to a known container
-        case " $ALL_IDS " in
-            *" $snap_name "*) continue ;;
-        esac
-        local size
-        size=$(du -sm "$snap_dir" 2>/dev/null | awk '{print $1}')
-        rm -rf "$snap_dir"
-        removed_count=$((removed_count + 1))
-        removed_mb=$((removed_mb + size))
-    done
-
-    if [ "$removed_count" -gt 0 ]; then
-        echo "  Pruned $removed_count snapshot(s), reclaimed ${removed_mb}MB"
-    fi
-
-    # Also run container prune to clean up any runtime-level orphans
-    if command -v container &> /dev/null; then
-        container prune 2>/dev/null || true
-    fi
-}
-
-# Aggressive cleanup function - removes ALL test containers AND their snapshots
-# This is called BEFORE tests start to ensure clean state
-aggressive_cleanup_before_tests() {
-echo "=========================================="
-echo "PRE-TEST CLEANUP: Removing ALL CCT_* artifacts"
-echo "=========================================="
-
-if ! command -v container &> /dev/null; then
-echo "⚠️ 'container' CLI not available"
-return 1
-fi
-
-local test_containers
-test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
-
-if [ -n "$test_containers" ]; then
-local count
-count=$(echo "$test_containers" | wc -l | tr -d ' ')
-echo "Found $count CCT_* container(s) to remove:"
-
-# Use process substitution to avoid subshell
-while read -r container_id; do
-echo " - Stopping: $container_id"
-container stop "$container_id" 2>/dev/null || true
-echo " - Deleting: $container_id"
-container delete "$container_id" 2>/dev/null || true
-done < <(echo "$test_containers")
-echo "✓ Stopped and deleted $count containers"
-fi
-
-# Remove ALL CCT_* snapshots
-local snapshot_dir="$AC_SNAPSHOTS_DIR"
-if [ -d "$snapshot_dir" ]; then
-echo "Removing orphaned snapshots..."
-local removed_count=0
-local removed_mb=0
-
-for snap_dir in "$snapshot_dir"/*/; do
-[ -d "$snap_dir" ] || continue
-local snap_name
-snap_name=$(basename "$snap_dir")
-
-# Check if this is a CCT_* snapshot or orphaned
-if [[ "$snap_name" == CCT_* ]] || ! container list --all 2>/dev/null | grep -q "$snap_name"; then
-local size
-size=$(du -sm "$snap_dir" 2>/dev/null | awk '{print $1}')
-rm -rf "$snap_dir"
-removed_count=$((removed_count + 1))
-removed_mb=$((removed_mb + size))
-fi
-done
-
-if [ "$removed_count" -gt 0 ]; then
-echo "✓ Removed $removed_count snapshot(s), reclaimed ${removed_mb}MB"
-fi
-fi
-
-# Final prune
-container prune 2>/dev/null || true
-
-echo "✓ Pre-test cleanup complete"
-echo "=========================================="
-echo ""
-}
-
-# Cleanup function - removes test containers AND their orphaned snapshots (POST-TEST)
-cleanup_test_containers() {
-local exit_code=$?
-echo ""
-echo "=========================================="
-echo "POST-TEST CLEANUP: Removing ALL CCT_* artifacts"
-echo "=========================================="
-
-# Find and remove only containers created by our tests (CCT_*)
-if command -v container &> /dev/null; then
-local test_containers
-test_containers=$(container list --all 2>/dev/null | grep "CCT_" | awk '{print $1}' || true)
-
-if [ -n "$test_containers" ]; then
-echo "Found test containers to clean up:"
-echo "$test_containers" | while read -r container_id; do
-echo " - Stopping: $container_id"
-container stop "$container_id" 2>/dev/null || true
-echo " - Deleting: $container_id"
-container delete "$container_id" 2>/dev/null || true
-done
-echo "✓ Test containers cleaned up"
-else
-echo "✓ No test containers to clean up"
-fi
-else
-echo "⚠️ 'container' CLI not available, skipping container cleanup"
-fi
-
-# Prune orphaned test snapshots
-prune_test_snapshots
-
-echo "=========================================="
-
-# Exit with the original exit code
-exit $exit_code
-}
+# Setup logging (sets LOG_DIR, TIMESTAMP, LOG_FILE)
+setup_test_logging
 
 # Register cleanup function to run on exit (POST-TEST)
 trap cleanup_test_containers EXIT
@@ -215,80 +32,14 @@ echo "Container-Compose Test Runner"
 echo "=========================================="
 echo ""
 
-# Parse --auto-clean flag early (needed before prune step)
-AUTO_CLEAN=false
-for arg in "$@"; do
-    if [[ "$arg" == "--auto-clean" ]]; then
-        AUTO_CLEAN=true
-        break
-    fi
-done
-
 # Neutralize conda environment contamination (shared with build-sign-install.sh)
-source "$SCRIPT_DIR/scripts/env-setup.sh"
 [ -n "$_ENV_SETUP_SUMMARY" ] && echo " Env: $_ENV_SETUP_SUMMARY"
 
 # Check for stale lock files in temp directory
-LOCK_PATTERN="_Users_kieranlal_workspace_Container-Compose_.build"
-TEMP_DIR="/var/folders/1s/1zg1gfbn3j79qw5g2fqsf9q00000gn/T"
-
-if [ -d "$TEMP_DIR" ]; then
-    stale_locks=$(find "$TEMP_DIR" -name "*$LOCK_PATTERN*" -type f 2>/dev/null || true)
-    if [ -n "$stale_locks" ]; then
-        lock_count=$(echo "$stale_locks" | wc -l | tr -d ' ')
-        echo "⚠️ Detected $lock_count stale lock file(s) in temp directory:"
-        echo "$stale_locks" | head -5 | while read -r lock; do
-            echo " - $(basename "$lock")"
-        done
-        if [ "$lock_count" -gt 5 ]; then
-            echo " ... and $((lock_count - 5)) more"
-        fi
-        echo ""
-        echo " These can cause 'invalid access' errors during build."
-        echo ""
-
-        if [ "$AUTO_CLEAN" = true ]; then
-            should_clean=true
-        else
-            read -p "Remove stale lock files? [Y/n] " -n 1 -r
-            echo ""
-            if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-                should_clean=true
-            fi
-        fi
-
-        if [ "$should_clean" = true ]; then
-            echo "$stale_locks" | while read -r lock; do
-                rm -f "$lock" 2>/dev/null || true
-            done
-            echo "✓ Stale lock files removed"
-            echo ""
-        else
-            echo "⚠️ Continuing without removing locks. Build may fail."
-            echo ""
-        fi
-    fi
-fi
+check_stale_lock_files
 
 # Check for root-owned files in .build if not running as root
-if [ -d ".build" ] && [ "$EUID" -ne 0 ]; then
-    root_files=$(find .build -user root -print -quit 2>/dev/null || true)
-    if [ -n "$root_files" ]; then
-        echo "⚠️ Detected root-owned files in .build directory."
-        echo " This will cause 'Permission denied' errors during compilation."
-        echo ""
-        read -p " Would you like to fix permissions using sudo? [y/N] " -n 1 -r
-        echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            sudo chown -R "$USER" .build
-            echo "✓ Permissions fixed."
-            echo ""
-        else
-            echo "⚠️ Continuing without fixing permissions. Build may fail."
-            echo ""
-        fi
-    fi
-fi
+check_root_owned_files
 
 # Set configurable test ports to avoid conflicts with existing services
 # Override these via environment variables if needed
@@ -308,6 +59,15 @@ echo "  App/Node.js: $TEST_PORT_APP"
 echo "  Web Service 2: $TEST_PORT_WEB2"
 echo ""
 
+# Parse --auto-clean flag early (needed before prune step)
+AUTO_CLEAN=false
+for arg in "$@"; do
+    if [[ "$arg" == "--auto-clean" ]]; then
+        AUTO_CLEAN=true
+        break
+    fi
+done
+
 # Check if we're in CI
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
     echo "✓ Running in CI environment"
@@ -323,7 +83,7 @@ echo ""
 
 # Check for OCI_REGISTRY_URL for dynamic tests
 if [ -z "$OCI_REGISTRY_URL" ]; then
-    echo "⚠️ OCI_REGISTRY_URL not set"
+    echo "⚠️  OCI_REGISTRY_URL not set"
     echo " Dynamic tests requiring container registry will be skipped"
     echo " Set OCI_REGISTRY_URL to run registry-dependent tests:"
     echo "   export OCI_REGISTRY_URL=ghcr.io"
@@ -333,7 +93,7 @@ fi
 
 # Check if container runtime is available
 if ! command -v container &> /dev/null; then
-    echo "⚠️ 'container' CLI not found in PATH"
+    echo "⚠️  'container' CLI not found in PATH"
     echo " Tests requiring container runtime will fail"
     echo ""
 fi
@@ -368,7 +128,7 @@ done
 
 # Check if already running as root/sudo
 if [ "$EUID" -eq 0 ]; then
-    echo "⚠️ ERROR: Running as root (EUID=0) is NOT supported."
+    echo "⚠️  ERROR: Running as root (EUID=0) is NOT supported."
     echo " Apple Container runtime rejects sudo/root access with 'unauthorized request'."
     echo ""
     echo "Please run WITHOUT sudo:"
@@ -386,69 +146,11 @@ if [ "$FORCE_NO_SUDO" = true ]; then
     echo ""
 fi
 
+# Run swift tests and capture output
 swift test "${FILTERED_ARGS[@]}" 2>&1 | tee "$LOG_DIR/test_output_$TIMESTAMP.txt"
 TEST_EXIT_CODE=${PIPESTATUS[0]}
 
-# Parse test results and display tally
-echo ""
-echo "=========================================="
-echo "TEST RESULTS SUMMARY"
-echo "=========================================="
-
-# Parse static tests (from swift test output)
-if grep -q "Test Suite 'Container-ComposePackageTests.xctest'" "$LOG_DIR/test_output_$TIMESTAMP.txt" 2>/dev/null; then
-    static_summary=$(grep "Test Suite 'Container-ComposePackageTests.xctest'" "$LOG_DIR/test_output_$TIMESTAMP.txt" | tail -1)
-    if [[ "$static_summary" =~ Executed\ ([0-9]+)\ tests.*with\ ([0-9]+)\ test.*skipped\ and\ ([0-9]+)\ failures ]]; then
-        total="${BASH_REMATCH[1]}"
-        skipped="${BASH_REMATCH[2]}"
-        failed="${BASH_REMATCH[3]}"
-        passed=$((total - skipped - failed))
-        echo "Static Tests (Unit Tests):"
-        echo "  Total:  $total"
-        echo "  ✓ Passed: $passed"
-        if [ "$skipped" -gt 0 ]; then
-            echo "  ○ Skipped: $skipped"
-        fi
-        if [ "$failed" -gt 0 ]; then
-            echo "  ✗ Failed: $failed"
-        fi
-        echo ""
-    fi
-fi
-
-# Parse dynamic tests (from swift test output with Container-Compose-DynamicTests)
-if grep -q "Test Suite 'Container-Compose-DynamicTests'" "$LOG_DIR/test_output_$TIMESTAMP.txt" 2>/dev/null; then
-    dynamic_summary=$(grep "Test Suite 'Container-Compose-DynamicTests'" "$LOG_DIR/test_output_$TIMESTAMP.txt" | tail -1)
-    if [[ "$dynamic_summary" =~ Executed\ ([0-9]+)\ tests.*with\ ([0-9]+)\ test.*skipped\ and\ ([0-9]+)\ failures ]]; then
-        total="${BASH_REMATCH[1]}"
-        skipped="${BASH_REMATCH[2]}"
-        failed="${BASH_REMATCH[3]}"
-        passed=$((total - skipped - failed))
-        echo "Dynamic Tests (Integration Tests):"
-        echo "  Total:  $total"
-        echo "  ✓ Passed: $passed"
-        if [ "$skipped" -gt 0 ]; then
-            echo "  ○ Skipped: $skipped"
-        fi
-        if [ "$failed" -gt 0 ]; then
-            echo "  ✗ Failed: $failed"
-        fi
-        echo ""
-    fi
-fi
-
-# Overall summary from swift test
-if grep -q "Test run with.* tests" "$LOG_DIR/test_output_$TIMESTAMP.txt" 2>/dev/null; then
-    overall_line=$(grep "Test run with.* tests" "$LOG_DIR/test_output_$TIMESTAMP.txt" | tail -1)
-    echo "Overall Result:"
-    if echo "$overall_line" | grep -q "passed"; then
-        echo "  Status: ✓ PASSED"
-    else
-        echo "  Status: ✗ FAILED"
-    fi
-    echo "$overall_line" | sed 's/Test run with/  /'
-fi
-
-echo "=========================================="
+# Parse and display test results
+parse_test_results "$LOG_DIR/test_output_$TIMESTAMP.txt"
 
 exit $TEST_EXIT_CODE
