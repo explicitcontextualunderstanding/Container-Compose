@@ -17,8 +17,8 @@ source "$SCRIPT_DIR/scripts/lib/container-cleanup.sh"
 source "$SCRIPT_DIR/scripts/lib/test-runner.sh"
 source "$SCRIPT_DIR/scripts/env-setup.sh"
 
-# Setup logging (sets LOG_DIR, TIMESTAMP, LOG_FILE)
-setup_test_logging
+# Setup logging (pass SCRIPT_DIR to use project root, not library directory)
+setup_test_logging "$SCRIPT_DIR"
 
 # Register cleanup function to run on exit (POST-TEST)
 trap cleanup_test_containers EXIT
