@@ -192,11 +192,14 @@ final class XPCHealthTests: XCTestCase {
         XCTAssertNotNil(diagnostics.connectionState)
     }
     
-    func testGetContainerVersionIntegration() async throws {
-        // This test requires container daemon to be running
-        guard FileManager.default.isExecutableFile(atPath: "/usr/bin/container") else {
-            throw XCTSkip("Container CLI not available")
-        }
+  func testGetContainerVersionIntegration() async throws {
+    // This test requires container daemon to be running
+    let containerPaths = ["/usr/local/bin/container", "/usr/bin/container", "/opt/homebrew/bin/container"]
+    let containerExists = containerPaths.contains { FileManager.default.isExecutableFile(atPath: $0) }
+
+    guard containerExists else {
+      throw XCTSkip("Container CLI not available")
+    }
         
         do {
             let version = try await XPCHealth.getContainerVersion()
