@@ -12,6 +12,18 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Create log directory and timestamped log file
+LOG_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOG_DIR"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+LOG_FILE="$LOG_DIR/test_run_$TIMESTAMP.log"
+
+# Redirect stdout and stderr to both console and log file
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+echo "Logging to: $LOG_FILE"
+echo ""
+
 # Apple Container data directory
 AC_DATA_DIR="$HOME/Library/Application Support/com.apple.container"
 AC_SNAPSHOTS_DIR="$AC_DATA_DIR/snapshots"
@@ -203,6 +215,15 @@ echo "Container-Compose Test Runner"
 echo "=========================================="
 echo ""
 
+# Parse --auto-clean flag early (needed before prune step)
+AUTO_CLEAN=false
+for arg in "$@"; do
+    if [[ "$arg" == "--auto-clean" ]]; then
+        AUTO_CLEAN=true
+        break
+    fi
+done
+
 # Neutralize conda environment contamination (shared with build-sign-install.sh)
 source "$SCRIPT_DIR/scripts/env-setup.sh"
 [ -n "$_ENV_SETUP_SUMMARY" ] && echo " Env: $_ENV_SETUP_SUMMARY"
@@ -287,17 +308,6 @@ echo "  App/Node.js: $TEST_PORT_APP"
 echo "  Web Service 2: $TEST_PORT_WEB2"
 echo ""
 
-# Parse --auto-clean flag early (needed before prune step)
-AUTO_CLEAN=false
-EARLY_FILTERED_ARGS=()
-for arg in "$@"; do
-    if [[ "$arg" == "--auto-clean" ]]; then
-        AUTO_CLEAN=true
-    else
-        EARLY_FILTERED_ARGS+=("$arg")
-    fi
-done
-
 # Check if we're in CI
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
     echo "✓ Running in CI environment"
@@ -311,12 +321,14 @@ fi
 echo "Local development environment detected"
 echo ""
 
-# Set default registry URL if not provided
+# Check for OCI_REGISTRY_URL for dynamic tests
 if [ -z "$OCI_REGISTRY_URL" ]; then
-export OCI_REGISTRY_URL="REMOVED_REGISTRY_URL"
-echo "✓ OCI_REGISTRY_URL set to default: $OCI_REGISTRY_URL"
-echo ""
-fi
+    echo "⚠️ OCI_REGISTRY_URL not set"
+    echo " Dynamic tests requiring container registry will be skipped"
+    echo " Set OCI_REGISTRY_URL to run registry-dependent tests:"
+    echo "   export OCI_REGISTRY_URL=ghcr.io"
+    echo "   export OCI_REGISTRY_URL=docker.io"
+    echo ""
 fi
 
 # Check if container runtime is available
@@ -374,5 +386,69 @@ if [ "$FORCE_NO_SUDO" = true ]; then
     echo ""
 fi
 
-swift test "${FILTERED_ARGS[@]}"
-exit $?
+swift test "${FILTERED_ARGS[@]}" 2>&1 | tee "$LOG_DIR/test_output_$TIMESTAMP.txt"
+TEST_EXIT_CODE=${PIPESTATUS[0]}
+
+# Parse test results and display tally
+echo ""
+echo "=========================================="
+echo "TEST RESULTS SUMMARY"
+echo "=========================================="
+
+# Parse static tests (from swift test output)
+if grep -q "Test Suite 'Container-ComposePackageTests.xctest'" "$LOG_DIR/test_output_$TIMESTAMP.txt" 2>/dev/null; then
+    static_summary=$(grep "Test Suite 'Container-ComposePackageTests.xctest'" "$LOG_DIR/test_output_$TIMESTAMP.txt" | tail -1)
+    if [[ "$static_summary" =~ Executed\ ([0-9]+)\ tests.*with\ ([0-9]+)\ test.*skipped\ and\ ([0-9]+)\ failures ]]; then
+        total="${BASH_REMATCH[1]}"
+        skipped="${BASH_REMATCH[2]}"
+        failed="${BASH_REMATCH[3]}"
+        passed=$((total - skipped - failed))
+        echo "Static Tests (Unit Tests):"
+        echo "  Total:  $total"
+        echo "  ✓ Passed: $passed"
+        if [ "$skipped" -gt 0 ]; then
+            echo "  ○ Skipped: $skipped"
+        fi
+        if [ "$failed" -gt 0 ]; then
+            echo "  ✗ Failed: $failed"
+        fi
+        echo ""
+    fi
+fi
+
+# Parse dynamic tests (from swift test output with Container-Compose-DynamicTests)
+if grep -q "Test Suite 'Container-Compose-DynamicTests'" "$LOG_DIR/test_output_$TIMESTAMP.txt" 2>/dev/null; then
+    dynamic_summary=$(grep "Test Suite 'Container-Compose-DynamicTests'" "$LOG_DIR/test_output_$TIMESTAMP.txt" | tail -1)
+    if [[ "$dynamic_summary" =~ Executed\ ([0-9]+)\ tests.*with\ ([0-9]+)\ test.*skipped\ and\ ([0-9]+)\ failures ]]; then
+        total="${BASH_REMATCH[1]}"
+        skipped="${BASH_REMATCH[2]}"
+        failed="${BASH_REMATCH[3]}"
+        passed=$((total - skipped - failed))
+        echo "Dynamic Tests (Integration Tests):"
+        echo "  Total:  $total"
+        echo "  ✓ Passed: $passed"
+        if [ "$skipped" -gt 0 ]; then
+            echo "  ○ Skipped: $skipped"
+        fi
+        if [ "$failed" -gt 0 ]; then
+            echo "  ✗ Failed: $failed"
+        fi
+        echo ""
+    fi
+fi
+
+# Overall summary from swift test
+if grep -q "Test run with.* tests" "$LOG_DIR/test_output_$TIMESTAMP.txt" 2>/dev/null; then
+    overall_line=$(grep "Test run with.* tests" "$LOG_DIR/test_output_$TIMESTAMP.txt" | tail -1)
+    echo "Overall Result:"
+    if echo "$overall_line" | grep -q "passed"; then
+        echo "  Status: ✓ PASSED"
+    else
+        echo "  Status: ✗ FAILED"
+    fi
+    echo "$overall_line" | sed 's/Test run with/  /'
+fi
+
+echo "=========================================="
+
+exit $TEST_EXIT_CODE

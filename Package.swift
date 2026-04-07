@@ -69,12 +69,13 @@ let package = Package(
     ]
   ),
 
-  .testTarget(
-    name: "Container-Compose-Tests",
-    dependencies: [
-      "ContainerComposeCore",
-      "TestHelpers"
-    ]
-  ),
+    .testTarget(
+      name: "Container-Compose-Tests",
+      dependencies: [
+        "ContainerComposeCore",
+        "TestHelpers",
+        "Yams"
+      ]
+    ),
 ]
 )

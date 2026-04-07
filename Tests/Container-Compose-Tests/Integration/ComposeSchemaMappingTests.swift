@@ -1,12 +1,13 @@
 import XCTest
+import Yams
 @testable import ContainerComposeCore
 
 // MARK: - Compose YAML Schema Mapping Tests (Plan 77 Phase 6)
 
 final class ComposeSchemaMappingTests: XCTestCase {
-    
+
     // MARK: - End-to-End Schema Parsing
-    
+
     func testParsesFullFleetConfiguration() throws {
         // Simulate parsing the actual Hermes/Honcho compose file
         let yamlString = """
@@ -15,199 +16,271 @@ final class ComposeSchemaMappingTests: XCTestCase {
           honcho-db:
             image: walg-db:latest
             x-apple-relays:
-              - type: "vsock-db"
-                port: 5432
-                priority: "high"
-          
+            - type: "vsock-db"
+              port: 5432
+              priority: "high"
+
           hermes:
             image: hermes:v26
             x-apple-relays:
-              - type: "vsock-log-stream"
-                port: 5001
-                target: "code-graph"
-                priority: "high"
-              - type: "vsock-mcp-bridge"
-                port: 5002
-                target: "honcho-hub"
-                priority: "high"
-              - type: "vsock-ane-embedding"
-                port: 6000
-                priority: "high"
-          
+            - type: "vsock-log-stream"
+              port: 5001
+              target: "code-graph"
+              priority: "high"
+            - type: "vsock-mcp-bridge"
+              port: 5002
+              target: "honcho-hub"
+              priority: "high"
+            - type: "vsock-ane-embedding"
+              port: 6000
+              priority: "high"
+
           honcho-hub:
             image: honcho:latest
-          
+
           code-graph:
             image: codegraph:latest
         """
-        
+
         // Parse YAML
         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
-        
+
         // Verify services parsed
         XCTAssertEqual(dockerCompose.services.count, 4)
-        
+
         // Verify honcho-db has vsock-db relay
-        let dbService = dockerCompose.services["honcho-db"]
-        XCTAssertNotNil(dbService?.x_apple_relays)
-        XCTAssertEqual(dbService?.x_apple_relays?.count, 1)
-        XCTAssertEqual(dbService?.x_apple_relays?[0].type, "vsock-db")
-        XCTAssertEqual(dbService?.x_apple_relays?[0].port, 5432)
-        
+        guard let dbServiceOptional = dockerCompose.services["honcho-db"],
+              let dbService = dbServiceOptional else {
+            XCTFail("Missing honcho-db service")
+            return
+        }
+        XCTAssertNotNil(dbService.x_apple_relays)
+        XCTAssertEqual(dbService.x_apple_relays?.count, 1)
+        XCTAssertEqual(dbService.x_apple_relays?[0].type, "vsock-db")
+        XCTAssertEqual(dbService.x_apple_relays?[0].port, 5432)
+
         // Verify hermes has all three relays
-        let hermesService = dockerCompose.services["hermes"]
-        XCTAssertNotNil(hermesService?.x_apple_relays)
-        XCTAssertEqual(hermesService?.x_apple_relays?.count, 3)
-        
+        guard let hermesServiceOptional = dockerCompose.services["hermes"],
+              let hermesService = hermesServiceOptional else {
+            XCTFail("Missing hermes service")
+            return
+        }
+        XCTAssertNotNil(hermesService.x_apple_relays)
+        XCTAssertEqual(hermesService.x_apple_relays?.count, 3)
+
         // Load relays via configuration loader
         let loader = RelayConfigurationLoader()
-        let services = dockerCompose.services.compactMap { name, service in
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { name, service in
             guard let service = service else { return nil }
             return (name, service)
         }
-        
+
         let loadedRelays = try loader.loadRelays(from: services)
-        
+
         // Should have 4 relays total (1 DB + 3 Hermes)
         XCTAssertEqual(loadedRelays.count, 4)
-        
-        // Verify types
-        let dbRelay = loadedRelays.first { $0.type == .vsockDb }
+
+        // Verify types using fully qualified type names
+        let dbRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockDb }
         XCTAssertNotNil(dbRelay)
         XCTAssertEqual(dbRelay?.port, 5432)
-        
-        let aneRelay = loadedRelays.first { $0.type == .vsockAneEmbedding }
+
+        let aneRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockAneEmbedding }
         XCTAssertNotNil(aneRelay)
         XCTAssertEqual(aneRelay?.port, 6000)
-        
-        let mcpRelay = loadedRelays.first { $0.type == .vsockMcpBridge }
+
+        let mcpRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockMcpBridge }
         XCTAssertNotNil(mcpRelay)
         XCTAssertEqual(mcpRelay?.port, 5002)
         XCTAssertEqual(mcpRelay?.target, "honcho-hub")
-        
-        let logRelay = loadedRelays.first { $0.type == .vsockLogStream }
+
+        let logRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockLogStream }
         XCTAssertNotNil(logRelay)
         XCTAssertEqual(logRelay?.port, 5001)
         XCTAssertEqual(logRelay?.target, "code-graph")
     }
-    
-    func testRejectsMalformedRelayType() {
+
+    func testRejectsMalformedRelayType() throws {
+        // YAML parsing accepts any string, validation happens in loadRelays
         let yamlString = """
         services:
           test-service:
             image: test:latest
             x-apple-relays:
-              - type: "invalid-relay-type"
-                port: 5000
+            - type: "invalid-relay-type"
+              port: 5000
         """
-        
-        XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
-            // YAMLDecoder may throw during decoding
-            XCTAssertNotNil(error)
+
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+        let loader = RelayConfigurationLoader()
+
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { name, service in
+            guard let service = service else { return nil }
+            return (name, service)
+        }
+
+        // Validation should throw during loading
+        XCTAssertThrowsError(try loader.loadRelays(from: services)) { error in
+            guard let configError = error as? RelayConfigurationLoader.ConfigurationError else {
+                XCTFail("Wrong error type")
+                return
+            }
+            if case .unsupportedRelayType(let type) = configError {
+                XCTAssertEqual(type, "invalid-relay-type")
+            } else {
+                XCTFail("Expected unsupportedRelayType error, got \(configError)")
+            }
         }
     }
-    
+
     func testHandlesServicesWithoutRelays() throws {
         let yamlString = """
         services:
           plain-service:
             image: nginx:latest
-          
+
           service-with-relay:
             image: hermes:latest
             x-apple-relays:
-              - type: "vsock-generic"
-                port: 8080
+            - type: "vsock-generic"
+              port: 8080
         """
-        
+
         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
         let loader = RelayConfigurationLoader()
-        
-        let services = dockerCompose.services.compactMap { name, service in
+
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { name, service in
             guard let service = service else { return nil }
             return (name, service)
         }
-        
+
         XCTAssertTrue(loader.hasAppleRelays(in: services))
-        
+
         let loadedRelays = try loader.loadRelays(from: services)
         XCTAssertEqual(loadedRelays.count, 1)
         XCTAssertEqual(loadedRelays[0].serviceName, "service-with-relay")
     }
-    
-    func testValidatesPortUniquenessAcrossServices() {
-        // Same port on different services should fail
+
+    func testValidatesPortUniquenessAcrossServices() throws {
+        // Same port on different services should fail during loadRelays
         let yamlString = """
         services:
           service1:
             image: test1:latest
             x-apple-relays:
-              - type: "vsock-generic"
-                port: 5000
-          
+            - type: "vsock-generic"
+              port: 5000
+
           service2:
             image: test2:latest
             x-apple-relays:
-              - type: "vsock-generic"
-                port: 5000
+            - type: "vsock-generic"
+              port: 5000
         """
-        
-        XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
-            // Should throw port conflict error during loading
-            XCTAssertNotNil(error)
+
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+        let loader = RelayConfigurationLoader()
+
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { name, service in
+            guard let service = service else { return nil }
+            return (name, service)
+        }
+
+        XCTAssertThrowsError(try loader.loadRelays(from: services)) { error in
+            guard let configError = error as? RelayConfigurationLoader.ConfigurationError else {
+                XCTFail("Wrong error type")
+                return
+            }
+            if case .conflictingPort(let port, _) = configError {
+                XCTAssertEqual(port, 5000)
+            } else {
+                XCTFail("Expected conflictingPort error, got \(configError)")
+            }
         }
     }
-    
+
     // MARK: - Security Policy Tests
-    
-    func testEnforcesTargetRequirementForMcpBridge() {
+
+    func testEnforcesTargetRequirementForMcpBridge() throws {
         let yamlString = """
         services:
           test:
             image: test:latest
             x-apple-relays:
-              - type: "vsock-mcp-bridge"
-                port: 5002
+            - type: "vsock-mcp-bridge"
+              port: 5002
         """
-        
-        XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
-            XCTAssertNotNil(error)
+
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+        let loader = RelayConfigurationLoader()
+
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { name, service in
+            guard let service = service else { return nil }
+            return (name, service)
+        }
+
+        XCTAssertThrowsError(try loader.loadRelays(from: services)) { error in
+            guard let configError = error as? RelayConfigurationLoader.ConfigurationError else {
+                XCTFail("Wrong error type")
+                return
+            }
+            if case .missingTarget(let service) = configError {
+                XCTAssertEqual(service, "test")
+            } else {
+                XCTFail("Expected missingTarget error, got \(configError)")
+            }
         }
     }
-    
-    func testEnforcesTargetRequirementForLogStream() {
+
+    func testEnforcesTargetRequirementForLogStream() throws {
         let yamlString = """
         services:
           test:
             image: test:latest
             x-apple-relays:
-              - type: "vsock-log-stream"
-                port: 5001
+            - type: "vsock-log-stream"
+              port: 5001
         """
-        
-        XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
-            XCTAssertNotNil(error)
+
+        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+        let loader = RelayConfigurationLoader()
+
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { name, service in
+            guard let service = service else { return nil }
+            return (name, service)
+        }
+
+        XCTAssertThrowsError(try loader.loadRelays(from: services)) { error in
+            guard let configError = error as? RelayConfigurationLoader.ConfigurationError else {
+                XCTFail("Wrong error type")
+                return
+            }
+            if case .missingTarget(let service) = configError {
+                XCTAssertEqual(service, "test")
+            } else {
+                XCTFail("Expected missingTarget error, got \(configError)")
+            }
         }
     }
-    
+
     func testDatabaseRelayWorksWithoutTarget() throws {
         let yamlString = """
         services:
           db:
             image: postgres:15
             x-apple-relays:
-              - type: "vsock-db"
-                port: 5432
+            - type: "vsock-db"
+              port: 5432
         """
-        
+
         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
         let loader = RelayConfigurationLoader()
-        
-        let services = dockerCompose.services.compactMap { name, service in
+
+        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { name, service in
             guard let service = service else { return nil }
             return (name, service)
         }
-        
+
         // Should NOT throw missingTarget error
         let loadedRelays = try loader.loadRelays(from: services)
         XCTAssertEqual(loadedRelays.count, 1)
