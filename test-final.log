@@ -1,0 +1,1203 @@
+[0/1] Planning build
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:264:42: warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+262 |     }
+263 | 
+264 |     let workDirectory = PathLike(context.pluginWorkDirectory)
+    |                                          |- warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+    |                                          `- note: use 'pluginWorkDirectoryURL' instead
+265 | 
+266 |     return try self.createBuildCommands(
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:287:18: warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+285 | 
+286 |   init(_ path: String) {
+287 |     self.value = Path(path)
+    |                  `- warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+288 |   }
+289 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:291:26: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+289 | 
+290 |   init(_ element: FileList.Element) {
+291 |     self.value = element.path
+    |                          |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                          `- note: use 'url' instead
+292 |   }
+293 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:295:26: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+293 | 
+294 |   init(_ element: PluginContext.Tool) {
+295 |     self.value = element.path
+    |                          |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                          `- note: use 'url' instead
+296 |   }
+297 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:303:23: warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+301 | 
+302 |   var lastComponent: String {
+303 |     return self.value.lastComponent
+    |                       `- warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+304 |   }
+305 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:308:29: warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+306 |   func removingLastComponent() -> Self {
+307 |     var copy = self
+308 |     copy.value = self.value.removingLastComponent()
+    |                             `- warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+309 |     return copy
+310 |   }
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:314:29: warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+312 |   func appending(_ path: String) -> Self {
+313 |     var copy = self
+314 |     copy.value = self.value.appending(path)
+    |                             `- warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+315 |     return copy
+316 |   }
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:327:17: warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+325 |     outputFiles: [PathLike]
+326 |   ) -> PackagePlugin.Command {
+327 |     return Self.buildCommand(
+    |                 `- warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+328 |       displayName: displayName,
+329 |       executable: executable.value,
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:339:35: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+337 | extension URL {
+338 |   init(_ pathLike: PathLike) {
+339 |     self = URL(fileURLWithPath: "\(pathLike.value)")
+    |                                   `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+340 |   }
+341 | }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[1/1] Compiling plugin GRPCSwiftPlugin
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:9:14: warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+  7 |     enum PluginError: Error, CustomStringConvertible {
+  8 |         /// Indicates that the target where the plugin was applied to was not `SourceModuleTarget`.
+  9 |         case invalidTarget(Target)
+    |              `- warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+ 10 |         /// Indicates that the file extension of an input file was not `.proto`.
+ 11 |         case invalidInputFileExtension(String)
+
+PackagePlugin.Target:1:17: note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 1 | public protocol Target {
+   |                 `- note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 2 |     var id: Self.ID { get }
+ 3 |     typealias ID = String
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:2:1: warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  1 | import Foundation
+  2 | import PackagePlugin
+    | `- warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  3 | 
+  4 | @main
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:9:14: warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+  7 |     enum PluginError: Error, CustomStringConvertible {
+  8 |         /// Indicates that the target where the plugin was applied to was not `SourceModuleTarget`.
+  9 |         case invalidTarget(Target)
+    |              `- warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+ 10 |         /// Indicates that the file extension of an input file was not `.proto`.
+ 11 |         case invalidInputFileExtension(String)
+
+PackagePlugin.Target:1:17: note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 1 | public protocol Target {
+   |                 `- note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 2 |     var id: Self.ID { get }
+ 3 |     typealias ID = String
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:2:1: warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  1 | import Foundation
+  2 | import PackagePlugin
+    | `- warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  3 | 
+  4 | @main
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:117:24: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+115 |             let configurationFilePath = sourceFiles.first(
+116 |                 where: {
+117 |                     $0.path.lastComponent == Self.configurationFileName
+    |                        |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                        `- note: use 'url' instead
+118 |                 }
+119 |             )?.path
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:117:29: warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+115 |             let configurationFilePath = sourceFiles.first(
+116 |                 where: {
+117 |                     $0.path.lastComponent == Self.configurationFileName
+    |                             `- warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+118 |                 }
+119 |             )?.path
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:119:16: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+117 |                     $0.path.lastComponent == Self.configurationFileName
+118 |                 }
+119 |             )?.path
+    |                |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                `- note: use 'url' instead
+120 |         else {
+121 |             throw PluginError.noConfigFound(Self.configurationFileName)
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:123:64: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+121 |             throw PluginError.noConfigFound(Self.configurationFileName)
+122 |         }
+123 |         let data = try Data(contentsOf: URL(fileURLWithPath: "\(configurationFilePath)"))
+    |                                                                `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+124 |         let configuration = try JSONDecoder().decode(Configuration.self, from: data)
+125 |         try validateConfiguration(configuration)
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:131:26: warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+129 |         if let configuredProtocPath = configuration.protocPath {
+130 |             // The user set the config path in the file. So let's take that
+131 |             protocPath = Path(configuredProtocPath)
+    |                          `- warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+132 |         } else if let environmentPath = ProcessInfo.processInfo.environment["PROTOC_PATH"] {
+133 |             // The user set the env variable. So let's take that
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:134:26: warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+132 |         } else if let environmentPath = ProcessInfo.processInfo.environment["PROTOC_PATH"] {
+133 |             // The user set the env variable. So let's take that
+134 |             protocPath = Path(environmentPath)
+    |                          `- warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+135 |         } else {
+136 |             // The user didn't set anything so let's try see if SPM can find a binary for us
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:137:45: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+135 |         } else {
+136 |             // The user didn't set anything so let's try see if SPM can find a binary for us
+137 |             protocPath = try tool("protoc").path
+    |                                             |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                                             `- note: use 'url' instead
+138 |         }
+139 |         let protocGenSwiftPath = try tool("protoc-gen-swift").path
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:139:63: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+137 |             protocPath = try tool("protoc").path
+138 |         }
+139 |         let protocGenSwiftPath = try tool("protoc-gen-swift").path
+    |                                                               |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                                                               `- note: use 'url' instead
+140 | 
+141 |         return configuration.invocations.map { invocation in
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:143:50: warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+141 |         return configuration.invocations.map { invocation in
+142 |             self.invokeProtoc(
+143 |                 directory: configurationFilePath.removingLastComponent(),
+    |                                                  `- warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+144 |                 invocation: invocation,
+145 |                 protocPath: protocPath,
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:170:41: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+168 |         // Construct the `protoc` arguments.
+169 |         var protocArgs = [
+170 |             "--plugin=protoc-gen-swift=\(protocGenSwiftPath)",
+    |                                         `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+171 |             "--swift_out=\(outputDirectory)",
+172 |         ]
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:171:27: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+169 |         var protocArgs = [
+170 |             "--plugin=protoc-gen-swift=\(protocGenSwiftPath)",
+171 |             "--swift_out=\(outputDirectory)",
+    |                           `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+172 |         ]
+173 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:177:29: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+175 |         // the proto files relative to it.
+176 |         protocArgs.append("-I")
+177 |         protocArgs.append("\(directory)")
+    |                             `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+178 | 
+179 |         // Add the visibility if it was set
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:205:41: warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+203 |             // Append the file to the protoc args so that it is used for generating
+204 |             protocArgs.append("\(file)")
+205 |             inputFiles.append(directory.appending(file))
+    |                                         `- warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+206 | 
+207 |             // The name of the output file is based on the name of the input file.
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:212:54: warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+210 |             file.removeLast(5)
+211 |             file.append("pb.swift")
+212 |             let protobufOutputPath = outputDirectory.appending(file)
+    |                                                      `- warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+213 | 
+214 |             // Add the outputPath as an output file
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:221:24: warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+219 |         // system know when to invoke the command. The output paths are passed on to
+220 |         // the rule engine in the build system.
+221 |         return Command.buildCommand(
+    |                        `- warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+222 |             displayName: "Generating swift files from proto files",
+223 |             executable: protocPath,
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:251:42: warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+249 |         }
+250 |         return try createBuildCommands(
+251 |             pluginWorkDirectory: context.pluginWorkDirectory,
+    |                                          |- warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+    |                                          `- note: use 'pluginWorkDirectoryURL' instead
+252 |             sourceFiles: swiftTarget.sourceFiles,
+253 |             tool: context.tool
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[2/2] Compiling plugin SwiftProtobufPlugin
+[3/3] Compiling plugin GenerateManual
+[4/4] Compiling plugin GenerateDoccReference
+Building for debugging...
+[4/10] Write swift-version--58304C5D6DBC2206.txt
+[6/34] Emitting module Container_Compose_DynamicTests
+[7/34] Compiling Container_Compose_DynamicTests ComposeAdvancedTests.swift
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-DynamicTests/ComposeAdvancedTests.swift:50:17: warning: mutation of captured var 'validationError' in concurrently-executing code [#SendableClosureCaptures]
+  48 |         URLSession.shared.dataTask(with: request) { data, response, error in
+  49 |             if let error = error {
+  50 |                 validationError = "Network error: \(error.localizedDescription)"
+     |                 `- warning: mutation of captured var 'validationError' in concurrently-executing code [#SendableClosureCaptures]
+  51 |             } else if let httpResponse = response as? HTTPURLResponse {
+  52 |                 // 200 = catalog accessible, 401 = auth required (both mean registry exists)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-DynamicTests/ComposeAdvancedTests.swift:54:21: warning: mutation of captured var 'validationError' in concurrently-executing code [#SendableClosureCaptures]
+  52 |                 // 200 = catalog accessible, 401 = auth required (both mean registry exists)
+  53 |                 if httpResponse.statusCode != 200 && httpResponse.statusCode != 401 {
+  54 |                     validationError = "Registry returned HTTP \(httpResponse.statusCode)"
+     |                     `- warning: mutation of captured var 'validationError' in concurrently-executing code [#SendableClosureCaptures]
+  55 |                 }
+  56 |             }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-DynamicTests/ComposeAdvancedTests.swift:224:29: warning: '#expect(_:_:)' will always fail here; use 'Bool(false)' to silence this warning (from macro 'expect')
+ 222 |                     try await composeUp2.run()
+ 223 |                     // If we get here, the test failed - port conflict was not detected
+ 224 |                     #expect(false, "Expected port conflict error, but container started successfully")
+     |                             `- warning: '#expect(_:_:)' will always fail here; use 'Bool(false)' to silence this warning (from macro 'expect')
+ 225 |                 } catch {
+ 226 |                     // Expected - container failed to start due to port conflict
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-DynamicTests/ComposeAdvancedTests.swift:412:17: warning: initialization of immutable value 'folderName' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 410 | 
+ 411 |         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
+ 412 |             let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+     |                 `- warning: initialization of immutable value 'folderName' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 413 |             var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+ 414 | 
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-DynamicTests/ComposeAdvancedTests.swift:686:17: warning: initialization of immutable value 'folderName' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 684 | 
+ 685 |         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
+ 686 |             let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+     |                 `- warning: initialization of immutable value 'folderName' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 687 |             var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+ 688 |             try await composeUp.run()
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-DynamicTests/ComposeAdvancedTests.swift:723:13: warning: initialization of immutable value 'testPort' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 721 |     @Test("Test graceful shutdown preserves data integrity")
+ 722 |     func testGracefulShutdownDataIntegrity() async throws {
+ 723 |         let testPort = DockerComposeYamlFiles.getAvailablePort()
+     |             `- warning: initialization of immutable value 'testPort' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 724 | 
+ 725 |         let yaml = """
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-DynamicTests/ComposeAdvancedTests.swift:838:17: warning: initialization of immutable value 'folderName' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 836 | 
+ 837 |         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
+ 838 |             let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
+     |                 `- warning: initialization of immutable value 'folderName' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 839 |             var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
+ 840 | 
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[8/34] Compiling Container_Compose_DynamicTests ComposePsTests.swift
+[9/34] Compiling Container_Compose_DynamicTests ComposeDownTests.swift
+[10/34] Compiling Container_Compose_DynamicTests ComposeUpTests.swift
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-DynamicTests/ComposeUpTests.swift:73:25: warning: '#expect(_:_:)' will always fail here; use 'Bool(false)' to silence this warning (from macro 'expect')
+ 71 |                 #expect(dbHost.firstMatch(of: ipPattern) != nil, "WORDPRESS_DB_HOST should be an IP address, got: \(dbHost)")
+ 72 |             } else {
+ 73 |                 #expect(false, "WORDPRESS_DB_HOST not set in environment")
+    |                         `- warning: '#expect(_:_:)' will always fail here; use 'Bool(false)' to silence this warning (from macro 'expect')
+ 74 |             }
+ 75 |             #expect(wpEnv["WORDPRESS_DB_USER"] == "wordpress")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-DynamicTests/ComposeUpTests.swift:195:25: warning: '#expect(_:_:)' will always fail here; use 'Bool(false)' to silence this warning (from macro 'expect')
+193 |                 )
+194 |             } else {
+195 |                 #expect(false, "DATABASE_URL not set in environment")
+    |                         `- warning: '#expect(_:_:)' will always fail here; use 'Bool(false)' to silence this warning (from macro 'expect')
+196 |             }
+197 | 
+    :
+232 |     
+233 |     // Placeholder assertion - test infrastructure exists
+234 |     #expect(true, "Test placeholder - feature blocked on upstream")
+    |             `- note: '#expect(_:_:)' will always pass here; use 'Bool(true)' to silence this warning (from macro 'expect')
+235 |   }
+236 |   }
+error: emit-module command failed with exit code 1 (use -v to see invocation)
+[11/34] Emitting module Container_Compose_Tests
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:8:16: error: cannot find type 'NetworkTrace' in scope
+  6 | final class NetworkTraceTests: XCTestCase {
+  7 |     
+  8 |     var trace: NetworkTrace!
+    |                `- error: cannot find type 'NetworkTrace' in scope
+  9 |     
+ 10 |     override func setUp() {
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:8:17: error: cannot find type 'RelayConfigurationLoader' in scope
+  6 | final class RelayConfigurationLoaderTests: XCTestCase {
+  7 |     
+  8 |     var loader: RelayConfigurationLoader!
+    |                 `- error: cannot find type 'RelayConfigurationLoader' in scope
+  9 |     
+ 10 |     override func setUp() {
+[12/34] Compiling Container_Compose_StaticTests CheckpointCommandTests.swift
+[13/34] Compiling Container_Compose_StaticTests ComposeDownMappingTests.swift
+[14/36] Compiling Container_Compose_Tests RelayTransportTests.swift
+[15/36] Compiling Container_Compose_Tests RelayConfigurationTests.swift
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationTests.swift:125:13: warning: initialization of immutable value 'data' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+123 |         """
+124 | 
+125 |         let data = yaml.data(using: .utf8)!
+    |             `- warning: initialization of immutable value 'data' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+126 |         let decoder = JSONDecoder()
+127 | 
+[16/36] Compiling Container_Compose_Tests RelayManagerTests.swift
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayManagerTests.swift:227:13: warning: initialization of immutable value 'expectedPID' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+225 |         let eventLog = RelayEventLog()
+226 | 
+227 |         let expectedPID = ProcessInfo.processInfo.processIdentifier
+    |             `- warning: initialization of immutable value 'expectedPID' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+228 | 
+229 |         let bridge = BridgeConnection(
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayManagerTests.swift:441:13: warning: immutable value 'i' was never used; consider replacing with '_' or removing it [#no-usage]
+439 |         let testPort: UInt16 = 15433
+440 | 
+441 |         for i in 0..<5 {
+    |             `- warning: immutable value 'i' was never used; consider replacing with '_' or removing it [#no-usage]
+442 |             let connection = NWConnection(
+443 |                 host: "127.0.0.1",
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayManagerTests.swift:490:9: warning: result of 'XCTSkip' initializer is unused [#no-usage]
+488 |         }
+489 | 
+490 |         XCTSkip("container-compose binary not found in standard locations")
+    |         `- warning: result of 'XCTSkip' initializer is unused [#no-usage]
+491 |     }
+492 | }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayManagerTests.swift:522:31: warning: 'is' test is always true
+520 |         let wrapper = NWConnectionWrapper(connection: connection)
+521 | 
+522 |         XCTAssertTrue(wrapper is Streamable, "NWConnectionWrapper should conform to Streamable")
+    |                               `- warning: 'is' test is always true
+523 |     }
+524 | 
+[17/36] Compiling Container_Compose_Tests RelayConfigurationLoaderTests.swift
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:8:17: error: cannot find type 'RelayConfigurationLoader' in scope
+  6 | final class RelayConfigurationLoaderTests: XCTestCase {
+  7 |     
+  8 |     var loader: RelayConfigurationLoader!
+    |                 `- error: cannot find type 'RelayConfigurationLoader' in scope
+  9 |     
+ 10 |     override func setUp() {
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:12:18: error: cannot find 'RelayConfigurationLoader' in scope
+ 10 |     override func setUp() {
+ 11 |         super.setUp()
+ 12 |         loader = RelayConfigurationLoader()
+    |                  `- error: cannot find 'RelayConfigurationLoader' in scope
+ 13 |     }
+ 14 |     
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:24:22: error: cannot find 'AppleRelayConfig' in scope
+ 22 |     func testLoadsValidConfiguration() throws {
+ 23 |         // Create a service with x-apple-relays
+ 24 |         let relay1 = AppleRelayConfig(type: "vsock-ane-embedding", port: 6000, priority: "high")
+    |                      `- error: cannot find 'AppleRelayConfig' in scope
+ 25 |         let relay2 = AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "honcho-hub")
+ 26 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:25:22: error: cannot find 'AppleRelayConfig' in scope
+ 23 |         // Create a service with x-apple-relays
+ 24 |         let relay1 = AppleRelayConfig(type: "vsock-ane-embedding", port: 6000, priority: "high")
+ 25 |         let relay2 = AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "honcho-hub")
+    |                      `- error: cannot find 'AppleRelayConfig' in scope
+ 26 |         
+ 27 |         let service = Service(
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:27:23: error: cannot find 'Service' in scope
+ 25 |         let relay2 = AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "honcho-hub")
+ 26 |         
+ 27 |         let service = Service(
+    |                       `- error: cannot find 'Service' in scope
+ 28 |             image: "hermes:v26",
+ 29 |             x_apple_relays: [relay1, relay2]
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:39:41: error: type 'Equatable' has no member 'vsockAneEmbedding'
+ 37 |         XCTAssertEqual(loaded.count, 2, "Should load 2 relays")
+ 38 |         
+ 39 |         XCTAssertEqual(loaded[0].type, .vsockAneEmbedding)
+    |                                         `- error: type 'Equatable' has no member 'vsockAneEmbedding'
+ 40 |         XCTAssertEqual(loaded[0].port, 6000)
+ 41 |         XCTAssertEqual(loaded[0].serviceName, "hermes")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:44:41: error: type 'Equatable' has no member 'vsockMcpBridge'
+ 42 |         XCTAssertNil(loaded[0].target)
+ 43 |         
+ 44 |         XCTAssertEqual(loaded[1].type, .vsockMcpBridge)
+    |                                         `- error: type 'Equatable' has no member 'vsockMcpBridge'
+ 45 |         XCTAssertEqual(loaded[1].port, 5002)
+ 46 |         XCTAssertEqual(loaded[1].target, "honcho-hub")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:51:24: error: cannot find 'Service' in scope
+ 49 |     func testDetectsPresenceOfAppleRelays() {
+ 50 |         // Service without relays
+ 51 |         let service1 = Service(image: "postgres:15")
+    |                        `- error: cannot find 'Service' in scope
+ 52 |         XCTAssertFalse(loader.hasAppleRelays(in: [("db", service1)]))
+ 53 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:55:21: error: cannot find 'AppleRelayConfig' in scope
+ 53 |         
+ 54 |         // Service with relays
+ 55 |         let relay = AppleRelayConfig(type: "vsock-log-stream", port: 5001, target: "code-graph")
+    |                     `- error: cannot find 'AppleRelayConfig' in scope
+ 56 |         let service2 = Service(image: "hermes:v26", x_apple_relays: [relay])
+ 57 |         XCTAssertTrue(loader.hasAppleRelays(in: [("hermes", service2)]))
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:56:24: error: cannot find 'Service' in scope
+ 54 |         // Service with relays
+ 55 |         let relay = AppleRelayConfig(type: "vsock-log-stream", port: 5001, target: "code-graph")
+ 56 |         let service2 = Service(image: "hermes:v26", x_apple_relays: [relay])
+    |                        `- error: cannot find 'Service' in scope
+ 57 |         XCTAssertTrue(loader.hasAppleRelays(in: [("hermes", service2)]))
+ 58 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:63:21: error: cannot find 'AppleRelayConfig' in scope
+ 61 |     
+ 62 |     func testRejectsUnsupportedRelayType() {
+ 63 |         let relay = AppleRelayConfig(type: "invalid-type", port: 5001)
+    |                     `- error: cannot find 'AppleRelayConfig' in scope
+ 64 |         let service = Service(image: "test:latest", x_apple_relays: [relay])
+ 65 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:64:23: error: cannot find 'Service' in scope
+ 62 |     func testRejectsUnsupportedRelayType() {
+ 63 |         let relay = AppleRelayConfig(type: "invalid-type", port: 5001)
+ 64 |         let service = Service(image: "test:latest", x_apple_relays: [relay])
+    |                       `- error: cannot find 'Service' in scope
+ 65 |         
+ 66 |         XCTAssertThrowsError(try loader.loadRelays(from: [("test", service)])) { error in
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:67:47: error: cannot find type 'RelayConfigurationLoader' in scope
+ 65 |         
+ 66 |         XCTAssertThrowsError(try loader.loadRelays(from: [("test", service)])) { error in
+ 67 |             guard let configError = error as? RelayConfigurationLoader.ConfigurationError else {
+    |                                               `- error: cannot find type 'RelayConfigurationLoader' in scope
+ 68 |                 XCTFail("Wrong error type")
+ 69 |                 return
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:82:22: error: cannot find 'AppleRelayConfig' in scope
+ 80 |     func testRejectsInvalidPortNumbers() {
+ 81 |         // Port 0
+ 82 |         let relay1 = AppleRelayConfig(type: "vsock-generic", port: 0)
+    |                      `- error: cannot find 'AppleRelayConfig' in scope
+ 83 |         let service1 = Service(image: "test:latest", x_apple_relays: [relay1])
+ 84 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:83:24: error: cannot find 'Service' in scope
+ 81 |         // Port 0
+ 82 |         let relay1 = AppleRelayConfig(type: "vsock-generic", port: 0)
+ 83 |         let service1 = Service(image: "test:latest", x_apple_relays: [relay1])
+    |                        `- error: cannot find 'Service' in scope
+ 84 |         
+ 85 |         XCTAssertThrowsError(try loader.loadRelays(from: [("test", service1)])) { error in
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:86:47: error: cannot find type 'RelayConfigurationLoader' in scope
+ 84 |         
+ 85 |         XCTAssertThrowsError(try loader.loadRelays(from: [("test", service1)])) { error in
+ 86 |             guard let configError = error as? RelayConfigurationLoader.ConfigurationError,
+    |                                               `- error: cannot find type 'RelayConfigurationLoader' in scope
+ 87 |                   case .invalidPort(let port) = configError else {
+ 88 |                 XCTFail("Wrong error type")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:95:22: error: cannot find 'AppleRelayConfig' in scope
+ 93 |         
+ 94 |         // Port > 65535
+ 95 |         let relay2 = AppleRelayConfig(type: "vsock-generic", port: 70000)
+    |                      `- error: cannot find 'AppleRelayConfig' in scope
+ 96 |         let service2 = Service(image: "test:latest", x_apple_relays: [relay2])
+ 97 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:96:24: error: cannot find 'Service' in scope
+ 94 |         // Port > 65535
+ 95 |         let relay2 = AppleRelayConfig(type: "vsock-generic", port: 70000)
+ 96 |         let service2 = Service(image: "test:latest", x_apple_relays: [relay2])
+    |                        `- error: cannot find 'Service' in scope
+ 97 |         
+ 98 |         XCTAssertThrowsError(try loader.loadRelays(from: [("test", service2)])) { error in
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:99:47: error: cannot find type 'RelayConfigurationLoader' in scope
+ 97 |         
+ 98 |         XCTAssertThrowsError(try loader.loadRelays(from: [("test", service2)])) { error in
+ 99 |             guard let configError = error as? RelayConfigurationLoader.ConfigurationError,
+    |                                               `- error: cannot find type 'RelayConfigurationLoader' in scope
+100 |                   case .invalidPort(let port) = configError else {
+101 |                 XCTFail("Wrong error type")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:109:22: error: cannot find 'AppleRelayConfig' in scope
+107 |     
+108 |     func testDetectsPortConflicts() {
+109 |         let relay1 = AppleRelayConfig(type: "vsock-ane-embedding", port: 6000)
+    |                      `- error: cannot find 'AppleRelayConfig' in scope
+110 |         let relay2 = AppleRelayConfig(type: "vsock-generic", port: 6000)
+111 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:110:22: error: cannot find 'AppleRelayConfig' in scope
+108 |     func testDetectsPortConflicts() {
+109 |         let relay1 = AppleRelayConfig(type: "vsock-ane-embedding", port: 6000)
+110 |         let relay2 = AppleRelayConfig(type: "vsock-generic", port: 6000)
+    |                      `- error: cannot find 'AppleRelayConfig' in scope
+111 |         
+112 |         let service1 = Service(image: "service1:latest", x_apple_relays: [relay1])
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:112:24: error: cannot find 'Service' in scope
+110 |         let relay2 = AppleRelayConfig(type: "vsock-generic", port: 6000)
+111 |         
+112 |         let service1 = Service(image: "service1:latest", x_apple_relays: [relay1])
+    |                        `- error: cannot find 'Service' in scope
+113 |         let service2 = Service(image: "service2:latest", x_apple_relays: [relay2])
+114 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:113:24: error: cannot find 'Service' in scope
+111 |         
+112 |         let service1 = Service(image: "service1:latest", x_apple_relays: [relay1])
+113 |         let service2 = Service(image: "service2:latest", x_apple_relays: [relay2])
+    |                        `- error: cannot find 'Service' in scope
+114 |         
+115 |         let services = [("service1", service1), ("service2", service2)]
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:118:47: error: cannot find type 'RelayConfigurationLoader' in scope
+116 |         
+117 |         XCTAssertThrowsError(try loader.loadRelays(from: services)) { error in
+118 |             guard let configError = error as? RelayConfigurationLoader.ConfigurationError,
+    |                                               `- error: cannot find type 'RelayConfigurationLoader' in scope
+119 |                   case .conflictingPort(let port, let service) = configError else {
+120 |                 XCTFail("Wrong error type")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:130:21: error: cannot find 'AppleRelayConfig' in scope
+128 |     func testRequiresTargetForMcpBridge() {
+129 |         // MCP bridge requires target
+130 |         let relay = AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002)
+    |                     `- error: cannot find 'AppleRelayConfig' in scope
+131 |         let service = Service(image: "test:latest", x_apple_relays: [relay])
+132 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:131:23: error: cannot find 'Service' in scope
+129 |         // MCP bridge requires target
+130 |         let relay = AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002)
+131 |         let service = Service(image: "test:latest", x_apple_relays: [relay])
+    |                       `- error: cannot find 'Service' in scope
+132 |         
+133 |         XCTAssertThrowsError(try loader.loadRelays(from: [("test", service)])) { error in
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:134:47: error: cannot find type 'RelayConfigurationLoader' in scope
+132 |         
+133 |         XCTAssertThrowsError(try loader.loadRelays(from: [("test", service)])) { error in
+134 |             guard let configError = error as? RelayConfigurationLoader.ConfigurationError,
+    |                                               `- error: cannot find type 'RelayConfigurationLoader' in scope
+135 |                   case .missingTarget(let serviceName) = configError else {
+136 |                 XCTFail("Wrong error type")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:145:21: error: cannot find 'AppleRelayConfig' in scope
+143 |     func testRequiresTargetForLogStream() {
+144 |         // Log stream requires target
+145 |         let relay = AppleRelayConfig(type: "vsock-log-stream", port: 5001)
+    |                     `- error: cannot find 'AppleRelayConfig' in scope
+146 |         let service = Service(image: "test:latest", x_apple_relays: [relay])
+147 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:146:23: error: cannot find 'Service' in scope
+144 |         // Log stream requires target
+145 |         let relay = AppleRelayConfig(type: "vsock-log-stream", port: 5001)
+146 |         let service = Service(image: "test:latest", x_apple_relays: [relay])
+    |                       `- error: cannot find 'Service' in scope
+147 |         
+148 |         XCTAssertThrowsError(try loader.loadRelays(from: [("test", service)])) { error in
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:149:47: error: cannot find type 'RelayConfigurationLoader' in scope
+147 |         
+148 |         XCTAssertThrowsError(try loader.loadRelays(from: [("test", service)])) { error in
+149 |             guard let configError = error as? RelayConfigurationLoader.ConfigurationError,
+    |                                               `- error: cannot find type 'RelayConfigurationLoader' in scope
+150 |                   case .missingTarget(let serviceName) = configError else {
+151 |                 XCTFail("Wrong error type")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:163:13: error: cannot find 'AppleRelayConfig' in scope
+161 |         // Simulate the actual Hermes/Honcho compose configuration
+162 |         let hermesRelays = [
+163 |             AppleRelayConfig(type: "vsock-log-stream", port: 5001, target: "code-graph", priority: "high"),
+    |             `- error: cannot find 'AppleRelayConfig' in scope
+164 |             AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "honcho-hub", priority: "high"),
+165 |             AppleRelayConfig(type: "vsock-ane-embedding", port: 6000, priority: "high")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:164:13: error: cannot find 'AppleRelayConfig' in scope
+162 |         let hermesRelays = [
+163 |             AppleRelayConfig(type: "vsock-log-stream", port: 5001, target: "code-graph", priority: "high"),
+164 |             AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "honcho-hub", priority: "high"),
+    |             `- error: cannot find 'AppleRelayConfig' in scope
+165 |             AppleRelayConfig(type: "vsock-ane-embedding", port: 6000, priority: "high")
+166 |         ]
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:165:13: error: cannot find 'AppleRelayConfig' in scope
+163 |             AppleRelayConfig(type: "vsock-log-stream", port: 5001, target: "code-graph", priority: "high"),
+164 |             AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "honcho-hub", priority: "high"),
+165 |             AppleRelayConfig(type: "vsock-ane-embedding", port: 6000, priority: "high")
+    |             `- error: cannot find 'AppleRelayConfig' in scope
+166 |         ]
+167 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:168:22: error: cannot find 'Service' in scope
+166 |         ]
+167 |         
+168 |         let hermes = Service(image: "hermes:v26", x_apple_relays: hermesRelays)
+    |                      `- error: cannot find 'Service' in scope
+169 |         
+170 |         let services = [
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:172:28: error: cannot find 'Service' in scope
+170 |         let services = [
+171 |             ("hermes", hermes),
+172 |             ("honcho-hub", Service(image: "honcho:latest")),
+    |                            `- error: cannot find 'Service' in scope
+173 |             ("code-graph", Service(image: "codegraph:latest"))
+174 |         ]
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:173:28: error: cannot find 'Service' in scope
+171 |             ("hermes", hermes),
+172 |             ("honcho-hub", Service(image: "honcho:latest")),
+173 |             ("code-graph", Service(image: "codegraph:latest"))
+    |                            `- error: cannot find 'Service' in scope
+174 |         ]
+175 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:181:41: error: type 'Equatable' has no member 'vsockLogStream'
+179 |         
+180 |         // Verify log stream
+181 |         XCTAssertEqual(loaded[0].type, .vsockLogStream)
+    |                                         `- error: type 'Equatable' has no member 'vsockLogStream'
+182 |         XCTAssertEqual(loaded[0].port, 5001)
+183 |         XCTAssertEqual(loaded[0].target, "code-graph")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:186:41: error: type 'Equatable' has no member 'vsockMcpBridge'
+184 |         
+185 |         // Verify MCP bridge
+186 |         XCTAssertEqual(loaded[1].type, .vsockMcpBridge)
+    |                                         `- error: type 'Equatable' has no member 'vsockMcpBridge'
+187 |         XCTAssertEqual(loaded[1].port, 5002)
+188 |         XCTAssertEqual(loaded[1].target, "honcho-hub")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:191:41: error: type 'Equatable' has no member 'vsockAneEmbedding'
+189 |         
+190 |         // Verify ANE embedding
+191 |         XCTAssertEqual(loaded[2].type, .vsockAneEmbedding)
+    |                                         `- error: type 'Equatable' has no member 'vsockAneEmbedding'
+192 |         XCTAssertEqual(loaded[2].port, 6000)
+193 |         XCTAssertNil(loaded[2].target)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:198:13: error: cannot find 'RelayConfigurationLoader' in scope
+196 |     func testSummarizeOutputs() {
+197 |         let relays = [
+198 |             RelayConfigurationLoader.LoadedRelay(
+    |             `- error: cannot find 'RelayConfigurationLoader' in scope
+199 |                 serviceName: "hermes",
+200 |                 type: .vsockAneEmbedding,
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:204:13: error: cannot find 'RelayConfigurationLoader' in scope
+202 |                 priority: "high"
+203 |             ),
+204 |             RelayConfigurationLoader.LoadedRelay(
+    |             `- error: cannot find 'RelayConfigurationLoader' in scope
+205 |                 serviceName: "hermes",
+206 |                 type: .vsockMcpBridge,
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:200:24: error: cannot infer contextual base in reference to member 'vsockAneEmbedding'
+198 |             RelayConfigurationLoader.LoadedRelay(
+199 |                 serviceName: "hermes",
+200 |                 type: .vsockAneEmbedding,
+    |                        `- error: cannot infer contextual base in reference to member 'vsockAneEmbedding'
+201 |                 port: 6000,
+202 |                 priority: "high"
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:206:24: error: cannot infer contextual base in reference to member 'vsockMcpBridge'
+204 |             RelayConfigurationLoader.LoadedRelay(
+205 |                 serviceName: "hermes",
+206 |                 type: .vsockMcpBridge,
+    |                        `- error: cannot infer contextual base in reference to member 'vsockMcpBridge'
+207 |                 port: 5002,
+208 |                 target: "honcho-hub",
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:231:21: error: cannot find 'AppleRelayConfig' in scope
+229 |     func testLoadsDatabaseRelayConfiguration() throws {
+230 |         // Test PostgreSQL/WAL-G vsock relay
+231 |         let relay = AppleRelayConfig(type: "vsock-db", port: 5432, priority: "high")
+    |                     `- error: cannot find 'AppleRelayConfig' in scope
+232 |         let service = Service(image: "walg-db:latest", x_apple_relays: [relay])
+233 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:232:23: error: cannot find 'Service' in scope
+230 |         // Test PostgreSQL/WAL-G vsock relay
+231 |         let relay = AppleRelayConfig(type: "vsock-db", port: 5432, priority: "high")
+232 |         let service = Service(image: "walg-db:latest", x_apple_relays: [relay])
+    |                       `- error: cannot find 'Service' in scope
+233 |         
+234 |         let loaded = try loader.loadRelays(from: [("honcho-db", service)])
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:237:41: error: type 'Equatable' has no member 'vsockDb'
+235 |         
+236 |         XCTAssertEqual(loaded.count, 1)
+237 |         XCTAssertEqual(loaded[0].type, .vsockDb)
+    |                                         `- error: type 'Equatable' has no member 'vsockDb'
+238 |         XCTAssertEqual(loaded[0].port, 5432)
+239 |         XCTAssertNil(loaded[0].target, "Database relay should not require target")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:244:21: error: cannot find 'AppleRelayConfig' in scope
+242 |     func testDatabaseRelayDoesNotRequireTarget() throws {
+243 |         // vsock-db should work without target (single endpoint)
+244 |         let relay = AppleRelayConfig(type: "vsock-db", port: 5432)
+    |                     `- error: cannot find 'AppleRelayConfig' in scope
+245 |         let service = Service(image: "postgres:15", x_apple_relays: [relay])
+246 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:245:23: error: cannot find 'Service' in scope
+243 |         // vsock-db should work without target (single endpoint)
+244 |         let relay = AppleRelayConfig(type: "vsock-db", port: 5432)
+245 |         let service = Service(image: "postgres:15", x_apple_relays: [relay])
+    |                       `- error: cannot find 'Service' in scope
+246 |         
+247 |         // Should not throw missingTarget error
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:253:24: error: cannot find 'RelayConfigurationLoader' in scope
+251 |     
+252 |     func testSupportedRelayTypesIncludeDatabase() {
+253 |         let allTypes = RelayConfigurationLoader.SupportedRelayType.allCases
+    |                        `- error: cannot find 'RelayConfigurationLoader' in scope
+254 |         XCTAssertTrue(allTypes.contains(.vsockDb))
+255 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:254:42: error: cannot infer contextual base in reference to member 'vsockDb'
+252 |     func testSupportedRelayTypesIncludeDatabase() {
+253 |         let allTypes = RelayConfigurationLoader.SupportedRelayType.allCases
+254 |         XCTAssertTrue(allTypes.contains(.vsockDb))
+    |                                          `- error: cannot infer contextual base in reference to member 'vsockDb'
+255 |         
+256 |         XCTAssertEqual(RelayConfigurationLoader.SupportedRelayType.vsockDb.rawValue, "vsock-db")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:256:24: error: cannot find 'RelayConfigurationLoader' in scope
+254 |         XCTAssertTrue(allTypes.contains(.vsockDb))
+255 |         
+256 |         XCTAssertEqual(RelayConfigurationLoader.SupportedRelayType.vsockDb.rawValue, "vsock-db")
+    |                        `- error: cannot find 'RelayConfigurationLoader' in scope
+257 |         XCTAssertEqual(RelayConfigurationLoader.SupportedRelayType.vsockDb.description, "Database VSOCK Relay (PostgreSQL/WAL-G)")
+258 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:257:24: error: cannot find 'RelayConfigurationLoader' in scope
+255 |         
+256 |         XCTAssertEqual(RelayConfigurationLoader.SupportedRelayType.vsockDb.rawValue, "vsock-db")
+257 |         XCTAssertEqual(RelayConfigurationLoader.SupportedRelayType.vsockDb.description, "Database VSOCK Relay (PostgreSQL/WAL-G)")
+    |                        `- error: cannot find 'RelayConfigurationLoader' in scope
+258 |     }
+259 |     
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:262:23: error: cannot find 'RelayConfigurationLoader' in scope
+260 |     func testRequiresTargetProperty() {
+261 |         // Types that require target
+262 |         XCTAssertTrue(RelayConfigurationLoader.SupportedRelayType.vsockMcpBridge.requiresTarget)
+    |                       `- error: cannot find 'RelayConfigurationLoader' in scope
+263 |         XCTAssertTrue(RelayConfigurationLoader.SupportedRelayType.vsockLogStream.requiresTarget)
+264 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:263:23: error: cannot find 'RelayConfigurationLoader' in scope
+261 |         // Types that require target
+262 |         XCTAssertTrue(RelayConfigurationLoader.SupportedRelayType.vsockMcpBridge.requiresTarget)
+263 |         XCTAssertTrue(RelayConfigurationLoader.SupportedRelayType.vsockLogStream.requiresTarget)
+    |                       `- error: cannot find 'RelayConfigurationLoader' in scope
+264 |         
+265 |         // Types that don't require target
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:266:24: error: cannot find 'RelayConfigurationLoader' in scope
+264 |         
+265 |         // Types that don't require target
+266 |         XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockAneEmbedding.requiresTarget)
+    |                        `- error: cannot find 'RelayConfigurationLoader' in scope
+267 |         XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockDb.requiresTarget)
+268 |         XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockGeneric.requiresTarget)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:267:24: error: cannot find 'RelayConfigurationLoader' in scope
+265 |         // Types that don't require target
+266 |         XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockAneEmbedding.requiresTarget)
+267 |         XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockDb.requiresTarget)
+    |                        `- error: cannot find 'RelayConfigurationLoader' in scope
+268 |         XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockGeneric.requiresTarget)
+269 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/RelayConfigurationLoaderTests.swift:268:24: error: cannot find 'RelayConfigurationLoader' in scope
+266 |         XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockAneEmbedding.requiresTarget)
+267 |         XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockDb.requiresTarget)
+268 |         XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockGeneric.requiresTarget)
+    |                        `- error: cannot find 'RelayConfigurationLoader' in scope
+269 |     }
+270 | }
+[18/36] Compiling Container_Compose_Tests NetworkTraceTests.swift
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:8:16: error: cannot find type 'NetworkTrace' in scope
+  6 | final class NetworkTraceTests: XCTestCase {
+  7 |     
+  8 |     var trace: NetworkTrace!
+    |                `- error: cannot find type 'NetworkTrace' in scope
+  9 |     
+ 10 |     override func setUp() {
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:12:17: error: cannot find 'NetworkTrace' in scope
+ 10 |     override func setUp() {
+ 11 |         super.setUp()
+ 12 |         trace = NetworkTrace()
+    |                 `- error: cannot find 'NetworkTrace' in scope
+ 13 |     }
+ 14 |     
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:23:21: error: cannot find 'TraceEvent' in scope
+ 21 |     
+ 22 |     func testRecordsConnectionAttempt() async {
+ 23 |         let event = TraceEvent.connectionAttempt(cid: 3, port: 5001, authorized: true)
+    |                     `- error: cannot find 'TraceEvent' in scope
+ 24 |         await trace.record(event)
+ 25 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:39:21: error: cannot find 'TraceEvent' in scope
+ 37 |     
+ 38 |     func testRecordsDataTransfer() async {
+ 39 |         let event = TraceEvent.dataTransfer(cid: 3, bytes: 1024, direction: .inbound)
+    |                     `- error: cannot find 'TraceEvent' in scope
+ 40 |         await trace.record(event)
+ 41 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:39:78: error: cannot infer contextual base in reference to member 'inbound'
+ 37 |     
+ 38 |     func testRecordsDataTransfer() async {
+ 39 |         let event = TraceEvent.dataTransfer(cid: 3, bytes: 1024, direction: .inbound)
+    |                                                                              `- error: cannot infer contextual base in reference to member 'inbound'
+ 40 |         await trace.record(event)
+ 41 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:48:34: error: type 'Equatable' has no member 'inbound'
+ 46 |             XCTAssertEqual(cid, 3)
+ 47 |             XCTAssertEqual(bytes, 1024)
+ 48 |             XCTAssertEqual(dir, .inbound)
+    |                                  `- error: type 'Equatable' has no member 'inbound'
+ 49 |         } else {
+ 50 |             XCTFail("Wrong event type")
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:55:21: error: cannot find 'TraceEvent' in scope
+ 53 |     
+ 54 |     func testRecordsConnectionClosed() async {
+ 55 |         let event = TraceEvent.connectionClosed(cid: 3, reason: "Normal shutdown")
+    |                     `- error: cannot find 'TraceEvent' in scope
+ 56 |         await trace.record(event)
+ 57 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:73:29: error: cannot infer contextual base in reference to member 'connectionAttempt'
+ 71 |     func testFiltersByCID() async {
+ 72 |         // Record events from multiple CIDs
+ 73 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+    |                             `- error: cannot infer contextual base in reference to member 'connectionAttempt'
+ 74 |         await trace.record(.connectionAttempt(cid: 5, port: 5002, authorized: false))
+ 75 |         await trace.record(.dataTransfer(cid: 3, bytes: 512, direction: .outbound))
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:74:29: error: cannot infer contextual base in reference to member 'connectionAttempt'
+ 72 |         // Record events from multiple CIDs
+ 73 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+ 74 |         await trace.record(.connectionAttempt(cid: 5, port: 5002, authorized: false))
+    |                             `- error: cannot infer contextual base in reference to member 'connectionAttempt'
+ 75 |         await trace.record(.dataTransfer(cid: 3, bytes: 512, direction: .outbound))
+ 76 |         await trace.record(.connectionClosed(cid: 5, reason: "Timeout"))
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:75:29: error: cannot infer contextual base in reference to member 'dataTransfer'
+ 73 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+ 74 |         await trace.record(.connectionAttempt(cid: 5, port: 5002, authorized: false))
+ 75 |         await trace.record(.dataTransfer(cid: 3, bytes: 512, direction: .outbound))
+    |                             `- error: cannot infer contextual base in reference to member 'dataTransfer'
+ 76 |         await trace.record(.connectionClosed(cid: 5, reason: "Timeout"))
+ 77 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:75:74: error: cannot infer contextual base in reference to member 'outbound'
+ 73 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+ 74 |         await trace.record(.connectionAttempt(cid: 5, port: 5002, authorized: false))
+ 75 |         await trace.record(.dataTransfer(cid: 3, bytes: 512, direction: .outbound))
+    |                                                                          `- error: cannot infer contextual base in reference to member 'outbound'
+ 76 |         await trace.record(.connectionClosed(cid: 5, reason: "Timeout"))
+ 77 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:76:29: error: cannot infer contextual base in reference to member 'connectionClosed'
+ 74 |         await trace.record(.connectionAttempt(cid: 5, port: 5002, authorized: false))
+ 75 |         await trace.record(.dataTransfer(cid: 3, bytes: 512, direction: .outbound))
+ 76 |         await trace.record(.connectionClosed(cid: 5, reason: "Timeout"))
+    |                             `- error: cannot infer contextual base in reference to member 'connectionClosed'
+ 77 |         
+ 78 |         // Filter by CID 3
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:96:29: error: cannot infer contextual base in reference to member 'connectionAttempt'
+ 94 |     
+ 95 |     func testFiltersByPort() async {
+ 96 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+    |                             `- error: cannot infer contextual base in reference to member 'connectionAttempt'
+ 97 |         await trace.record(.connectionAttempt(cid: 5, port: 5002, authorized: true))
+ 98 |         await trace.record(.dataTransfer(cid: 3, bytes: 256, direction: .inbound))
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:97:29: error: cannot infer contextual base in reference to member 'connectionAttempt'
+ 95 |     func testFiltersByPort() async {
+ 96 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+ 97 |         await trace.record(.connectionAttempt(cid: 5, port: 5002, authorized: true))
+    |                             `- error: cannot infer contextual base in reference to member 'connectionAttempt'
+ 98 |         await trace.record(.dataTransfer(cid: 3, bytes: 256, direction: .inbound))
+ 99 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:98:29: error: cannot infer contextual base in reference to member 'dataTransfer'
+ 96 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+ 97 |         await trace.record(.connectionAttempt(cid: 5, port: 5002, authorized: true))
+ 98 |         await trace.record(.dataTransfer(cid: 3, bytes: 256, direction: .inbound))
+    |                             `- error: cannot infer contextual base in reference to member 'dataTransfer'
+ 99 |         
+100 |         let port5001Events = await trace.getEvents(forPort: 5001)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:98:74: error: cannot infer contextual base in reference to member 'inbound'
+ 96 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+ 97 |         await trace.record(.connectionAttempt(cid: 5, port: 5002, authorized: true))
+ 98 |         await trace.record(.dataTransfer(cid: 3, bytes: 256, direction: .inbound))
+    |                                                                          `- error: cannot infer contextual base in reference to member 'inbound'
+ 99 |         
+100 |         let port5001Events = await trace.getEvents(forPort: 5001)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:107:29: error: cannot infer contextual base in reference to member 'connectionAttempt'
+105 |     
+106 |     func testExportsToJSON() async throws {
+107 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+    |                             `- error: cannot infer contextual base in reference to member 'connectionAttempt'
+108 |         await trace.record(.dataTransfer(cid: 3, bytes: 1024, direction: .inbound))
+109 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:108:29: error: cannot infer contextual base in reference to member 'dataTransfer'
+106 |     func testExportsToJSON() async throws {
+107 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+108 |         await trace.record(.dataTransfer(cid: 3, bytes: 1024, direction: .inbound))
+    |                             `- error: cannot infer contextual base in reference to member 'dataTransfer'
+109 |         
+110 |         let jsonData = try await trace.exportJSON()
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:108:75: error: cannot infer contextual base in reference to member 'inbound'
+106 |     func testExportsToJSON() async throws {
+107 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+108 |         await trace.record(.dataTransfer(cid: 3, bytes: 1024, direction: .inbound))
+    |                                                                           `- error: cannot infer contextual base in reference to member 'inbound'
+109 |         
+110 |         let jsonData = try await trace.exportJSON()
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:118:29: error: cannot infer contextual base in reference to member 'connectionAttempt'
+116 |     
+117 |     func testJSONContainsRequiredFields() async throws {
+118 |         await trace.record(.connectionAttempt(cid: 3, port: 5001, authorized: true))
+    |                             `- error: cannot infer contextual base in reference to member 'connectionAttempt'
+119 |         
+120 |         let jsonData = try await trace.exportJSON()
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:153:33: error: cannot infer contextual base in reference to member 'dataTransfer'
+151 |         // Record 1000 events
+152 |         for i in 0..<1000 {
+153 |             await trace.record(.dataTransfer(cid: 3, bytes: i * 100, direction: .inbound))
+    |                                 `- error: cannot infer contextual base in reference to member 'dataTransfer'
+154 |         }
+155 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Networking/NetworkTraceTests.swift:153:82: error: cannot infer contextual base in reference to member 'inbound'
+151 |         // Record 1000 events
+152 |         for i in 0..<1000 {
+153 |             await trace.record(.dataTransfer(cid: 3, bytes: i * 100, direction: .inbound))
+    |                                                                                  `- error: cannot infer contextual base in reference to member 'inbound'
+154 |         }
+155 |         
+[19/36] Compiling Container_Compose_Tests ComposeSchemaMappingTests.swift
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:45:33: error: cannot find 'YAMLDecoder' in scope
+ 43 |         
+ 44 |         // Parse YAML
+ 45 |         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+    |                                 `- error: cannot find 'YAMLDecoder' in scope
+ 46 |         
+ 47 |         // Verify services parsed
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:45:54: error: cannot find 'DockerCompose' in scope
+ 43 |         
+ 44 |         // Parse YAML
+ 45 |         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+    |                                                      `- error: cannot find 'DockerCompose' in scope
+ 46 |         
+ 47 |         // Verify services parsed
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:63:22: error: cannot find 'RelayConfigurationLoader' in scope
+ 61 |         
+ 62 |         // Load relays via configuration loader
+ 63 |         let loader = RelayConfigurationLoader()
+    |                      `- error: cannot find 'RelayConfigurationLoader' in scope
+ 64 |         let services = dockerCompose.services.compactMap { name, service in
+ 65 |             guard let service = service else { return nil }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:75:56: error: cannot infer contextual base in reference to member 'vsockDb'
+ 73 |         
+ 74 |         // Verify types
+ 75 |         let dbRelay = loadedRelays.first { $0.type == .vsockDb }
+    |                                                        `- error: cannot infer contextual base in reference to member 'vsockDb'
+ 76 |         XCTAssertNotNil(dbRelay)
+ 77 |         XCTAssertEqual(dbRelay?.port, 5432)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:79:57: error: cannot infer contextual base in reference to member 'vsockAneEmbedding'
+ 77 |         XCTAssertEqual(dbRelay?.port, 5432)
+ 78 |         
+ 79 |         let aneRelay = loadedRelays.first { $0.type == .vsockAneEmbedding }
+    |                                                         `- error: cannot infer contextual base in reference to member 'vsockAneEmbedding'
+ 80 |         XCTAssertNotNil(aneRelay)
+ 81 |         XCTAssertEqual(aneRelay?.port, 6000)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:83:57: error: cannot infer contextual base in reference to member 'vsockMcpBridge'
+ 81 |         XCTAssertEqual(aneRelay?.port, 6000)
+ 82 |         
+ 83 |         let mcpRelay = loadedRelays.first { $0.type == .vsockMcpBridge }
+    |                                                         `- error: cannot infer contextual base in reference to member 'vsockMcpBridge'
+ 84 |         XCTAssertNotNil(mcpRelay)
+ 85 |         XCTAssertEqual(mcpRelay?.port, 5002)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:88:57: error: cannot infer contextual base in reference to member 'vsockLogStream'
+ 86 |         XCTAssertEqual(mcpRelay?.target, "honcho-hub")
+ 87 |         
+ 88 |         let logRelay = loadedRelays.first { $0.type == .vsockLogStream }
+    |                                                         `- error: cannot infer contextual base in reference to member 'vsockLogStream'
+ 89 |         XCTAssertNotNil(logRelay)
+ 90 |         XCTAssertEqual(logRelay?.port, 5001)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:104:34: error: cannot find 'YAMLDecoder' in scope
+102 |         """
+103 |         
+104 |         XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
+    |                                  `- error: cannot find 'YAMLDecoder' in scope
+105 |             // YAMLDecoder may throw during decoding
+106 |             XCTAssertNotNil(error)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:104:55: error: cannot find 'DockerCompose' in scope
+102 |         """
+103 |         
+104 |         XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
+    |                                                       `- error: cannot find 'DockerCompose' in scope
+105 |             // YAMLDecoder may throw during decoding
+106 |             XCTAssertNotNil(error)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:123:33: error: cannot find 'YAMLDecoder' in scope
+121 |         """
+122 |         
+123 |         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+    |                                 `- error: cannot find 'YAMLDecoder' in scope
+124 |         let loader = RelayConfigurationLoader()
+125 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:123:54: error: cannot find 'DockerCompose' in scope
+121 |         """
+122 |         
+123 |         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+    |                                                      `- error: cannot find 'DockerCompose' in scope
+124 |         let loader = RelayConfigurationLoader()
+125 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:124:22: error: cannot find 'RelayConfigurationLoader' in scope
+122 |         
+123 |         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+124 |         let loader = RelayConfigurationLoader()
+    |                      `- error: cannot find 'RelayConfigurationLoader' in scope
+125 |         
+126 |         let services = dockerCompose.services.compactMap { name, service in
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:155:34: error: cannot find 'YAMLDecoder' in scope
+153 |         """
+154 |         
+155 |         XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
+    |                                  `- error: cannot find 'YAMLDecoder' in scope
+156 |             // Should throw port conflict error during loading
+157 |             XCTAssertNotNil(error)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:155:55: error: cannot find 'DockerCompose' in scope
+153 |         """
+154 |         
+155 |         XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
+    |                                                       `- error: cannot find 'DockerCompose' in scope
+156 |             // Should throw port conflict error during loading
+157 |             XCTAssertNotNil(error)
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:173:34: error: cannot find 'YAMLDecoder' in scope
+171 |         """
+172 |         
+173 |         XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
+    |                                  `- error: cannot find 'YAMLDecoder' in scope
+174 |             XCTAssertNotNil(error)
+175 |         }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:173:55: error: cannot find 'DockerCompose' in scope
+171 |         """
+172 |         
+173 |         XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
+    |                                                       `- error: cannot find 'DockerCompose' in scope
+174 |             XCTAssertNotNil(error)
+175 |         }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:188:34: error: cannot find 'YAMLDecoder' in scope
+186 |         """
+187 |         
+188 |         XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
+    |                                  `- error: cannot find 'YAMLDecoder' in scope
+189 |             XCTAssertNotNil(error)
+190 |         }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:188:55: error: cannot find 'DockerCompose' in scope
+186 |         """
+187 |         
+188 |         XCTAssertThrowsError(try YAMLDecoder().decode(DockerCompose.self, from: yamlString)) { error in
+    |                                                       `- error: cannot find 'DockerCompose' in scope
+189 |             XCTAssertNotNil(error)
+190 |         }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:203:33: error: cannot find 'YAMLDecoder' in scope
+201 |         """
+202 |         
+203 |         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+    |                                 `- error: cannot find 'YAMLDecoder' in scope
+204 |         let loader = RelayConfigurationLoader()
+205 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:203:54: error: cannot find 'DockerCompose' in scope
+201 |         """
+202 |         
+203 |         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+    |                                                      `- error: cannot find 'DockerCompose' in scope
+204 |         let loader = RelayConfigurationLoader()
+205 |         
+
+/Users/kieranlal/workspace/Container-Compose/Tests/Container-Compose-Tests/Integration/ComposeSchemaMappingTests.swift:204:22: error: cannot find 'RelayConfigurationLoader' in scope
+202 |         
+203 |         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+204 |         let loader = RelayConfigurationLoader()
+    |                      `- error: cannot find 'RelayConfigurationLoader' in scope
+205 |         
+206 |         let services = dockerCompose.services.compactMap { name, service in
+error: fatalError

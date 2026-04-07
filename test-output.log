@@ -1,0 +1,2901 @@
+Fetching https://github.com/mcrich23/container from cache
+Fetched https://github.com/mcrich23/container from cache (0.51s)
+Fetching https://github.com/swiftlang/swift-syntax.git from cache
+Fetching https://github.com/apple/swift-distributed-tracing.git from cache
+Fetching https://github.com/apple/swift-collections.git from cache
+Fetching https://github.com/apple/swift-nio-transport-services.git from cache
+Fetching https://github.com/apple/swift-crypto.git from cache
+Fetching https://github.com/apple/swift-certificates.git from cache
+Fetched https://github.com/apple/swift-distributed-tracing.git from cache (0.67s)
+Fetching https://github.com/facebook/zstd.git from cache
+Fetched https://github.com/apple/swift-collections.git from cache (0.69s)
+Fetching https://github.com/apple/swift-service-context.git from cache
+Fetched https://github.com/apple/swift-service-context.git from cache (0.43s)
+Fetching https://github.com/apple/swift-argument-parser.git from cache
+Fetched https://github.com/apple/swift-nio-transport-services.git from cache (1.27s)
+Fetched https://github.com/apple/swift-certificates.git from cache (1.28s)
+Fetching https://github.com/swift-server/swift-service-lifecycle.git from cache
+Fetching https://github.com/apple/swift-numerics.git from cache
+Fetched https://github.com/swiftlang/swift-syntax.git from cache (1.31s)
+Fetched https://github.com/apple/swift-crypto.git from cache (1.31s)
+Fetching https://github.com/apple/swift-log.git from cache
+Fetching https://github.com/onevcat/Rainbow from cache
+Fetched https://github.com/facebook/zstd.git from cache (0.88s)
+Fetching https://github.com/apple/swift-protobuf.git from cache
+Fetched https://github.com/apple/swift-numerics.git from cache (0.42s)
+Fetching https://github.com/apple/swift-http-types.git from cache
+Fetched https://github.com/onevcat/Rainbow from cache (0.41s)
+Fetching https://github.com/swift-server/async-http-client.git from cache
+Fetched https://github.com/swift-server/swift-service-lifecycle.git from cache (0.47s)
+Fetching https://github.com/apple/swift-http-structured-headers.git from cache
+Fetched https://github.com/apple/swift-argument-parser.git from cache (0.66s)
+Fetching https://github.com/apple/swift-atomics.git from cache
+Fetched https://github.com/apple/swift-log.git from cache (0.52s)
+Fetching https://github.com/apple/swift-nio-http2.git from cache
+Fetched https://github.com/apple/swift-http-types.git from cache (0.40s)
+Fetching https://github.com/jpsim/Yams.git from cache
+Fetched https://github.com/apple/swift-http-structured-headers.git from cache (0.39s)
+Fetched https://github.com/apple/swift-atomics.git from cache (0.36s)
+Fetching https://github.com/apple/swift-async-algorithms.git from cache
+Fetching https://github.com/apple/swift-nio.git from cache
+Fetched https://github.com/swift-server/async-http-client.git from cache (0.67s)
+Fetching https://github.com/grpc/grpc-swift.git from cache
+Fetched https://github.com/apple/swift-nio-http2.git from cache (0.58s)
+Fetching https://github.com/apple/swift-algorithms.git from cache
+Fetched https://github.com/apple/swift-protobuf.git from cache (0.92s)
+Fetching https://github.com/apple/swift-system.git from cache
+Fetched https://github.com/jpsim/Yams.git from cache (0.49s)
+Fetched https://github.com/apple/swift-async-algorithms.git from cache (0.46s)
+Fetching https://github.com/apple/swift-asn1.git from cache
+Fetching https://github.com/apple/containerization.git from cache
+Fetched https://github.com/apple/swift-algorithms.git from cache (0.40s)
+Fetching https://github.com/apple/swift-nio-extras.git from cache
+Fetched https://github.com/apple/swift-system.git from cache (0.46s)
+Fetching https://github.com/apple/swift-nio-ssl.git from cache
+Fetched https://github.com/grpc/grpc-swift.git from cache (0.60s)
+Fetched https://github.com/apple/swift-nio.git from cache (0.92s)
+Fetched https://github.com/apple/swift-asn1.git from cache (0.48s)
+Fetched https://github.com/apple/swift-nio-extras.git from cache (0.50s)
+Fetched https://github.com/apple/containerization.git from cache (0.92s)
+Computing version for https://github.com/swiftlang/swift-syntax.git
+Fetched https://github.com/apple/swift-nio-ssl.git from cache (0.65s)
+Computed https://github.com/swiftlang/swift-syntax.git at 602.0.0 (4.30s)
+Computing version for https://github.com/apple/containerization.git
+Computed https://github.com/apple/containerization.git at 0.24.5 (0.62s)
+Computing version for https://github.com/apple/swift-nio.git
+Computed https://github.com/apple/swift-nio.git at 2.94.0 (0.61s)
+Computing version for https://github.com/apple/swift-protobuf.git
+Computed https://github.com/apple/swift-protobuf.git at 1.33.3 (0.54s)
+Computing version for https://github.com/apple/swift-collections.git
+Computed https://github.com/apple/swift-collections.git at 1.3.0 (0.60s)
+Computing version for https://github.com/apple/swift-argument-parser.git
+Computed https://github.com/apple/swift-argument-parser.git at 1.7.0 (0.55s)
+Computing version for https://github.com/apple/swift-log.git
+Computed https://github.com/apple/swift-log.git at 1.9.1 (0.52s)
+Computing version for https://github.com/onevcat/Rainbow
+Computed https://github.com/onevcat/Rainbow at 4.2.1 (0.65s)
+Computing version for https://github.com/jpsim/Yams.git
+Computed https://github.com/jpsim/Yams.git at 5.4.0 (0.58s)
+Computing version for https://github.com/facebook/zstd.git
+Computed https://github.com/facebook/zstd.git at 1.5.7 (0.61s)
+Computing version for https://github.com/apple/swift-nio-ssl.git
+Computed https://github.com/apple/swift-nio-ssl.git at 2.36.0 (0.55s)
+Computing version for https://github.com/apple/swift-system.git
+Computed https://github.com/apple/swift-system.git at 1.6.4 (0.53s)
+Computing version for https://github.com/swift-server/async-http-client.git
+Computed https://github.com/swift-server/async-http-client.git at 1.30.3 (0.54s)
+Computing version for https://github.com/grpc/grpc-swift.git
+Computed https://github.com/grpc/grpc-swift.git at 1.27.1 (0.71s)
+Computing version for https://github.com/apple/swift-crypto.git
+Computed https://github.com/apple/swift-crypto.git at 3.15.1 (0.62s)
+Computing version for https://github.com/apple/swift-atomics.git
+Computed https://github.com/apple/swift-atomics.git at 1.3.0 (0.94s)
+Computing version for https://github.com/apple/swift-distributed-tracing.git
+Computed https://github.com/apple/swift-distributed-tracing.git at 1.3.1 (0.50s)
+Computing version for https://github.com/apple/swift-algorithms.git
+Computed https://github.com/apple/swift-algorithms.git at 1.2.1 (0.58s)
+Computing version for https://github.com/apple/swift-nio-transport-services.git
+Computed https://github.com/apple/swift-nio-transport-services.git at 1.26.0 (0.50s)
+Computing version for https://github.com/apple/swift-nio-extras.git
+Computed https://github.com/apple/swift-nio-extras.git at 1.32.1 (0.62s)
+Computing version for https://github.com/apple/swift-nio-http2.git
+Computed https://github.com/apple/swift-nio-http2.git at 1.39.0 (0.52s)
+Computing version for https://github.com/apple/swift-asn1.git
+Computed https://github.com/apple/swift-asn1.git at 1.5.1 (0.59s)
+Computing version for https://github.com/apple/swift-service-context.git
+Computed https://github.com/apple/swift-service-context.git at 1.2.1 (0.53s)
+Computing version for https://github.com/apple/swift-numerics.git
+Computed https://github.com/apple/swift-numerics.git at 1.1.1 (0.50s)
+Computing version for https://github.com/apple/swift-async-algorithms.git
+Computed https://github.com/apple/swift-async-algorithms.git at 1.1.1 (0.54s)
+Computing version for https://github.com/swift-server/swift-service-lifecycle.git
+Computed https://github.com/swift-server/swift-service-lifecycle.git at 2.9.1 (0.50s)
+Computing version for https://github.com/apple/swift-certificates.git
+Computed https://github.com/apple/swift-certificates.git at 1.17.1 (0.64s)
+Computing version for https://github.com/apple/swift-http-structured-headers.git
+Computed https://github.com/apple/swift-http-structured-headers.git at 1.6.0 (0.50s)
+Computing version for https://github.com/apple/swift-http-types.git
+Computed https://github.com/apple/swift-http-types.git at 1.5.1 (0.49s)
+Creating working copy for https://github.com/apple/swift-async-algorithms.git
+Working copy of https://github.com/apple/swift-async-algorithms.git resolved at 1.1.1
+Creating working copy for https://github.com/facebook/zstd.git
+Working copy of https://github.com/facebook/zstd.git resolved at 1.5.7
+Creating working copy for https://github.com/swiftlang/swift-syntax.git
+Working copy of https://github.com/swiftlang/swift-syntax.git resolved at 602.0.0
+Creating working copy for https://github.com/apple/containerization.git
+Working copy of https://github.com/apple/containerization.git resolved at 0.24.5
+Creating working copy for https://github.com/apple/swift-numerics.git
+Working copy of https://github.com/apple/swift-numerics.git resolved at 1.1.1
+Creating working copy for https://github.com/apple/swift-nio.git
+Working copy of https://github.com/apple/swift-nio.git resolved at 2.94.0
+Creating working copy for https://github.com/apple/swift-http-types.git
+Working copy of https://github.com/apple/swift-http-types.git resolved at 1.5.1
+Creating working copy for https://github.com/apple/swift-nio-http2.git
+Working copy of https://github.com/apple/swift-nio-http2.git resolved at 1.39.0
+Creating working copy for https://github.com/apple/swift-log.git
+Working copy of https://github.com/apple/swift-log.git resolved at 1.9.1
+Creating working copy for https://github.com/apple/swift-nio-transport-services.git
+Working copy of https://github.com/apple/swift-nio-transport-services.git resolved at 1.26.0
+Creating working copy for https://github.com/apple/swift-distributed-tracing.git
+Working copy of https://github.com/apple/swift-distributed-tracing.git resolved at 1.3.1
+Creating working copy for https://github.com/apple/swift-http-structured-headers.git
+Working copy of https://github.com/apple/swift-http-structured-headers.git resolved at 1.6.0
+Creating working copy for https://github.com/swift-server/async-http-client.git
+Working copy of https://github.com/swift-server/async-http-client.git resolved at 1.30.3
+Creating working copy for https://github.com/apple/swift-protobuf.git
+Working copy of https://github.com/apple/swift-protobuf.git resolved at 1.33.3
+Creating working copy for https://github.com/apple/swift-certificates.git
+Working copy of https://github.com/apple/swift-certificates.git resolved at 1.17.1
+Creating working copy for https://github.com/mcrich23/container
+Working copy of https://github.com/mcrich23/container resolved at add-command-option-group-function-macro (1d4e030)
+Creating working copy for https://github.com/apple/swift-collections.git
+Working copy of https://github.com/apple/swift-collections.git resolved at 1.3.0
+Creating working copy for https://github.com/apple/swift-service-context.git
+Working copy of https://github.com/apple/swift-service-context.git resolved at 1.2.1
+Creating working copy for https://github.com/onevcat/Rainbow
+Working copy of https://github.com/onevcat/Rainbow resolved at 4.2.1
+Creating working copy for https://github.com/apple/swift-algorithms.git
+Working copy of https://github.com/apple/swift-algorithms.git resolved at 1.2.1
+Creating working copy for https://github.com/apple/swift-system.git
+Working copy of https://github.com/apple/swift-system.git resolved at 1.6.4
+Creating working copy for https://github.com/grpc/grpc-swift.git
+Working copy of https://github.com/grpc/grpc-swift.git resolved at 1.27.1
+Creating working copy for https://github.com/apple/swift-crypto.git
+Working copy of https://github.com/apple/swift-crypto.git resolved at 3.15.1
+Creating working copy for https://github.com/jpsim/Yams.git
+Working copy of https://github.com/jpsim/Yams.git resolved at 5.4.0
+Creating working copy for https://github.com/apple/swift-nio-extras.git
+Working copy of https://github.com/apple/swift-nio-extras.git resolved at 1.32.1
+Creating working copy for https://github.com/apple/swift-nio-ssl.git
+Working copy of https://github.com/apple/swift-nio-ssl.git resolved at 2.36.0
+Creating working copy for https://github.com/swift-server/swift-service-lifecycle.git
+Working copy of https://github.com/swift-server/swift-service-lifecycle.git resolved at 2.9.1
+Creating working copy for https://github.com/apple/swift-argument-parser.git
+Working copy of https://github.com/apple/swift-argument-parser.git resolved at 1.7.0
+Creating working copy for https://github.com/apple/swift-atomics.git
+Working copy of https://github.com/apple/swift-atomics.git resolved at 1.3.0
+Creating working copy for https://github.com/apple/swift-asn1.git
+Working copy of https://github.com/apple/swift-asn1.git resolved at 1.5.1
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:264:42: warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+262 |     }
+263 | 
+264 |     let workDirectory = PathLike(context.pluginWorkDirectory)
+    |                                          |- warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+    |                                          `- note: use 'pluginWorkDirectoryURL' instead
+265 | 
+266 |     return try self.createBuildCommands(
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:287:18: warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+285 | 
+286 |   init(_ path: String) {
+287 |     self.value = Path(path)
+    |                  `- warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+288 |   }
+289 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:291:26: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+289 | 
+290 |   init(_ element: FileList.Element) {
+291 |     self.value = element.path
+    |                          |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                          `- note: use 'url' instead
+292 |   }
+293 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:295:26: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+293 | 
+294 |   init(_ element: PluginContext.Tool) {
+295 |     self.value = element.path
+    |                          |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                          `- note: use 'url' instead
+296 |   }
+297 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:303:23: warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+301 | 
+302 |   var lastComponent: String {
+303 |     return self.value.lastComponent
+    |                       `- warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+304 |   }
+305 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:308:29: warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+306 |   func removingLastComponent() -> Self {
+307 |     var copy = self
+308 |     copy.value = self.value.removingLastComponent()
+    |                             `- warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+309 |     return copy
+310 |   }
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:314:29: warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+312 |   func appending(_ path: String) -> Self {
+313 |     var copy = self
+314 |     copy.value = self.value.appending(path)
+    |                             `- warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+315 |     return copy
+316 |   }
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:327:17: warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+325 |     outputFiles: [PathLike]
+326 |   ) -> PackagePlugin.Command {
+327 |     return Self.buildCommand(
+    |                 `- warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+328 |       displayName: displayName,
+329 |       executable: executable.value,
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:339:35: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+337 | extension URL {
+338 |   init(_ pathLike: PathLike) {
+339 |     self = URL(fileURLWithPath: "\(pathLike.value)")
+    |                                   `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+340 |   }
+341 | }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[1/1] Compiling plugin GRPCSwiftPlugin
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:9:14: warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+  7 |     enum PluginError: Error, CustomStringConvertible {
+  8 |         /// Indicates that the target where the plugin was applied to was not `SourceModuleTarget`.
+  9 |         case invalidTarget(Target)
+    |              `- warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+ 10 |         /// Indicates that the file extension of an input file was not `.proto`.
+ 11 |         case invalidInputFileExtension(String)
+
+PackagePlugin.Target:1:17: note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 1 | public protocol Target {
+   |                 `- note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 2 |     var id: Self.ID { get }
+ 3 |     typealias ID = String
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:2:1: warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  1 | import Foundation
+  2 | import PackagePlugin
+    | `- warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  3 | 
+  4 | @main
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:9:14: warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+  7 |     enum PluginError: Error, CustomStringConvertible {
+  8 |         /// Indicates that the target where the plugin was applied to was not `SourceModuleTarget`.
+  9 |         case invalidTarget(Target)
+    |              `- warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+ 10 |         /// Indicates that the file extension of an input file was not `.proto`.
+ 11 |         case invalidInputFileExtension(String)
+
+PackagePlugin.Target:1:17: note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 1 | public protocol Target {
+   |                 `- note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 2 |     var id: Self.ID { get }
+ 3 |     typealias ID = String
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:2:1: warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  1 | import Foundation
+  2 | import PackagePlugin
+    | `- warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  3 | 
+  4 | @main
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:117:24: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+115 |             let configurationFilePath = sourceFiles.first(
+116 |                 where: {
+117 |                     $0.path.lastComponent == Self.configurationFileName
+    |                        |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                        `- note: use 'url' instead
+118 |                 }
+119 |             )?.path
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:117:29: warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+115 |             let configurationFilePath = sourceFiles.first(
+116 |                 where: {
+117 |                     $0.path.lastComponent == Self.configurationFileName
+    |                             `- warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+118 |                 }
+119 |             )?.path
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:119:16: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+117 |                     $0.path.lastComponent == Self.configurationFileName
+118 |                 }
+119 |             )?.path
+    |                |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                `- note: use 'url' instead
+120 |         else {
+121 |             throw PluginError.noConfigFound(Self.configurationFileName)
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:123:64: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+121 |             throw PluginError.noConfigFound(Self.configurationFileName)
+122 |         }
+123 |         let data = try Data(contentsOf: URL(fileURLWithPath: "\(configurationFilePath)"))
+    |                                                                `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+124 |         let configuration = try JSONDecoder().decode(Configuration.self, from: data)
+125 |         try validateConfiguration(configuration)
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:131:26: warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+129 |         if let configuredProtocPath = configuration.protocPath {
+130 |             // The user set the config path in the file. So let's take that
+131 |             protocPath = Path(configuredProtocPath)
+    |                          `- warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+132 |         } else if let environmentPath = ProcessInfo.processInfo.environment["PROTOC_PATH"] {
+133 |             // The user set the env variable. So let's take that
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:134:26: warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+132 |         } else if let environmentPath = ProcessInfo.processInfo.environment["PROTOC_PATH"] {
+133 |             // The user set the env variable. So let's take that
+134 |             protocPath = Path(environmentPath)
+    |                          `- warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+135 |         } else {
+136 |             // The user didn't set anything so let's try see if SPM can find a binary for us
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:137:45: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+135 |         } else {
+136 |             // The user didn't set anything so let's try see if SPM can find a binary for us
+137 |             protocPath = try tool("protoc").path
+    |                                             |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                                             `- note: use 'url' instead
+138 |         }
+139 |         let protocGenSwiftPath = try tool("protoc-gen-swift").path
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:139:63: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+137 |             protocPath = try tool("protoc").path
+138 |         }
+139 |         let protocGenSwiftPath = try tool("protoc-gen-swift").path
+    |                                                               |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                                                               `- note: use 'url' instead
+140 | 
+141 |         return configuration.invocations.map { invocation in
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:143:50: warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+141 |         return configuration.invocations.map { invocation in
+142 |             self.invokeProtoc(
+143 |                 directory: configurationFilePath.removingLastComponent(),
+    |                                                  `- warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+144 |                 invocation: invocation,
+145 |                 protocPath: protocPath,
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:170:41: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+168 |         // Construct the `protoc` arguments.
+169 |         var protocArgs = [
+170 |             "--plugin=protoc-gen-swift=\(protocGenSwiftPath)",
+    |                                         `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+171 |             "--swift_out=\(outputDirectory)",
+172 |         ]
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:171:27: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+169 |         var protocArgs = [
+170 |             "--plugin=protoc-gen-swift=\(protocGenSwiftPath)",
+171 |             "--swift_out=\(outputDirectory)",
+    |                           `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+172 |         ]
+173 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:177:29: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+175 |         // the proto files relative to it.
+176 |         protocArgs.append("-I")
+177 |         protocArgs.append("\(directory)")
+    |                             `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+178 | 
+179 |         // Add the visibility if it was set
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:205:41: warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+203 |             // Append the file to the protoc args so that it is used for generating
+204 |             protocArgs.append("\(file)")
+205 |             inputFiles.append(directory.appending(file))
+    |                                         `- warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+206 | 
+207 |             // The name of the output file is based on the name of the input file.
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:212:54: warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+210 |             file.removeLast(5)
+211 |             file.append("pb.swift")
+212 |             let protobufOutputPath = outputDirectory.appending(file)
+    |                                                      `- warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+213 | 
+214 |             // Add the outputPath as an output file
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:221:24: warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+219 |         // system know when to invoke the command. The output paths are passed on to
+220 |         // the rule engine in the build system.
+221 |         return Command.buildCommand(
+    |                        `- warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+222 |             displayName: "Generating swift files from proto files",
+223 |             executable: protocPath,
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:251:42: warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+249 |         }
+250 |         return try createBuildCommands(
+251 |             pluginWorkDirectory: context.pluginWorkDirectory,
+    |                                          |- warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+    |                                          `- note: use 'pluginWorkDirectoryURL' instead
+252 |             sourceFiles: swiftTarget.sourceFiles,
+253 |             tool: context.tool
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[2/2] Compiling plugin SwiftProtobufPlugin
+[3/3] Compiling plugin GenerateManual
+[4/4] Compiling plugin GenerateDoccReference
+Building for debugging...
+[4/556] /Users/kieranlal/workspace/Container-Compose/.build/arm64-apple-macosx/debug/Container-ComposePackageTests.derived/runner.swift
+[5/556] Write sources
+[11/556] Write Container-Compose-entitlement.plist
+[12/556] Copying PrivacyInfo.xcprivacy
+[16/556] Compiling aesni-x86_64-apple.S
+[16/556] Compiling aesni-x86_64-linux.S
+[18/556] Compiling aesv8-armv7-linux.S
+[19/556] Compiling aesv8-armv8-apple.S
+[20/556] Write swift-version--58304C5D6DBC2206.txt
+[21/556] Compiling divsufsort.c
+[22/556] Compiling cover.c
+[23/556] Compiling fastcover.c
+[24/556] Compiling huf_decompress_amd64.S
+[25/556] Compiling zstd_decompress.c
+[26/556] Compiling zdict.c
+[27/556] Compiling zstd_ddict.c
+[28/556] Compiling zstd_decompress_block.c
+[29/556] Compiling zstd_preSplit.c
+[30/556] Compiling refcount.cc
+[31/556] Compiling zstd_ldm.c
+[32/556] Compiling zstdmt_compress.c
+[33/556] Compiling spake2plus.cc
+[34/556] Compiling huf_decompress.c
+[35/556] Compiling zstd_compress_sequences.c
+[36/556] Compiling zstd_opt.c
+[37/556] Compiling zstd_compress_superblock.c
+[38/556] Compiling zstd_fast.c
+[39/556] Compiling zstd_compress_literals.c
+[40/556] Compiling zstd_double_fast.c
+[41/556] Compiling hist.c
+[42/556] Compiling threading.c
+[43/556] Compiling zstd_common.c
+[44/556] Compiling fse_compress.c
+[45/556] Compiling xxhash.c
+[46/556] Compiling error_private.c
+[46/556] Write sources
+[46/556] Compiling pool.c
+[49/556] Write sources
+[52/556] Compiling entropy_common.c
+[53/556] Compiling fse_decompress.c
+[54/556] Compiling huf_compress.c
+[54/556] Write sources
+[59/556] Copying PrivacyInfo.xcprivacy
+[59/556] Write sources
+[68/556] Compiling _NumericsShims _NumericsShims.c
+[69/556] Compiling debug.c
+[70/661] Compiling _AtomicsShims.c
+[71/661] Compiling zstd_compress.c
+[72/661] Write sources
+[90/681] Compiling ServiceContextModule ServiceContextKey.swift
+[91/681] Compiling RealModule RealFunctions.swift
+[92/681] Compiling RealModule Real.swift
+[93/682] Emitting module RealModule
+[94/682] Compiling Rainbow Color.swift
+[95/682] Compiling Rainbow ColorApproximation.swift
+[96/682] Compiling RealModule Float80+Real.swift
+[97/682] Emitting module ServiceContextModule
+[98/682] Compiling ServiceContextModule ServiceContext.swift
+[99/682] Compiling _NIOBase64 Base64.swift
+[100/682] Emitting module _NIOBase64
+[101/682] Compiling Rainbow ConditionalStyleBuilder.swift
+[102/682] Compiling Rainbow ControlCode.swift
+[103/682] Compiling Rainbow OutputTarget.swift
+[104/682] Compiling Rainbow Rainbow.swift
+[105/682] Compiling RealModule Float16+Real.swift
+[106/682] Compiling RealModule RelaxedArithmetic.swift
+[107/707] Compiling Instrumentation NoOpInstrument.swift
+[108/707] Compiling _NIODataStructures _TinyArray.swift
+[109/707] Compiling _NIODataStructures PriorityQueue.swift
+[110/707] Emitting module _NIODataStructures
+[111/707] Compiling _NIODataStructures Heap.swift
+[111/707] Write sources
+[119/707] Compiling InternalCollectionsUtilities UInt+reversed.swift
+[120/707] Compiling InternalCollectionsUtilities _UnsafeBitSet+Index.swift
+[121/707] Compiling InternalCollectionsUtilities LifetimeOverride.swift
+[122/707] Compiling InternalCollectionsUtilities RandomAccessCollection+Offsets.swift
+[123/707] Compiling InternalCollectionsUtilities UnsafeBufferPointer+Extras.swift
+[124/707] Compiling InternalCollectionsUtilities UnsafeMutableBufferPointer+Extras.swift
+[125/709] Emitting module Instrumentation
+[126/709] Compiling Instrumentation MultiplexInstrument.swift
+[127/709] Compiling Instrumentation InstrumentationSystem.swift
+[128/709] Compiling Instrumentation Instrument.swift
+[129/709] Compiling Instrumentation Locks.swift
+[129/709] Write sources
+[133/709] Compiling InternalCollectionsUtilities UnsafeMutableRawBufferPointer+Extras.swift
+[134/709] Compiling InternalCollectionsUtilities UnsafeRawBufferPointer+Extras.swift
+[135/789] Emitting module Logging
+[136/789] Compiling Logging MetadataProvider.swift
+[137/789] Compiling Logging Locks.swift
+[138/789] Compiling Logging Logging.swift
+[139/789] Compiling Logging LogHandler.swift
+[139/789] Write sources
+[142/789] Compiling Tracing TracingTime.swift
+[143/791] Compiling Tracing TracerProtocol.swift
+[144/791] Emitting module ContainerizationError
+[145/791] Compiling ContainerizationError ContainerizationError.swift
+[146/791] Compiling Tracing Tracer.swift
+[147/791] Compiling Tracing TracerProtocol+Legacy.swift
+[147/791] Write sources
+[164/791] Compiling Crypto ChaChaPoly_boring.swift
+[165/791] Compiling Crypto ChaChaPoly.swift
+[166/791] Compiling Crypto AES-GCM.swift
+[167/791] Compiling Crypto AES-GCM_boring.swift
+[168/791] Emitting module InternalCollectionsUtilities
+[169/791] Compiling Crypto ASN1BitString.swift
+[170/791] Compiling Crypto ASN1Boolean.swift
+[171/791] Compiling Crypto ASN1Identifier.swift
+[172/791] Compiling Crypto Cipher.swift
+[173/791] Compiling Crypto Nonces.swift
+[174/794] Compiling Tracing NoOpTracer.swift
+[175/794] Compiling Tracing InstrumentationSystem+Tracing.swift
+[176/794] Emitting module Tracing
+[177/794] Compiling Tracing SpanProtocol.swift
+[177/831] Compiling writer.c
+[178/862] Compiling zstd_lazy.c
+[180/897] Compiling HeapModule Heap+Invariants.swift
+[181/924] Emitting module Crypto
+[182/934] Compiling HeapModule _HeapNode.swift
+[183/934] Compiling HeapModule Heap.swift
+[184/934] Emitting module HeapModule
+[185/934] Compiling HeapModule Heap+ExpressibleByArrayLiteral.swift
+[186/934] Compiling HeapModule Heap+Descriptions.swift
+[187/934] Compiling HeapModule Heap+UnsafeHandle.swift
+[188/1005] Compiling HashTreeCollections _Bitmap.swift
+[189/1005] Compiling HashTreeCollections _Bucket.swift
+[190/1011] Compiling HashTreeCollections _HashNodeHeader.swift
+[191/1011] Compiling HashTreeCollections _HashSlot.swift
+[192/1011] Compiling HashTreeCollections _HashNode+Structural subtracting.swift
+[193/1011] Compiling HashTreeCollections _HashNode+Structural symmetricDifference.swift
+[194/1011] Compiling HashTreeCollections _HashNode+Structural union.swift
+[195/1011] Compiling HashTreeCollections _HashNode+Subtree Insertions.swift
+[196/1011] Compiling HashTreeCollections _HashNode+Subtree Modify.swift
+[197/1011] Compiling HashTreeCollections _HashNode+Subtree Removals.swift
+[198/1011] Compiling HashTreeCollections _HashNode+UnsafeHandle.swift
+[199/1011] Compiling HashTreeCollections _HashNode.swift
+[200/1011] Compiling HashTreeCollections _HashNode+Builder.swift
+[201/1011] Compiling HashTreeCollections _HashNode+Debugging.swift
+[202/1011] Compiling HashTreeCollections _HashNode+Initializers.swift
+[203/1011] Compiling HashTreeCollections _HashNode+Invariants.swift
+[204/1011] Compiling HashTreeCollections _HashNode+Lookups.swift
+[205/1011] Compiling HashTreeCollections _HashNode+Primitive Insertions.swift
+[206/1011] Compiling HashTreeCollections TreeDictionary+Equatable.swift
+[207/1011] Compiling HashTreeCollections TreeDictionary+ExpressibleByDictionaryLiteral.swift
+[208/1018] Compiling OrderedCollections OrderedSet+UnorderedView.swift
+[209/1018] Compiling OrderedCollections OrderedSet+UnstableInternals.swift
+[210/1018] Compiling OrderedCollections OrderedSet.swift
+[211/1018] Compiling OrderedCollections _UnsafeBitset.swift
+[212/1018] Compiling HashTreeCollections TreeSet+SetAlgebra formUnion.swift
+[213/1018] Compiling HashTreeCollections TreeSet+SetAlgebra intersection.swift
+[214/1018] Compiling HashTreeCollections TreeSet+SetAlgebra isDisjoint.swift
+[215/1018] Compiling HashTreeCollections _HashTreeIterator.swift
+[216/1018] Compiling HashTreeCollections _HashTreeStatistics.swift
+[217/1018] Compiling HashTreeCollections _RawHashNode+UnsafeHandle.swift
+[218/1027] Compiling HashTreeCollections TreeDictionary+Sequence.swift
+[219/1027] Compiling HashTreeCollections TreeDictionary+Values.swift
+[220/1027] Compiling HashTreeCollections _HashNode+Primitive Removals.swift
+[221/1027] Compiling HashTreeCollections _HashNode+Primitive Replacement.swift
+[222/1027] Compiling HashTreeCollections _HashNode+Storage.swift
+[223/1027] Compiling HashTreeCollections _HashNode+Structural compactMapValues.swift
+[224/1027] Compiling HashTreeCollections _HashNode+Structural filter.swift
+[225/1027] Compiling HashTreeCollections TreeSet+Collection.swift
+[226/1027] Compiling HashTreeCollections TreeSet+CustomReflectable.swift
+[227/1027] Compiling HashTreeCollections TreeSet+Debugging.swift
+[228/1027] Compiling HashTreeCollections TreeSet+Descriptions.swift
+[229/1027] Compiling HashTreeCollections TreeSet+Equatable.swift
+[230/1027] Compiling HashTreeCollections TreeSet+ExpressibleByArrayLiteral.swift
+[231/1027] Compiling HashTreeCollections TreeSet+Extras.swift
+[232/1027] Compiling HashTreeCollections TreeSet+Filter.swift
+[233/1027] Compiling HashTreeCollections _HashNode+Structural intersection.swift
+[234/1027] Compiling HashTreeCollections _HashNode+Structural isDisjoint.swift
+[235/1027] Compiling HashTreeCollections _HashNode+Structural isEqualSet.swift
+[236/1027] Compiling HashTreeCollections _HashNode+Structural isSubset.swift
+[237/1027] Compiling HashTreeCollections _HashNode+Structural mapValues.swift
+[238/1027] Compiling HashTreeCollections _HashNode+Structural merge.swift
+[239/1027] Compiling HashTreeCollections TreeDictionary.swift
+[240/1027] Compiling HashTreeCollections TreeSet+Codable.swift
+[241/1027] Compiling HashTreeCollections TreeDictionary+Filter.swift
+[242/1027] Compiling HashTreeCollections TreeDictionary+Hashable.swift
+[243/1027] Compiling HashTreeCollections TreeDictionary+Initializers.swift
+[244/1027] Compiling HashTreeCollections TreeDictionary+Keys.swift
+[245/1027] Compiling HashTreeCollections TreeDictionary+MapValues.swift
+[246/1027] Compiling HashTreeCollections TreeDictionary+Merge.swift
+[247/1027] Compiling HashTreeCollections TreeDictionary+Sendable.swift
+[248/1027] Compiling HashTreeCollections _HashStack.swift
+[249/1027] Compiling HashTreeCollections _AncestorHashSlots.swift
+[252/1027] Compiling HashTreeCollections _Hash.swift
+[253/1027] Compiling HashTreeCollections _HashLevel.swift
+[294/1027] Compiling OrderedCollections OrderedSet+Sendable.swift
+[295/1027] Compiling OrderedCollections OrderedSet+SubSequence.swift
+[296/1027] Compiling OrderedCollections OrderedSet+Testing.swift
+[301/1027] Emitting module OrderedCollections
+[353/1027] Compiling _RopeModule Rope+Join.swift
+[354/1027] Compiling _RopeModule Rope+MutatingForEach.swift
+[355/1027] Compiling _RopeModule Rope+Remove.swift
+[356/1027] Compiling _RopeModule Rope+RemoveSubrange.swift
+[362/1027] Emitting module _RopeModule
+[391/1027] Compiling _RopeModule Rope+Split.swift
+[392/1027] Compiling _RopeModule Optional Utilities.swift
+[393/1027] Compiling _RopeModule String Utilities.swift
+[394/1027] Compiling _RopeModule String.Index+ABI.swift
+[409/1037] Compiling HashTreeCollections TreeSet+SetAlgebra isEqualSet.swift
+[410/1037] Compiling HashTreeCollections TreeSet+SetAlgebra isStrictSubset.swift
+[411/1037] Compiling HashTreeCollections TreeSet+SetAlgebra isStrictSuperset.swift
+[412/1037] Compiling HashTreeCollections TreeSet+SetAlgebra isSubset.swift
+[413/1037] Compiling HashTreeCollections TreeSet+SetAlgebra isSuperset.swift
+[414/1037] Compiling HashTreeCollections TreeSet+SetAlgebra subtract.swift
+[415/1037] Compiling Rainbow StyledStringBuilder.swift
+[420/1037] Emitting module Rainbow
+[427/1052] Emitting module ContainerLog
+[427/1052] Compiling reader.c
+[429/1052] Compiling DequeModule Deque+Equatable.swift
+[430/1052] Compiling DequeModule Deque+ExpressibleByArrayLiteral.swift
+[440/1063] Compiling parser.c
+[476/1065] Compiling ContainerLog StderrLogHandler.swift
+[476/1065] Compiling scanner.c
+[478/1065] Emitting module SwiftProtobuf
+[487/1065] Compiling api.c
+[488/1065] Compiling CVersion Version.c
+[489/1065] Compiling emitter.c
+[490/1065] Compiling CSystem shims.c
+[492/1069] Compiling HelperMacrosMacros OptionGroupPassthrough.swift
+[493/1069] Compiling HelperMacrosMacros HelperMacrosMacros.swift
+[494/1069] Emitting module HelperMacrosMacros
+[495/1117] Compiling SystemPackage SystemString.swift
+[496/1117] Compiling SystemPackage Errno.swift
+[515/1117] Compiling HashTreeCollections TreeSet+SetAlgebra subtracting.swift
+[516/1117] Compiling HashTreeCollections TreeSet+SetAlgebra symmetricDifference.swift
+[517/1117] Compiling HashTreeCollections TreeSet+SetAlgebra union.swift
+[518/1117] Compiling SwiftProtobuf api.pb.swift
+[519/1117] Emitting module ContainerVersion
+[520/1117] Compiling ContainerVersion ReleaseVersion.swift
+[521/1117] Compiling ContainerVersion CommandLine+Executable.swift
+[522/1117] Compiling ContainerVersion Bundle+AppBundle.swift
+[522/1117] Write Objects.LinkFileList
+[524/1117] Compiling SystemPackage FilePathSyntax.swift
+[525/1117] Compiling SystemPackage FilePathTemp.swift
+[535/1117] Compiling ContainerLog OSLogHandler.swift
+[537/1117] Compiling SystemPackage MachPort.swift
+[538/1117] Compiling SystemPackage PlatformString.swift
+[541/1117] Compiling SystemPackage ErrnoWindows.swift
+[542/1117] Compiling SystemPackage FileDescriptor.swift
+[543/1117] Compiling SystemPackage FileHelpers.swift
+[544/1117] Compiling SystemPackage FileOperations.swift
+[545/1117] Compiling SystemPackage FilePath.swift
+[546/1117] Compiling SystemPackage FilePathComponentView.swift
+[547/1117] Compiling SystemPackage Mocking.swift
+[548/1117] Compiling SystemPackage RawBuffer.swift
+[549/1117] Compiling SystemPackage Syscalls.swift
+[550/1117] Compiling SystemPackage WindowsSyscallAdapters.swift
+[551/1117] Compiling SystemPackage Backcompat.swift
+[552/1117] Compiling SystemPackage CInterop.swift
+[553/1117] Compiling SystemPackage Constants.swift
+[554/1117] Compiling SystemPackage Exports.swift
+[555/1117] Compiling SystemPackage FilePathParsing.swift
+[556/1117] Compiling SystemPackage FilePathString.swift
+[568/1117] Emitting module DequeModule
+[572/1120] Compiling CShim prctl.c
+[573/1120] Compiling CShim vsock.c
+[574/1120] Compiling CShim capability.c
+[575/1120] Compiling CNIOWindows shim.c
+[576/1120] Compiling CNIOWindows WSAStartup.c
+[577/1120] Compiling CNIOWASI CNIOWASI.c
+[578/1120] Compiling CShim socket_helpers.c
+[579/1120] Compiling CShim exec_command.c
+[580/1120] Compiling CNIOOpenBSD shim.c
+[581/1120] Compiling CNIOLinux shim.c
+[582/1120] Compiling CNIOLinux liburing_shims.c
+[583/1120] Compiling CNIOPosix event_loop_id.c
+[584/1120] Linking HelperMacrosMacros-tool
+[585/1120] Compiling CNIOLLHTTP c_nio_http.c
+[586/1120] Compiling CNIOExtrasZlib empty.c
+[587/1120] Compiling CNIOLLHTTP c_nio_api.c
+[593/1122] Compiling SystemPackage FilePathTempPosix.swift
+[594/1122] Compiling SystemPackage FilePathTempWindows.swift
+[595/1122] Compiling SystemPackage FilePathWindows.swift
+[596/1122] Compiling SystemPackage FilePermissions.swift
+[597/1122] Emitting module HashTreeCollections
+[597/1122] Compiling fiat_p256_adx_sqr.S
+[606/1122] Emitting module SystemPackage
+[606/1122] Compiling fiat_p256_adx_mul.S
+[607/1122] Compiling fiat_curve25519_adx_square.S
+[608/1122] Compiling CNIOLLHTTP c_nio_llhttp.c
+[609/1122] Compiling fiat_curve25519_adx_mul.S
+[610/1122] Compiling CNIODarwin shim.c
+[612/1122] Compiling SystemPackage Util+StringArray.swift
+[613/1122] Compiling SystemPackage Util.swift
+[614/1122] Compiling SystemPackage UtilConsumers.swift
+[615/1122] Compiling HelperMacros HelperMacros.swift
+[616/1122] Emitting module HelperMacros
+[624/1122] Compiling SystemPackage FilePathComponents.swift
+[624/1122] Compiling CNIOBoringSSLShims shims.c
+[650/1144] Compiling ContainerizationOS Mount.swift
+[651/1144] Compiling ContainerizationOS POSIXError+Helpers.swift
+[652/1144] Compiling ContainerizationOS Path.swift
+[653/1147] Compiling ContainerizationOS Pipe+Close.swift
+[654/1147] Compiling ContainerizationOS Reaper.swift
+[655/1147] Compiling ContainerizationOS Signals.swift
+[656/1147] Compiling ContainerizationOS Binfmt.swift
+[657/1147] Compiling ContainerizationOS Capabilities.swift
+[658/1147] Compiling ContainerizationOS Epoll.swift
+[658/1147] Compiling tls_record.cc
+[672/1147] Compiling ContainerizationOS AsyncSignalHandler.swift
+[673/1147] Compiling ContainerizationOS BinaryInteger+Extensions.swift
+[674/1147] Compiling ContainerizationOS Command.swift
+[675/1147] Compiling ContainerizationOS File.swift
+[676/1147] Compiling ContainerizationOS FileDescriptor+SecurePath.swift
+[677/1147] Compiling ContainerizationOS KeychainQuery.swift
+[684/1147] Compiling ContainerizationOS VsockType.swift
+[685/1147] Compiling ContainerizationOS Syscall.swift
+[686/1147] Compiling ContainerizationOS Sysctl.swift
+[686/1147] Compiling tls_method.cc
+[687/1147] Compiling tls13_enc.cc
+[688/1147] Compiling tls13_server.cc
+[692/1147] Compiling tls13_client.cc
+[696/1149] Compiling ContainerizationOS Terminal.swift
+[697/1149] Compiling ContainerizationOS URL+Extensions.swift
+[698/1149] Compiling ContainerizationOS User.swift
+[702/1149] Compiling ContainerizationOS Socket.swift
+[703/1149] Compiling Yams YamlError.swift
+[704/1149] Compiling Yams YamlTagProviding.swift
+[705/1149] Emitting module Yams
+[711/1149] Compiling t1_enc.cc
+[712/1149] Compiling tls13_both.cc
+[715/1149] Compiling ssl_versions.cc
+[716/1149] Compiling ssl_transcript.cc
+[729/1149] Compiling ssl_x509.cc
+[738/1149] Compiling ssl_stat.cc
+[739/1149] Compiling ssl_session.cc
+[740/1149] Compiling ssl_privkey.cc
+[741/1149] Compiling ssl_key_share.cc
+[742/1149] Compiling ssl_lib.cc
+[743/1149] Compiling ssl_file.cc
+[744/1149] Compiling ssl_credential.cc
+[745/1149] Compiling ssl_cipher.cc
+[746/1149] Compiling ssl_cert.cc
+[747/1149] Compiling ssl_buffer.cc
+[748/1149] Compiling ssl_asn1.cc
+[750/1149] Emitting module ContainerizationOS
+[753/1149] Compiling ssl_aead_ctx.cc
+[754/1160] Compiling s3_both.cc
+[755/1160] Compiling s3_pkt.cc
+[756/1168] Compiling s3_lib.cc
+[758/1168] Compiling TerminalProgress ProgressUpdate.swift
+[759/1169] Compiling TerminalProgress ProgressTheme.swift
+[760/1169] Compiling TerminalProgress ProgressTaskCoordinator.swift
+[761/1169] Compiling TerminalProgress StandardError.swift
+[762/1169] Compiling ContainerPlugin PluginFactory.swift
+[763/1170] Compiling ContainerPlugin PluginConfig.swift
+[763/1170] Compiling handshake_server.cc
+[765/1170] Compiling ContainerPlugin LaunchPlist.swift
+[766/1170] Compiling ContainerPlugin ApplicationRoot.swift
+[767/1170] Compiling ContainerPlugin InstallRoot.swift
+[768/1170] Emitting module ContainerPlugin
+[769/1170] Compiling ContainerPlugin Plugin.swift
+[770/1170] Compiling ContainerPlugin PluginLoader.swift
+[770/1170] Compiling handshake_client.cc
+[771/1170] Compiling handshake.cc
+[773/1170] Emitting module TerminalProgress
+[774/1170] Compiling TerminalProgress ProgressBar+Add.swift
+[775/1170] Compiling TerminalProgress ProgressBar+State.swift
+[776/1170] Compiling TerminalProgress ProgressConfig.swift
+[777/1170] Compiling TerminalProgress Int+Formatted.swift
+[778/1170] Compiling TerminalProgress Int64+Formatted.swift
+[779/1170] Compiling TerminalProgress ProgressBar+Terminal.swift
+[780/1170] Compiling TerminalProgress ProgressBar.swift
+[780/1170] Compiling handoff.cc
+[781/1170] Compiling encrypted_client_hello.cc
+[782/1170] Compiling extensions.cc
+[784/1170] Compiling ContainerPlugin ServiceManager.swift
+[784/1170] Compiling dtls_record.cc
+[785/1170] Compiling dtls_method.cc
+[786/1170] Compiling md5-x86_64-linux.S
+[787/1170] Compiling md5-x86_64-apple.S
+[788/1170] Compiling md5-586-linux.S
+[789/1170] Compiling md5-586-apple.S
+[790/1170] Compiling chacha20_poly1305_x86_64-linux.S
+[791/1170] Compiling chacha20_poly1305_x86_64-apple.S
+[792/1170] Compiling chacha20_poly1305_armv8-win.S
+[793/1170] Compiling d1_srtp.cc
+[794/1170] Compiling d1_pkt.cc
+[795/1170] Compiling chacha20_poly1305_armv8-linux.S
+[796/1170] Compiling chacha-x86_64-linux.S
+[797/1170] Compiling chacha20_poly1305_armv8-apple.S
+[798/1170] Compiling chacha-x86_64-apple.S
+[799/1170] Compiling chacha-x86-linux.S
+[800/1170] Compiling chacha-x86-apple.S
+[801/1170] Compiling chacha-armv8-win.S
+[802/1170] Compiling chacha-armv8-linux.S
+[803/1170] Compiling chacha-armv4-linux.S
+[806/1170] Compiling SwiftProtobuf descriptor.pb.swift
+[807/1170] Compiling SwiftProtobuf duration.pb.swift
+[808/1170] Compiling SwiftProtobuf empty.pb.swift
+[809/1170] Compiling SwiftProtobuf field_mask.pb.swift
+[810/1170] Compiling SwiftProtobuf source_context.pb.swift
+[811/1170] Compiling SwiftProtobuf struct.pb.swift
+[812/1170] Compiling SwiftProtobuf timestamp.pb.swift
+[813/1170] Compiling SwiftProtobuf type.pb.swift
+[814/1170] Compiling SwiftProtobuf wrappers.pb.swift
+[815/1170] Compiling SwiftProtobuf resource_bundle_accessor.swift
+[815/1170] Compiling chacha-armv8-apple.S
+[816/1170] Compiling aes128gcmsiv-x86_64-linux.S
+[817/1170] Compiling err_data.cc
+[818/1170] Compiling aes128gcmsiv-x86_64-apple.S
+[819/1170] Compiling x86_64-mont5-apple.S
+[820/1170] Compiling x86_64-mont5-linux.S
+[821/1170] Compiling x86_64-mont-linux.S
+[822/1170] Compiling x86-mont-linux.S
+[823/1170] Compiling x86-mont-apple.S
+[824/1170] Compiling x86_64-mont-apple.S
+[825/1170] Compiling vpaes-x86_64-linux.S
+[826/1170] Compiling bio_ssl.cc
+[827/1170] Compiling vpaes-x86_64-apple.S
+[828/1170] Compiling vpaes-x86-linux.S
+[829/1170] Compiling vpaes-x86-apple.S
+[830/1170] Compiling vpaes-armv8-win.S
+[831/1170] Compiling vpaes-armv8-linux.S
+[832/1170] Compiling vpaes-armv8-apple.S
+[833/1170] Compiling vpaes-armv7-linux.S
+[834/1170] Compiling sha512-x86_64-linux.S
+[835/1170] Compiling sha512-x86_64-apple.S
+[836/1170] Compiling sha512-armv8-win.S
+[837/1170] Compiling sha512-armv8-linux.S
+[837/1170] Compiling sha512-armv4-linux.S
+[839/1170] Compiling sha512-586-linux.S
+[840/1170] Compiling sha512-586-apple.S
+[840/1170] Compiling sha512-armv8-apple.S
+[842/1170] Compiling sha256-x86_64-linux.S
+[843/1170] Compiling d1_lib.cc
+[844/1170] Compiling sha256-armv8-win.S
+[845/1170] Compiling sha256-x86_64-apple.S
+[846/1170] Compiling sha256-armv8-linux.S
+[847/1170] Compiling sha256-armv4-linux.S
+[848/1170] Compiling sha256-586-linux.S
+[849/1170] Compiling sha256-armv8-apple.S
+[850/1170] Compiling sha256-586-apple.S
+[851/1170] Compiling sha1-x86_64-linux.S
+[852/1170] Compiling sha1-x86_64-apple.S
+[852/1170] Compiling sha1-armv8-win.S
+[854/1170] Compiling sha1-armv8-linux.S
+[855/1170] Compiling sha1-armv4-large-linux.S
+[856/1170] Compiling sha1-586-linux.S
+[857/1170] Compiling sha1-armv8-apple.S
+[857/1170] Compiling rsaz-avx2-linux.S
+[859/1170] Compiling sha1-586-apple.S
+[859/1170] Compiling rsaz-avx2-apple.S
+[861/1170] Compiling rdrand-x86_64-linux.S
+[862/1170] Compiling rdrand-x86_64-apple.S
+[863/1170] Compiling p256_beeu-x86_64-asm-linux.S
+[864/1170] Compiling p256_beeu-x86_64-asm-apple.S
+[865/1170] Compiling p256_beeu-armv8-asm-linux.S
+[866/1170] Compiling p256_beeu-armv8-asm-win.S
+[867/1170] Compiling p256_beeu-armv8-asm-apple.S
+[868/1170] Compiling p256-x86_64-asm-linux.S
+[869/1170] Compiling p256-armv8-asm-win.S
+[870/1170] Compiling p256-x86_64-asm-apple.S
+[871/1170] Compiling p256-armv8-asm-linux.S
+[872/1170] Compiling ghashv8-armv8-linux.S
+[872/1170] Compiling ghashv8-armv8-win.S
+[874/1170] Compiling p256-armv8-asm-apple.S
+[875/1170] Compiling ghashv8-armv8-apple.S
+[876/1170] Compiling ghashv8-armv7-linux.S
+[877/1170] Compiling ghash-x86_64-linux.S
+[878/1170] Compiling ghash-x86_64-apple.S
+[879/1170] Compiling ghash-x86-linux.S
+[879/1170] Compiling ghash-ssse3-x86_64-linux.S
+[881/1170] Compiling ghash-x86-apple.S
+[882/1170] Compiling ghash-ssse3-x86-linux.S
+[882/1170] Compiling ghash-ssse3-x86_64-apple.S
+[884/1170] Compiling ghash-neon-armv8-win.S
+[885/1170] Compiling ghash-ssse3-x86-apple.S
+[886/1170] Compiling ghash-neon-armv8-apple.S
+[887/1170] Compiling ghash-neon-armv8-linux.S
+[888/1170] Compiling ghash-armv4-linux.S
+[889/1170] Compiling co-586-apple.S
+[890/1170] Compiling co-586-linux.S
+[891/1170] Compiling bn-armv8-linux.S
+[892/1170] Compiling bn-armv8-win.S
+[893/1170] Compiling bsaes-armv7-linux.S
+[894/1170] Compiling bn-armv8-apple.S
+[895/1170] Compiling bn-586-linux.S
+[896/1170] Compiling bn-586-apple.S
+[897/1170] Compiling armv8-mont-win.S
+[898/1170] Compiling armv8-mont-linux.S
+[899/1170] Compiling armv4-mont-linux.S
+[900/1170] Compiling aesv8-gcm-armv8-win.S
+[901/1170] Compiling armv8-mont-apple.S
+[902/1170] Compiling aesv8-gcm-armv8-linux.S
+[903/1170] Compiling aesv8-armv8-win.S
+[904/1170] Compiling aesv8-gcm-armv8-apple.S
+[905/1170] Compiling aesni-x86-linux.S
+[906/1170] Compiling aesni-x86-apple.S
+[907/1170] Compiling aesv8-armv8-linux.S
+[908/1170] Compiling aesni-gcm-x86_64-linux.S
+[909/1170] Compiling aesni-gcm-x86_64-apple.S
+[910/1170] Compiling aes-gcm-avx2-x86_64-linux.S
+[911/1170] Compiling aes-gcm-avx2-x86_64-apple.S
+[912/1170] Compiling aes-gcm-avx10-x86_64-linux.S
+[913/1170] Compiling aes-gcm-avx10-x86_64-apple.S
+[914/1170] Compiling d1_both.cc
+[915/1170] Compiling x_sig.cc
+[916/1170] Compiling x_pubkey.cc
+[917/1170] Compiling x_spki.cc
+[918/1170] Compiling x_req.cc
+[919/1170] Compiling x_x509.cc
+[920/1170] Compiling x_val.cc
+[921/1170] Compiling x_x509a.cc
+[922/1170] Compiling x_name.cc
+[923/1170] Compiling x_all.cc
+[924/1170] Compiling x_crl.cc
+[925/1170] Compiling x_exten.cc
+[926/1170] Compiling x_algor.cc
+[927/1170] Compiling x509rset.cc
+[928/1170] Compiling x_attrib.cc
+[929/1170] Compiling x509spki.cc
+[930/1170] Compiling x509name.cc
+[931/1170] Compiling x509_set.cc
+[932/1170] Compiling x509cset.cc
+[933/1170] Compiling x509_txt.cc
+[934/1170] Compiling x509_trs.cc
+[935/1170] Compiling x509_vpm.cc
+[936/1170] Compiling x509_v3.cc
+[937/1170] Compiling x509_vfy.cc
+[938/1170] Compiling x509_req.cc
+[939/1170] Compiling x509_ext.cc
+[940/1170] Compiling x509_obj.cc
+[941/1170] Compiling x509_cmp.cc
+[942/1170] Compiling x509_d2.cc
+[943/1170] Compiling x509_def.cc
+[944/1170] Compiling x509_att.cc
+[945/1170] Compiling x509_lu.cc
+[946/1170] Compiling x509.cc
+[947/1170] Compiling v3_purp.cc
+[948/1170] Compiling v3_skey.cc
+[949/1170] Compiling v3_prn.cc
+[950/1170] Compiling v3_utl.cc
+[951/1170] Compiling v3_pmaps.cc
+[952/1170] Compiling v3_pcons.cc
+[953/1170] Compiling v3_ocsp.cc
+[954/1170] Compiling v3_ncons.cc
+[955/1170] Compiling v3_int.cc
+[956/1170] Compiling v3_info.cc
+[957/1170] Compiling v3_lib.cc
+[958/1170] Compiling v3_ia5.cc
+[959/1170] Compiling v3_genn.cc
+[960/1170] Compiling v3_extku.cc
+[961/1170] Compiling v3_enum.cc
+[962/1170] Compiling v3_crld.cc
+[963/1170] Compiling v3_cpols.cc
+[964/1170] Compiling v3_bitst.cc
+[965/1170] Compiling v3_conf.cc
+[966/1170] Compiling v3_bcons.cc
+[967/1170] Compiling v3_alt.cc
+[968/1170] Compiling v3_akeya.cc
+[969/1170] Compiling v3_akey.cc
+[970/1170] Compiling t_x509a.cc
+[971/1170] Compiling t_x509.cc
+[972/1170] Compiling t_req.cc
+[973/1170] Compiling policy.cc
+[974/1170] Compiling rsa_pss.cc
+[975/1170] Compiling i2d_pr.cc
+[976/1170] Compiling name_print.cc
+[977/1170] Compiling t_crl.cc
+[978/1170] Compiling by_file.cc
+[979/1170] Compiling algorithm.cc
+[980/1170] Compiling by_dir.cc
+[981/1170] Compiling a_sign.cc
+[982/1170] Compiling a_verify.cc
+[983/1170] Compiling asn1_gen.cc
+[984/1170] Compiling a_digest.cc
+[985/1170] Compiling voprf.cc
+[986/1170] Compiling trust_token.cc
+[987/1170] Compiling thread_none.cc
+[988/1170] Compiling thread_win.cc
+[989/1170] Compiling thread_pthread.cc
+[990/1170] Compiling thread.cc
+[991/1170] Compiling stack.cc
+[992/1170] Compiling pmbtoken.cc
+[993/1170] Compiling slhdsa.cc
+[994/1170] Compiling siphash.cc
+[995/1170] Compiling sha256.cc
+[996/1170] Compiling sha512.cc
+[997/1170] Compiling rsa_print.cc
+[998/1170] Compiling sha1.cc
+[999/1170] Compiling rsa_extra.cc
+[1000/1170] Compiling rc4.cc
+[1001/1170] Compiling windows.cc
+[1002/1170] Compiling rsa_crypt.cc
+[1003/1170] Compiling urandom.cc
+[1004/1170] Compiling trusty.cc
+[1005/1170] Compiling rand.cc
+[1006/1170] Compiling rsa_asn1.cc
+[1007/1170] Compiling passive.cc
+[1008/1170] Compiling ios.cc
+[1009/1170] Compiling poly1305_arm_asm.S
+[1010/1170] Compiling forkunsafe.cc
+[1011/1170] Compiling deterministic.cc
+[1012/1170] Compiling getentropy.cc
+[1013/1170] Compiling fork_detect.cc
+[1014/1170] Compiling poly1305_vec.cc
+[1015/1170] Compiling pool.cc
+[1016/1170] Compiling poly1305_arm.cc
+[1017/1170] Compiling poly1305.cc
+[1018/1170] Compiling pkcs7.cc
+[1019/1170] Compiling p5_pbev2.cc
+[1020/1170] Compiling pkcs7_x509.cc
+[1021/1170] Compiling pkcs8.cc
+[1022/1170] Compiling pkcs8_x509.cc
+[1023/1170] Compiling pem_xaux.cc
+[1024/1170] Compiling pem_pkey.cc
+[1025/1170] Compiling pem_x509.cc
+[1026/1170] Compiling pem_pk8.cc
+[1027/1170] Compiling pem_oth.cc
+[1028/1170] Compiling pem_all.cc
+[1029/1170] Compiling pem_info.cc
+[1030/1170] Compiling pem_lib.cc
+[1031/1170] Compiling mlkem.cc
+[1032/1170] Compiling obj_xref.cc
+[1033/1170] Compiling obj.cc
+[1034/1170] Compiling poly_rq_mul.S
+[1035/1170] Compiling mldsa.cc
+[1036/1170] Compiling mem.cc
+[1037/1170] Compiling md5.cc
+[1038/1170] Compiling fips_shared_support.cc
+[1039/1170] Compiling md4.cc
+[1040/1170] Compiling lhash.cc
+[1041/1170] Compiling kyber.cc
+[1042/1170] Compiling ex_data.cc
+[1043/1170] Compiling sign.cc
+[1044/1170] Compiling scrypt.cc
+[1045/1170] Compiling hpke.cc
+[1046/1170] Compiling print.cc
+[1047/1170] Compiling hrss.cc
+[1048/1170] Compiling pbkdf.cc
+[1049/1170] Compiling p_x25519.cc
+[1050/1170] Compiling p_x25519_asn1.cc
+[1051/1170] Compiling p_rsa_asn1.cc
+[1052/1170] Compiling p_ed25519_asn1.cc
+[1053/1170] Compiling p_rsa.cc
+[1054/1170] Compiling p_hkdf.cc
+[1055/1170] Compiling p_ed25519.cc
+[1056/1170] Compiling p_ec_asn1.cc
+[1057/1170] Compiling p_ec.cc
+[1058/1170] Compiling p_dh.cc
+[1059/1170] Compiling p_dh_asn1.cc
+[1060/1170] Compiling evp_ctx.cc
+[1061/1170] Compiling p_dsa_asn1.cc
+[1062/1170] Compiling err.cc
+[1063/1170] Compiling evp.cc
+[1064/1170] Compiling engine.cc
+[1065/1170] Compiling ecdh.cc
+[1066/1170] Compiling evp_asn1.cc
+[1067/1170] Compiling ecdsa_asn1.cc
+[1068/1170] Compiling ec_derive.cc
+[1069/1170] Compiling hash_to_curve.cc
+[1070/1170] Compiling bcm.cc
+[1071/1170] Compiling params.cc
+[1072/1170] Compiling dsa.cc
+[1072/1170] Compiling ec_asn1.cc
+[1074/1170] Compiling dsa_asn1.cc
+[1075/1170] Compiling x25519-asm-arm.S
+[1076/1170] Compiling digest_extra.cc
+[1077/1170] Compiling des.cc
+[1078/1170] Compiling dh_asn1.cc
+[1079/1170] Compiling curve25519_64_adx.cc
+[1080/1170] Compiling crypto.cc
+[1081/1170] Compiling cpu_intel.cc
+[1082/1170] Compiling spake25519.cc
+[1083/1170] Compiling cpu_arm_linux.cc
+[1084/1170] Compiling curve25519.cc
+[1085/1170] Compiling cpu_aarch64_win.cc
+[1086/1170] Compiling cpu_aarch64_sysreg.cc
+[1087/1170] Compiling cpu_aarch64_linux.cc
+[1088/1170] Compiling cpu_aarch64_openbsd.cc
+[1089/1170] Compiling cpu_aarch64_fuchsia.cc
+[1090/1170] Compiling cpu_arm_freebsd.cc
+[1091/1170] Compiling cpu_aarch64_apple.cc
+[1092/1170] Compiling get_cipher.cc
+[1093/1170] Compiling e_tls.cc
+[1094/1170] Compiling conf.cc
+[1095/1170] Compiling tls_cbc.cc
+[1096/1170] Compiling e_rc4.cc
+[1097/1170] Compiling e_null.cc
+[1098/1170] Compiling e_des.cc
+[1099/1170] Compiling e_rc2.cc
+[1100/1170] Compiling derive_key.cc
+[1101/1170] Compiling e_chacha20poly1305.cc
+[1102/1170] Compiling e_aesctrhmac.cc
+[1103/1170] Compiling e_aesgcmsiv.cc
+[1104/1170] Compiling chacha.cc
+[1105/1170] Compiling unicode.cc
+[1106/1170] Compiling buf.cc
+[1107/1170] Compiling cbb.cc
+[1108/1170] Compiling cbs.cc
+[1109/1170] Compiling ber.cc
+[1110/1170] Compiling asn1_compat.cc
+[1111/1170] Compiling convert.cc
+[1112/1170] Compiling bn_asn1.cc
+[1113/1170] Compiling blake2.cc
+[1114/1170] Compiling socket.cc
+[1115/1170] Compiling socket_helper.cc
+[1116/1170] Compiling printf.cc
+[1117/1170] Compiling hexdump.cc
+[1118/1170] Compiling pair.cc
+[1119/1170] Compiling fd.cc
+[1120/1170] Compiling file.cc
+[1121/1170] Compiling errno.cc
+[1122/1170] Compiling connect.cc
+[1123/1170] Compiling bio_mem.cc
+[1124/1170] Compiling base64.cc
+[1125/1170] Compiling bio.cc
+[1126/1170] Compiling tasn_typ.cc
+[1127/1170] Compiling tasn_utl.cc
+[1128/1170] Compiling tasn_fre.cc
+[1129/1170] Compiling tasn_new.cc
+[1130/1170] Compiling tasn_enc.cc
+[1131/1170] Compiling posix_time.cc
+[1132/1170] Compiling f_string.cc
+[1133/1170] Compiling tasn_dec.cc
+[1134/1170] Compiling f_int.cc
+[1135/1170] Compiling asn1_par.cc
+[1136/1170] Compiling asn_pack.cc
+[1137/1170] Compiling asn1_lib.cc
+[1138/1170] Compiling a_type.cc
+[1139/1170] Compiling a_octet.cc
+[1140/1170] Compiling a_utctm.cc
+[1141/1170] Compiling a_strnid.cc
+[1142/1170] Compiling a_time.cc
+[1143/1170] Compiling a_strex.cc
+[1144/1170] Compiling a_object.cc
+[1145/1170] Compiling a_mbstr.cc
+[1146/1170] Compiling a_i2d_fp.cc
+[1147/1170] Compiling a_int.cc
+[1148/1170] Compiling a_d2i_fp.cc
+[1149/1170] Compiling a_dup.cc
+[1150/1170] Compiling CGRPCZlib empty.c
+[1151/1170] Compiling CAuditToken AuditToken.c
+[1152/1170] Write sources
+[1154/1170] Compiling CArchive archive_swift_bridge.c
+[1155/1170] Compiling CAsyncHTTPClient CAsyncHTTPClient.c
+[1156/1170] Write sources
+[1160/1170] Compiling a_bitstr.cc
+[1161/1170] Compiling a_gentm.cc
+[1162/1170] Compiling a_bool.cc
+[1164/1268] Compiling Algorithms Intersperse.swift
+[1165/1268] Compiling Algorithms Split.swift
+[1166/1270] Compiling Algorithms Stride.swift
+[1167/1270] Compiling Algorithms Suffix.swift
+[1168/1270] Compiling Algorithms Grouped.swift
+[1169/1270] Compiling Algorithms Indexed.swift
+[1170/1270] Compiling Algorithms AdjacentPairs.swift
+[1171/1270] Compiling Algorithms Chain.swift
+[1172/1270] Compiling Algorithms RandomSample.swift
+[1173/1270] Compiling Algorithms Reductions.swift
+[1174/1270] Compiling Algorithms Rotate.swift
+[1175/1270] Compiling Atomics IntegerOperations.swift
+[1176/1270] Compiling Atomics Unmanaged extensions.swift
+[1177/1270] Compiling BitCollections BitSet+CustomDebugStringConvertible.swift
+[1178/1270] Compiling BitCollections BitSet+CustomReflectable.swift
+[1179/1270] Compiling BitCollections BitSet+CustomStringConvertible.swift
+[1180/1270] Compiling BitCollections BitSet+Equatable.swift
+[1181/1270] Compiling BitCollections BitSet+ExpressibleByArrayLiteral.swift
+[1182/1270] Compiling BitCollections BitSet+Extras.swift
+[1183/1270] Compiling BitCollections BitSet+Hashable.swift
+[1187/1270] Compiling Algorithms Product.swift
+[1188/1270] Compiling Algorithms Compacted.swift
+[1189/1270] Compiling Algorithms Cycle.swift
+[1190/1270] Compiling Algorithms EitherSequence.swift
+[1191/1270] Compiling Algorithms FirstNonNil.swift
+[1192/1277] Compiling Algorithms Keyed.swift
+[1193/1277] Compiling Algorithms MinMax.swift
+[1194/1277] Compiling Algorithms FlattenCollection.swift
+[1195/1277] Emitting module BitCollections
+[1196/1277] Compiling BitCollections BitSet+Initializers.swift
+[1197/1277] Compiling BitCollections BitSet+Invariants.swift
+[1198/1277] Compiling BitCollections BitSet+Random.swift
+[1199/1277] Compiling BitCollections BitSet+SetAlgebra basics.swift
+[1200/1277] Compiling BitCollections BitSet+SetAlgebra conformance.swift
+[1201/1277] Compiling BitCollections BitSet+SetAlgebra formIntersection.swift
+[1202/1277] Compiling BitCollections BitSet+SetAlgebra formSymmetricDifference.swift
+[1203/1277] Compiling BitCollections BitSet+SetAlgebra isSuperset.swift
+[1204/1277] Compiling BitCollections BitSet+SetAlgebra subtract.swift
+[1205/1277] Compiling BitCollections BitSet+SetAlgebra subtracting.swift
+[1206/1277] Compiling BitCollections BitSet+SetAlgebra symmetricDifference.swift
+[1207/1277] Compiling BitCollections BitSet+SetAlgebra union.swift
+[1208/1277] Compiling BitCollections BitSet+Sorted Collection APIs.swift
+[1209/1277] Compiling BitCollections BitSet.Counted.swift
+[1210/1277] Compiling BitCollections BitSet+SetAlgebra formUnion.swift
+[1211/1277] Compiling BitCollections BitSet+SetAlgebra intersection.swift
+[1212/1277] Compiling BitCollections BitSet+SetAlgebra isDisjoint.swift
+[1213/1277] Compiling BitCollections BitSet+SetAlgebra isEqualSet.swift
+[1214/1277] Compiling BitCollections BitSet+SetAlgebra isStrictSubset.swift
+[1215/1277] Compiling BitCollections BitSet+SetAlgebra isStrictSuperset.swift
+[1216/1277] Compiling BitCollections BitSet+SetAlgebra isSubset.swift
+[1224/1280] Compiling ArgumentParserToolInfo ToolInfo.swift
+[1225/1280] Emitting module ArgumentParserToolInfo
+[1226/1326] Compiling ArgumentParser ParentCommand.swift
+[1227/1326] Compiling ArgumentParser AsyncParsableCommand.swift
+[1228/1326] Compiling ArgumentParser CommandConfiguration.swift
+[1229/1326] Compiling ArgumentParser CommandGroup.swift
+[1230/1326] Compiling ArgumentParser EnumerableFlag.swift
+[1231/1326] Compiling ArgumentParser ExpressibleByArgument.swift
+[1232/1326] Compiling ArgumentParser ParsableArguments.swift
+[1233/1326] Compiling ArgumentParser ParsableCommand.swift
+[1234/1326] Compiling ArgumentParser NameSpecification.swift
+[1235/1326] Compiling ArgumentParser Option.swift
+[1236/1326] Compiling ArgumentParser OptionGroup.swift
+[1238/1326] Compiling ArgumentParser ArgumentDecoder.swift
+[1239/1326] Compiling ArgumentParser ArgumentDefinition.swift
+[1240/1326] Compiling ArgumentParser ArgumentSet.swift
+[1241/1326] Compiling ArgumentParser CommandParser.swift
+[1242/1326] Compiling ArgumentParser InputKey.swift
+[1243/1326] Compiling ArgumentParser ArgumentVisibility.swift
+[1247/1326] Compiling ArgumentParser Argument.swift
+[1248/1326] Compiling ArgumentParser ArgumentDiscussion.swift
+[1249/1326] Compiling ArgumentParser ArgumentHelp.swift
+[1256/1326] Compiling ArgumentParser CompletionKind.swift
+[1257/1326] Compiling ArgumentParser Errors.swift
+[1258/1326] Compiling BitCollections BitSet.Index.swift
+[1259/1326] Compiling BitCollections BitSet._UnsafeHandle.swift
+[1260/1326] Compiling BitCollections BitSet.swift
+[1261/1326] Compiling BitCollections Range+Utilities.swift
+[1262/1326] Compiling BitCollections Slice+Utilities.swift
+[1263/1326] Compiling BitCollections UInt+Tricks.swift
+[1264/1326] Compiling BitCollections _Word.swift
+[1265/1328] Emitting module Collections
+[1266/1328] Compiling Collections Collections.swift
+[1271/1328] Emitting module Atomics
+[1272/1328] Emitting module ArgumentParser
+[1276/1334] Emitting module Algorithms
+[1280/1334] Compiling ArgumentParser Flag.swift
+[1284/1334] Compiling ArgumentParser Tree.swift
+[1285/1334] Compiling ArgumentParser CodingKeyValidator.swift
+[1286/1334] Compiling ArgumentParser NonsenseFlagsValidator.swift
+[1287/1334] Compiling ArgumentParser ParsableArgumentsValidation.swift
+[1288/1334] Compiling ArgumentParser PositionalArgumentsValidator.swift
+[1289/1334] Compiling ArgumentParser UniqueNamesValidator.swift
+[1290/1334] Compiling ArgumentParser InputOrigin.swift
+[1291/1334] Compiling ArgumentParser Name.swift
+[1292/1334] Compiling ArgumentParser Parsed.swift
+[1293/1334] Compiling ArgumentParser ParsedValues.swift
+[1294/1334] Compiling ArgumentParser ParserError.swift
+[1295/1334] Compiling ArgumentParser SplitArguments.swift
+[1296/1334] Compiling ArgumentParser Foundation.swift
+[1297/1334] Compiling ArgumentParser Mutex.swift
+[1298/1334] Compiling ArgumentParser Platform.swift
+[1299/1334] Compiling ArgumentParser SequenceExtensions.swift
+[1300/1334] Compiling ArgumentParser StringExtensions.swift
+[1301/1334] Compiling ArgumentParser SwiftExtensions.swift
+[1302/1334] Compiling ArgumentParser BashCompletionsGenerator.swift
+[1303/1334] Compiling ArgumentParser CompletionsGenerator.swift
+[1304/1334] Compiling ArgumentParser FishCompletionsGenerator.swift
+[1305/1334] Compiling ArgumentParser ZshCompletionsGenerator.swift
+[1309/1334] Compiling ArgumentParser DumpHelpGenerator.swift
+[1310/1334] Compiling ArgumentParser HelpCommand.swift
+[1311/1334] Compiling ArgumentParser HelpGenerator.swift
+[1312/1334] Compiling ArgumentParser MessageInfo.swift
+[1313/1334] Compiling ArgumentParser UsageGenerator.swift
+[1314/1334] Compiling ArgumentParser CollectionExtensions.swift
+[1327/1334] Compiling c-nioatomics.c
+[1328/1334] Compiling c-atomics.c
+[1330/1340] Compiling NIOConcurrencyHelpers atomics.swift
+[1331/1340] Emitting module NIOConcurrencyHelpers
+[1332/1340] Compiling NIOConcurrencyHelpers NIOAtomic.swift
+[1333/1340] Compiling NIOConcurrencyHelpers NIOLock.swift
+[1334/1340] Compiling NIOConcurrencyHelpers NIOLockedValueBox.swift
+[1335/1340] Compiling NIOConcurrencyHelpers lock.swift
+[1336/1403] Compiling NIOCore NIOCoreSendableMetatype.swift
+[1337/1403] Compiling NIOCore NIODecodedAsyncSequence.swift
+[1338/1403] Compiling NIOCore NIOLoopBound.swift
+[1339/1403] Compiling NIOCore NIOPooledRecvBufferAllocator.swift
+[1340/1403] Compiling NIOCore NIOScheduledCallback.swift
+[1341/1403] Compiling NIOCore NIOSendable.swift
+[1342/1403] Compiling NIOCore NIOSplitLinesMessageDecoder.swift
+[1343/1403] Compiling NIOCore RecvByteBufferAllocator.swift
+[1344/1411] Compiling NIOCore IPProtocol.swift
+[1345/1411] Compiling NIOCore IntegerBitPacking.swift
+[1346/1411] Compiling NIOCore IntegerTypes.swift
+[1347/1411] Compiling NIOCore Interfaces.swift
+[1348/1411] Compiling NIOCore Linux.swift
+[1349/1411] Compiling NIOCore MarkedCircularBuffer.swift
+[1350/1411] Compiling NIOCore MulticastChannel.swift
+[1351/1411] Compiling NIOCore NIOAny.swift
+[1352/1411] Compiling NIOCore NIOCloseOnErrorHandler.swift
+[1353/1411] Compiling NIOCore EventLoopFuture+Deprecated.swift
+[1354/1411] Compiling NIOCore EventLoopFuture+WithEventLoop.swift
+[1355/1411] Compiling NIOCore EventLoopFuture.swift
+[1356/1411] Compiling NIOCore FileDescriptor.swift
+[1357/1411] Compiling NIOCore FileHandle.swift
+[1358/1411] Compiling NIOCore FileRegion.swift
+[1359/1411] Compiling NIOCore GlobalSingletons.swift
+[1360/1411] Compiling NIOCore IO.swift
+[1361/1411] Compiling NIOCore IOData.swift
+[1362/1411] Compiling NIOCore SingleStepByteToMessageDecoder.swift
+[1363/1411] Compiling NIOCore SocketAddresses.swift
+[1364/1411] Compiling NIOCore SocketOptionProvider.swift
+[1365/1411] Compiling NIOCore SystemCallHelpers.swift
+[1366/1411] Compiling NIOCore TimeAmount+Duration.swift
+[1367/1411] Compiling NIOCore TypeAssistedChannelHandler.swift
+[1368/1411] Compiling NIOCore UniversalBootstrapSupport.swift
+[1369/1411] Compiling NIOCore Utilities.swift
+[1370/1411] Compiling NIOCore ByteBuffer-multi-int.swift
+[1371/1411] Compiling NIOCore ByteBuffer-quicBinaryEncodingStrategy.swift
+[1372/1411] Compiling NIOCore ByteBuffer-views.swift
+[1373/1411] Compiling NIOCore Channel.swift
+[1374/1411] Compiling NIOCore ChannelHandler.swift
+[1375/1411] Compiling NIOCore ChannelHandlers.swift
+[1376/1411] Compiling NIOCore ChannelInvoker.swift
+[1377/1411] Compiling NIOCore ChannelOption.swift
+[1378/1411] Compiling NIOCore ChannelPipeline.swift
+[1379/1411] Compiling NIOCore CircularBuffer.swift
+[1380/1411] Compiling NIOCore Codec.swift
+[1381/1411] Compiling NIOCore ConvenienceOptionSupport.swift
+[1382/1411] Compiling NIOCore DeadChannel.swift
+[1383/1411] Compiling NIOCore DispatchQueue+WithFuture.swift
+[1384/1411] Compiling NIOCore EventLoop+Deprecated.swift
+[1385/1411] Compiling NIOCore EventLoop+SerialExecutor.swift
+[1386/1411] Compiling NIOCore EventLoop.swift
+[1387/1411] Compiling NIOCore EventLoopFuture+AssumeIsolated.swift
+[1388/1411] Compiling NIOCore AddressedEnvelope.swift
+[1389/1411] Compiling NIOCore AsyncAwaitSupport.swift
+[1390/1411] Compiling NIOCore AsyncChannel.swift
+[1391/1411] Compiling NIOCore AsyncChannelHandler.swift
+[1392/1411] Compiling NIOCore AsyncChannelInboundStream.swift
+[1393/1411] Compiling NIOCore AsyncChannelOutboundWriter.swift
+[1394/1411] Compiling NIOCore NIOAsyncSequenceProducer.swift
+[1395/1411] Compiling NIOCore NIOAsyncSequenceProducerStrategies.swift
+[1396/1411] Compiling NIOCore NIOAsyncWriter.swift
+[1397/1411] Compiling NIOCore NIOThrowingAsyncSequenceProducer.swift
+[1398/1411] Compiling NIOCore BSDSocketAPI.swift
+[1399/1411] Compiling NIOCore ByteBuffer-aux.swift
+[1400/1411] Compiling NIOCore ByteBuffer-binaryEncodedLengthPrefix.swift
+[1401/1411] Compiling NIOCore ByteBuffer-conversions.swift
+[1402/1411] Compiling NIOCore ByteBuffer-core.swift
+[1403/1411] Compiling NIOCore ByteBuffer-hex.swift
+[1404/1411] Compiling NIOCore ByteBuffer-int.swift
+[1405/1411] Compiling NIOCore ByteBuffer-lengthPrefix.swift
+[1406/1411] Emitting module NIOCore
+[1407/1465] Compiling NIOEmbedded Embedded.swift
+[1408/1465] Emitting module NIOEmbedded
+[1409/1465] Compiling NIOEmbedded AsyncTestingEventLoop.swift
+[1410/1465] Compiling NIOEmbedded AsyncTestingChannel.swift
+[1411/1465] Compiling NIOPosix Pool.swift
+[1412/1465] Compiling NIOPosix PosixSingletons+ConcurrencyTakeOver.swift
+[1413/1465] Compiling NIOPosix PosixSingletons.swift
+[1414/1465] Compiling NIOPosix RawSocketBootstrap.swift
+[1415/1465] Compiling NIOPosix Resolver.swift
+[1416/1465] Compiling NIOPosix Selectable.swift
+[1417/1465] Compiling NIOPosix SelectableChannel.swift
+[1418/1472] Compiling NIOPosix IO.swift
+[1419/1472] Compiling NIOPosix IntegerBitPacking.swift
+[1420/1472] Compiling NIOPosix IntegerTypes.swift
+[1421/1472] Compiling NIOPosix Linux.swift
+[1422/1472] Compiling NIOPosix LinuxCPUSet.swift
+[1423/1472] Compiling NIOPosix LinuxUring.swift
+[1424/1472] Compiling NIOPosix MultiThreadedEventLoopGroup.swift
+[1425/1472] Compiling NIOPosix ThreadWindows.swift
+[1426/1472] Compiling NIOPosix UnsafeTransfer.swift
+[1427/1472] Compiling NIOPosix Utilities.swift
+[1428/1472] Compiling NIOPosix VsockAddress.swift
+[1429/1472] Compiling NIOPosix VsockChannelEvents.swift
+[1430/1472] Compiling NIOPosix Windows.swift
+[1431/1472] Compiling NIOPosix resource_bundle_accessor.swift
+[1432/1472] Emitting module NIOPosix
+[1433/1472] Compiling NIOPosix Socket.swift
+[1434/1472] Compiling NIOPosix SocketChannel.swift
+[1435/1472] Compiling NIOPosix SocketProtocols.swift
+[1436/1472] Compiling NIOPosix StructuredConcurrencyHelpers.swift
+[1437/1472] Compiling NIOPosix System.swift
+[1438/1472] Compiling NIOPosix Thread.swift
+[1439/1472] Compiling NIOPosix ThreadPosix.swift
+[1440/1472] Compiling NIOPosix Bootstrap.swift
+[1441/1472] Compiling NIOPosix ControlMessage.swift
+[1442/1472] Compiling NIOPosix DatagramVectorReadManager.swift
+[1443/1472] Compiling NIOPosix Errors+Any.swift
+[1444/1472] Compiling NIOPosix FileDescriptor.swift
+[1445/1472] Compiling NIOPosix GetaddrinfoResolver.swift
+[1446/1472] Compiling NIOPosix HappyEyeballs.swift
+[1447/1472] Compiling NIOPosix BSDSocketAPICommon.swift
+[1448/1472] Compiling NIOPosix BSDSocketAPIPosix.swift
+[1449/1472] Compiling NIOPosix BSDSocketAPIWindows.swift
+[1450/1472] Compiling NIOPosix BaseSocket.swift
+[1451/1472] Compiling NIOPosix BaseSocketChannel+SocketOptionProvider.swift
+[1452/1472] Compiling NIOPosix BaseSocketChannel.swift
+[1453/1472] Compiling NIOPosix BaseStreamSocketChannel.swift
+[1454/1472] Compiling NIOPosix SelectableEventLoop.swift
+[1455/1472] Compiling NIOPosix SelectorEpoll.swift
+[1456/1472] Compiling NIOPosix SelectorGeneric.swift
+[1457/1472] Compiling NIOPosix SelectorKqueue.swift
+[1458/1472] Compiling NIOPosix SelectorUring.swift
+[1459/1472] Compiling NIOPosix SelectorWSAPoll.swift
+[1460/1472] Compiling NIOPosix ServerSocket.swift
+[1461/1472] Compiling NIOPosix NIOPosixSendableMetatype.swift
+[1462/1472] Compiling NIOPosix NIOThreadPool.swift
+[1463/1472] Compiling NIOPosix NonBlockingFileIO.swift
+[1464/1472] Compiling NIOPosix PendingDatagramWritesManager.swift
+[1465/1472] Compiling NIOPosix PendingWritesManager.swift
+[1466/1472] Compiling NIOPosix PipeChannel.swift
+[1467/1472] Compiling NIOPosix PipePair.swift
+[1468/1511] Compiling NIO Exports.swift
+[1469/1511] Emitting module NIO
+[1470/1550] Compiling NIOTLS TLSEvents.swift
+[1471/1550] Compiling NIOTLS ApplicationProtocolNegotiationHandler.swift
+[1472/1550] Emitting module NIOTLS
+[1473/1550] Compiling NIOSOCKS SelectedAuthenticationMethod.swift
+[1474/1550] Compiling NIOSOCKS ClientStateMachine.swift
+[1475/1550] Compiling NIOSOCKS SOCKSResponse.swift
+[1476/1551] Compiling NIOFoundationCompat JSONSerialization+ByteBuffer.swift
+[1477/1551] Compiling NIOFoundationCompat WaitSpinningRunLoop.swift
+[1478/1551] Compiling NIOHTTP1 HTTPHeaderValidator.swift
+[1479/1551] Compiling NIOHTTP1 HTTPHeaders+Validation.swift
+[1480/1551] Compiling NIOSOCKS ServerStateMachine.swift
+[1481/1551] Emitting module _NIOFileSystem
+[1482/1556] Compiling NIOHTTP1 NIOTypedHTTPClientUpgradeHandler.swift
+[1483/1556] Compiling NIOHTTP1 NIOTypedHTTPClientUpgraderStateMachine.swift
+[1484/1556] Compiling NIOHTTP1 HTTPPipelineSetup.swift
+[1485/1556] Compiling NIOHTTP1 HTTPServerPipelineHandler.swift
+[1486/1556] Compiling NIOHTTP1 NIOHTTPClientUpgradeHandler.swift
+[1487/1556] Compiling NIOHTTP1 NIOHTTPObjectAggregator.swift
+[1488/1556] Emitting module NIOSOCKS
+[1491/1556] Compiling NIOHTTP1 HTTPServerProtocolErrorHandler.swift
+[1492/1556] Compiling NIOHTTP1 HTTPServerUpgradeHandler.swift
+[1493/1556] Compiling NIOHTTP1 HTTPTypedPipelineSetup.swift
+[1498/1558] Compiling NIOTLS SNIHandler.swift
+[1499/1558] Compiling NIOTLS ProtocolNegotiationHandlerStateMachine.swift
+[1500/1558] Compiling NIOTLS NIOTypedApplicationProtocolNegotiationHandler.swift
+[1501/1558] Compiling NIOHTTP1 NIOTypedHTTPServerUpgraderStateMachine.swift
+[1502/1558] Compiling _NIOFileSystem FileSystemProtocol.swift
+[1503/1558] Compiling _NIOFileSystem FileType.swift
+[1504/1558] Compiling _NIOFileSystem IOStrategy.swift
+[1505/1558] Compiling _NIOFileSystem BufferedOrAnyStream.swift
+[1512/1588] Compiling NIOFoundationCompat Codable+ByteBuffer.swift
+[1513/1588] Compiling NIOFoundationCompat ByteBuffer-foundation.swift
+[1514/1588] Emitting module NIOFoundationCompat
+[1515/1588] Compiling _NIOFileSystem NIOFilePath.swift
+[1516/1588] Compiling _NIOFileSystem NIOFileSystemSendableMetatype.swift
+[1517/1588] Compiling _NIOFileSystem OpenOptions.swift
+[1518/1588] Compiling _NIOFileSystem String+FileSystem.swift
+[1519/1588] Compiling _NIOFileSystem resource_bundle_accessor.swift
+[1520/1612] Compiling NIOTransportServices NIOTSBootstraps.swift
+[1521/1612] Compiling NIOTransportServices NIOTSChannelOptions.swift
+[1522/1612] Compiling NIOTransportServices NIOTSConnectionBootstrap.swift
+[1523/1612] Compiling NIOTransportServices NIOTSEventLoopGroup.swift
+[1524/1612] Compiling NIOTransportServices NIOTSListenerBootstrap.swift
+[1525/1612] Compiling NIOTransportServices NIOTSListenerChannel.swift
+[1526/1612] Emitting module ContainerizationIO
+[1528/1612] Compiling NIOTransportServices NIOTSConnectionChannel.swift
+[1529/1612] Compiling NIOTransportServices NIOTSErrors.swift
+[1530/1612] Compiling NIOTransportServices NIOTSEventLoop.swift
+[1531/1612] Compiling NIOTransportServices NIOTSNetworkEvents.swift
+[1533/1612] Compiling NIOTransportServices NIOTSSingletons.swift
+[1534/1612] Compiling ContainerizationIO ReadStream.swift
+[1538/1612] Compiling NIOTransportServices AcceptHandler.swift
+[1539/1612] Compiling NIOTransportServices NIOTSDatagramConnectionBootstrap.swift
+[1540/1612] Emitting module NIOHTTP1
+[1541/1612] Emitting module NIOTransportServices
+[1542/1650] Compiling _NIOFileSystem Mocking.swift
+[1543/1650] Compiling _NIOFileSystem Syscall.swift
+[1544/1650] Compiling _NIOFileSystem Syscalls.swift
+[1545/1650] Compiling _NIOFileSystem SystemFileHandle.swift
+[1546/1650] Compiling _NIOFileSystem Utilities.swift
+[1547/1650] Compiling NIOExtras NIOLengthFieldBitLength.swift
+[1548/1650] Compiling NIOExtras NIORequestIdentifiable.swift
+[1549/1652] Compiling NIOHTTPCompression HTTPResponseDecompressor.swift
+[1550/1652] Compiling NIOHPACK IntegerCoding.swift
+[1551/1652] Compiling NIOHPACK IndexedHeaderTable.swift
+[1552/1653] Compiling NIOExtras PCAPRingBuffer.swift
+[1553/1653] Compiling NIOExtras QuiescingHelper.swift
+[1554/1653] Compiling NIOExtras RequestResponseHandler.swift
+[1555/1653] Compiling NIOExtras RequestResponseHandlers+State.swift
+[1556/1653] Compiling NIOExtras MarkedCircularBuffer+PopFirstCheckMarked.swift
+[1557/1653] Compiling NIOExtras NIOExtrasError.swift
+[1558/1653] Compiling NIOExtras DebugInboundEventsHandler.swift
+[1559/1653] Compiling NIOExtras DebugOutboundEventsHandler.swift
+[1560/1653] Compiling NIOExtras FixedLengthFrameDecoder.swift
+[1561/1653] Emitting module NIOSSL
+[1564/1657] Emitting module NIOHPACK
+[1565/1657] Compiling NIOHTTPCompression HTTPRequestDecompressor.swift
+[1566/1657] Compiling NIOHTTPCompression HTTPResponseCompressor.swift
+[1567/1657] Emitting module NIOHTTPCompression
+[1568/1657] Compiling NIOHTTPCompression HTTPCompression.swift
+[1569/1657] Compiling NIOHTTPCompression HTTPDecompression.swift
+[1570/1657] Compiling NIOHTTPCompression HTTPRequestCompressor.swift
+[1571/1657] Compiling NIOHPACK StaticHeaderTable.swift
+[1572/1657] Compiling NIOHPACK HuffmanTables.swift
+[1573/1657] Compiling NIOHPACK HuffmanCoding.swift
+[1574/1657] Compiling NIOExtras HTTP1ProxyConnectHandler.swift
+[1575/1657] Compiling NIOExtras JSONRPCFraming+ContentLengthHeader.swift
+[1576/1657] Compiling NIOExtras JSONRPCFraming.swift
+[1582/1657] Compiling NIOExtras RequestResponseWithIDHandler.swift
+[1583/1657] Compiling NIOExtras WritePCAPHandler.swift
+[1584/1657] Compiling NIOTransportServices StateManagedListenerChannel.swift
+[1585/1657] Compiling NIOSSL NIOSSLSecureBytes.swift
+[1586/1657] Compiling NIOSSL RNG.swift
+[1587/1657] Compiling NIOSSL SafeCompare.swift
+[1588/1657] Compiling NIOSSL Zeroization.swift
+[1589/1657] Emitting module NIOExtras
+[1590/1657] Compiling NIOExtras LengthFieldBasedFrameDecoder.swift
+[1591/1657] Compiling NIOExtras LengthFieldPrepender.swift
+[1592/1657] Compiling NIOExtras LineBasedFrameDecoder.swift
+[1605/1657] Compiling NIOTransportServices TCPOptions+SocketChannelOption.swift
+[1606/1657] Compiling NIOTransportServices UDPOptions+SocketChannelOption.swift
+[1609/1657] Compiling NIOTransportServices StateManagedNWConnectionChannel.swift
+[1627/1657] Compiling NIOSSL IdentityVerification.swift
+[1628/1657] Compiling NIOSSL LinuxCABundle.swift
+[1629/1684] Compiling NIOHTTP2 ReceivingGoAwayState.swift
+[1630/1684] Compiling NIOHTTP2 ReceivingHeadersState.swift
+[1631/1684] Compiling NIOHTTP2 ReceivingPushPromiseState.swift
+[1632/1684] Compiling NIOHTTP2 ReceivingRstStreamState.swift
+[1633/1717] Compiling NIOHTTP2 QuiescingState.swift
+[1634/1717] Compiling NIOHTTP2 RemotelyQuiescingState.swift
+[1635/1717] Compiling NIOHTTP2 SendAndReceiveGoawayState.swift
+[1636/1717] Compiling NIOHTTP2 StateMachineResult.swift
+[1637/1717] Compiling NIOHTTP2 ContentLengthVerifier.swift
+[1638/1717] Compiling NIOHTTP2 HTTP2CommonInboundStreamMultiplexer.swift
+[1639/1717] Compiling NIOHTTP2 HTTP2ConnectionStateChange.swift
+[1640/1717] Compiling NIOHTTP2 HTTP2Error.swift
+[1641/1717] Compiling NIOHTTP2 HTTP2ErrorCode.swift
+[1642/1717] Compiling NIOHTTP2 HasFlowControlWindows.swift
+[1643/1717] Compiling NIOHTTP2 HasLocalSettings.swift
+[1644/1717] Compiling NIOHTTP2 HasRemoteSettings.swift
+[1645/1717] Compiling NIOHTTP2 LocallyQuiescingState.swift
+[1651/1725] Compiling NIOHTTP2 ConnectionStateMachine.swift
+[1652/1725] Compiling NIOHTTP2 ConnectionStreamsState.swift
+[1653/1725] Compiling NIOHTTP2 MayReceiveFrames.swift
+[1654/1725] Compiling NIOHTTP2 ReceivingDataState.swift
+[1657/1746] Compiling ContainerizationExtras AddressAllocator.swift
+[1658/1746] Compiling ContainerizationExtras AddressError.swift
+[1659/1746] Compiling ContainerizationExtras AsyncLock.swift
+[1660/1748] Compiling ContainerizationExtras RotatingAddressAllocator.swift
+[1661/1748] Compiling ContainerizationExtras TLSUtils.swift
+[1662/1748] Compiling ContainerizationExtras Prefix.swift
+[1663/1748] Compiling ContainerizationExtras ProgressEvent.swift
+[1664/1748] Compiling ContainerizationExtras ProxyUtils.swift
+[1665/1748] Compiling ContainerizationExtras CIDRv6.swift
+[1666/1748] Compiling ContainerizationExtras FileManager+Temporary.swift
+[1667/1748] Compiling ContainerizationExtras IPAddress.swift
+[1668/1748] Compiling ContainerizationExtras AsyncMutex.swift
+[1669/1748] Compiling ContainerizationExtras CIDR.swift
+[1670/1748] Compiling ContainerizationExtras CIDRv4.swift
+[1671/1748] Compiling ContainerizationExtras Timeout.swift
+[1672/1748] Compiling ContainerizationExtras UInt8+DataBinding.swift
+[1673/1748] Compiling NIOHTTP2 MultiplexerAbstractChannel.swift
+[1674/1748] Compiling NIOHTTP2 NIOHTTP2FrameDelegate.swift
+[1675/1748] Compiling NIOHTTP2 StreamChannelFlowController.swift
+[1676/1748] Compiling NIOHTTP2 StreamChannelList.swift
+[1677/1748] Compiling NIOHTTP2 StreamMap.swift
+[1678/1748] Compiling NIOHTTP2 StreamStateMachine.swift
+[1679/1748] Compiling NIOHTTP2 UnsafeTransfer.swift
+[1680/1748] Compiling NIOHTTP2 WatermarkedFlowController.swift
+[1681/1748] Emitting module ContainerizationExtras
+[1682/1748] Compiling NIOHTTP2 HTTP2ChannelHandler+InboundStreamMultiplexer.swift
+[1683/1748] Compiling NIOHTTP2 HTTP2ChannelHandler+InlineStreamMultiplexer.swift
+[1684/1748] Compiling NIOHTTP2 HTTP2ChannelHandler.swift
+[1687/1748] Compiling ContainerizationExtras IndexedAddressAllocator.swift
+[1688/1748] Compiling ContainerizationExtras MACAddress.swift
+[1689/1748] Compiling ContainerizationExtras NetworkAddress+Allocator.swift
+[1690/1750] Compiling NIOHTTP2 MaySendFrames.swift
+[1691/1750] Compiling NIOHTTP2 SendingDataState.swift
+[1692/1750] Compiling NIOHTTP2 SendingGoawayState.swift
+[1693/1750] Compiling NIOHTTP2 SendingHeadersState.swift
+[1694/1750] Compiling NIOHTTP2 SendingPushPromiseState.swift
+[1695/1750] Compiling NIOHTTP2 SendingRstStreamState.swift
+[1696/1750] Compiling NIOHTTP2 SendingWindowUpdateState.swift
+[1697/1750] Compiling NIOHTTP2 HTTP2SettingsState.swift
+[1698/1750] Compiling NIOHTTP2 HasExtendedConnectSettings.swift
+[1699/1750] Compiling NIOHTTP2 HTTP2StreamChannel.swift
+[1700/1750] Compiling NIOHTTP2 HTTP2StreamDelegate.swift
+[1701/1750] Compiling NIOHTTP2 HTTP2StreamID.swift
+[1702/1750] Compiling NIOHTTP2 HTTP2StreamMultiplexer.swift
+[1703/1750] Compiling NIOHTTP2 HTTP2ToHTTP1Codec.swift
+[1704/1750] Compiling NIOHTTP2 HTTP2UserEvents.swift
+[1705/1750] Compiling NIOHTTP2 InboundEventBuffer.swift
+[1706/1750] Compiling NIOHTTP2 InboundWindowManager.swift
+[1707/1750] Emitting module NIOFileSystem
+[1708/1750] Compiling NIOFileSystem Exports.swift
+[1709/1750] Compiling ContainerizationExtras IPv4Address.swift
+[1710/1750] Compiling ContainerizationExtras IPv6Address+Parse.swift
+[1711/1750] Compiling ContainerizationExtras IPv6Address.swift
+[1712/1750] Compiling NIOHTTP2 DOSHeuristics.swift
+[1713/1750] Compiling NIOHTTP2 Error+Any.swift
+[1714/1750] Compiling NIOHTTP2 ConcurrentStreamBuffer.swift
+[1715/1750] Compiling NIOHTTP2 ControlFrameBuffer.swift
+[1716/1750] Compiling NIOHTTP2 OutboundFlowControlBuffer.swift
+[1717/1750] Compiling NIOHTTP2 OutboundFrameBuffer.swift
+[1718/1750] Compiling NIOHTTP2 GlitchesMonitor.swift
+[1719/1750] Compiling NIOHTTP2 HPACKHeaders+Validation.swift
+[1727/1750] Compiling NIOHTTP2 HTTP2FlowControlWindow.swift
+[1737/1762] Emitting module NIOHTTP2
+[1746/1825] Compiling ContainerizationArchive FileArchiveWriterDelegate.swift
+[1747/1952] Emitting module ContainerizationArchive
+[1748/1952] Compiling ContainerizationArchive ArchiveWriterConfiguration.swift
+[1749/1952] Compiling ContainerXPC XPCMessage.swift
+[1750/1952] Compiling ContainerizationArchive ArchiveWriter.swift
+[1751/1952] Compiling ContainerXPC XPCClient.swift
+[1752/1952] Emitting module ContainerXPC
+[1753/1952] Compiling ContainerXPC XPCServer.swift
+[1754/1952] Compiling ContainerizationArchive TempDir.swift
+[1755/1952] Compiling ContainerizationArchive WriteEntry.swift
+[1756/1952] Compiling ContainerizationArchive ArchiveError.swift
+[1757/1952] Compiling ContainerizationArchive ArchiveReader.swift
+[1758/1967] Emitting module ContainerizationEXT4
+[1759/1968] Compiling ContainerizationEXT4 FilePath+Extensions.swift
+[1760/1968] Compiling ContainerizationEXT4 FileTimestamps.swift
+[1761/1968] Compiling ContainerizationEXT4 Formatter+Unpack.swift
+[1762/1968] Compiling ContainerizationEXT4 Integer+Extensions.swift
+[1763/1968] Compiling ContainerizationEXT4 EXT4+Formatter.swift
+[1764/1968] Compiling ContainerizationEXT4 EXT4+Ptr.swift
+[1765/1968] Compiling ContainerizationEXT4 EXT4+Extensions.swift
+[1766/1968] Compiling ContainerizationEXT4 EXT4+FileTree.swift
+[1767/1968] Compiling ContainerizationEXT4 EXT4+Reader.swift
+[1768/1968] Compiling ContainerizationEXT4 EXT4+Types.swift
+[1769/1968] Compiling ContainerizationEXT4 EXT4+Xattrs.swift
+[1770/1968] Compiling ContainerizationEXT4 EXT4.swift
+[1771/1968] Compiling ContainerizationEXT4 EXT4Reader+Export.swift
+[1772/1968] Compiling ContainerizationEXT4 EXT4Reader+IO.swift
+[1777/1968] Compiling GRPC GRPCAsyncBidirectionalStreamingCall.swift
+[1778/1968] Compiling GRPC GRPCAsyncClientStreamingCall.swift
+[1779/1968] Compiling GRPC GRPCAsyncRequestStream.swift
+[1780/1968] Compiling GRPC GRPCAsyncRequestStreamWriter.swift
+[1781/1985] Compiling GRPC HTTP2ToRawGRPCServerCodec.swift
+[1782/1985] Compiling GRPC HTTP2ToRawGRPCStateMachine.swift
+[1783/1985] Compiling GRPC ClientInterceptorContext.swift
+[1784/1985] Compiling GRPC ClientInterceptorPipeline.swift
+[1785/1985] Compiling GRPC ClientInterceptorProtocol.swift
+[1786/1985] Compiling GRPC ClientInterceptors.swift
+[1787/1985] Compiling GRPC ClientTransport.swift
+[1788/1985] Compiling GRPC ClientTransportFactory.swift
+[1789/1985] Emitting module AsyncHTTPClient
+[1799/1993] Compiling ContainerizationEXT4 UnsafeLittleEndianBytes.swift
+[1800/1993] Emitting module GRPC
+[1801/1993] Compiling GRPC Zlib.swift
+[1802/1993] Compiling GRPC ConnectionBackoff.swift
+[1803/1993] Compiling GRPC ConnectionKeepalive.swift
+[1804/1993] Compiling GRPC ConnectionManager+Delegates.swift
+[1805/1993] Compiling GRPC ConnectionManager.swift
+[1806/1993] Compiling GRPC ConnectionManagerChannelProvider.swift
+[1807/1993] Compiling GRPC ConnectionManagerID.swift
+[1808/1993] Compiling GRPC ConnectionPool+PerConnectionState.swift
+[1809/1993] Compiling GRPC ConnectionPool+Waiter.swift
+[1810/1993] Compiling AsyncHTTPClient RequestValidation.swift
+[1811/1993] Compiling AsyncHTTPClient SSLContextCache.swift
+[1812/1993] Compiling AsyncHTTPClient Scheme.swift
+[1813/1993] Compiling AsyncHTTPClient Singleton.swift
+[1814/1993] Compiling AsyncHTTPClient StringConvertibleInstances.swift
+[1815/1993] Compiling AsyncHTTPClient StructuredConcurrencyHelpers.swift
+[1816/1993] Compiling AsyncHTTPClient TracingSupport.swift
+[1817/1993] Compiling AsyncHTTPClient Utils.swift
+[1818/1993] Compiling GRPC ServerInterceptorContext.swift
+[1819/1993] Compiling GRPC ServerInterceptorPipeline.swift
+[1820/1993] Compiling GRPC ServerInterceptors.swift
+[1821/1993] Compiling GRPC InterceptorContextList.swift
+[1822/1993] Compiling GRPC LengthPrefixedMessageReader.swift
+[1823/1993] Compiling GRPC Logger.swift
+[1824/1993] Compiling GRPC LoggingServerErrorDelegate.swift
+[1825/1993] Compiling GRPC MessageEncodingHeaderValidator.swift
+[1826/1993] Compiling GRPC PlatformSupport.swift
+[1827/1993] Compiling GRPC ReadWriteStates.swift
+[1828/1993] Compiling GRPC Ref.swift
+[1829/1993] Compiling GRPC Serialization.swift
+[1830/1993] Compiling GRPC Server+NIOSSL.swift
+[1831/1993] Compiling GRPC Server.swift
+[1832/1993] Compiling GRPC ServerBuilder+NIOSSL.swift
+[1833/1993] Compiling GRPC ServerBuilder.swift
+[1834/1993] Compiling GRPC ServerCallContext.swift
+[1835/1993] Compiling GRPC StreamingResponseCallContext.swift
+[1842/1993] Compiling GRPC ServerStreamingCall.swift
+[1843/1993] Compiling GRPC UnaryCall.swift
+[1844/1993] Compiling GRPC ClientConnection.swift
+[1845/1993] Compiling GRPC ClientConnectionConfiguration+NIOSSL.swift
+[1846/1993] Compiling GRPC ClientErrorDelegate.swift
+[1847/1993] Compiling GRPC CoalescingLengthPrefixedMessageWriter.swift
+[1848/1993] Compiling GRPC CompressionAlgorithm.swift
+[1849/1993] Compiling GRPC DecompressionLimit.swift
+[1850/1993] Compiling GRPC MessageEncoding.swift
+[1851/1993] Compiling GRPC GRPCServerPipelineConfigurator.swift
+[1852/1993] Compiling GRPC GRPCServerRequestRoutingHandler.swift
+[1853/1993] Compiling GRPC GRPCServiceDescription.swift
+[1854/1993] Compiling GRPC GRPCStatus.swift
+[1855/1993] Compiling GRPC GRPCStatusAndMetadata.swift
+[1856/1993] Compiling GRPC GRPCStatusMessageMarshaller.swift
+[1857/1993] Compiling GRPC GRPCTLSConfiguration.swift
+[1858/1993] Compiling GRPC GRPCTimeout.swift
+[1859/1993] Compiling GRPC GRPCWebToHTTP2ServerCodec.swift
+[1869/1993] Compiling GRPC MessageParts.swift
+[1870/1993] Compiling GRPC BidirectionalStreamingCall.swift
+[1871/1993] Compiling GRPC Call.swift
+[1872/1993] Compiling GRPC CallDetails.swift
+[1873/1993] Compiling GRPC ClientCall.swift
+[1874/1993] Compiling GRPC ClientStreamingCall.swift
+[1875/1993] Compiling GRPC LazyEventLoopPromise.swift
+[1876/1993] Compiling GRPC ResponseContainers.swift
+[1877/1993] Compiling GRPC ResponsePartContainer.swift
+[1878/1993] Compiling GRPC UnaryResponseCallContext.swift
+[1879/1993] Compiling GRPC ServerChannelErrorHandler.swift
+[1880/1993] Compiling GRPC ServerErrorDelegate.swift
+[1881/1993] Compiling GRPC ServerErrorProcessor.swift
+[1882/1993] Compiling GRPC Stopwatch.swift
+[1883/1993] Compiling GRPC StreamEvent.swift
+[1884/1993] Compiling GRPC TLSVerificationHandler.swift
+[1885/1993] Compiling GRPC TLSVersion.swift
+[1886/1993] Compiling GRPC TimeLimit.swift
+[1887/1993] Compiling GRPC UserInfo.swift
+[1888/1993] Compiling GRPC Version.swift
+[1889/1993] Compiling GRPC WebCORSHandler.swift
+[1890/1993] Compiling GRPC WriteCapturingHandler.swift
+[1891/1993] Compiling GRPC _EmbeddedThroughput.swift
+[1892/1993] Compiling GRPC _FakeResponseStream.swift
+[1893/1993] Compiling GRPC _GRPCClientCodecHandler.swift
+[1894/1993] Compiling GRPC _MessageContext.swift
+[1895/2021] Compiling GRPC DelegatingErrorHandler.swift
+[1896/2021] Compiling GRPC Error+NIOSSL.swift
+[1897/2021] Compiling GRPC EventLoopFuture+RecoverFromUncleanShutdown.swift
+[1898/2021] Compiling GRPC FakeChannel.swift
+[1899/2021] Compiling GRPC ClientConnection+NIOSSL.swift
+[1900/2021] Compiling GRPC ClientConnection+NWTLS.swift
+[1901/2021] Compiling GRPC GRPCChannel.swift
+[1902/2021] Compiling GRPC GRPCChannelBuilder.swift
+[1903/2021] Compiling GRPC GRPCClient.swift
+[1904/2021] Compiling GRPC GRPCClientChannelHandler.swift
+[1905/2021] Compiling GRPC GRPCClientStateMachine.swift
+[1906/2021] Compiling GRPC GRPCContentType.swift
+[1907/2021] Compiling GRPC GRPCError.swift
+[1908/2021] Compiling GRPC GRPCHeaderName.swift
+[1909/2021] Compiling GRPC GRPCIdleHandler.swift
+[1910/2021] Compiling GRPC GRPCIdleHandlerStateMachine.swift
+[1911/2021] Compiling GRPC GRPCKeepaliveHandlers.swift
+[1912/2021] Compiling GRPC GRPCPayload.swift
+[1913/2021] Compiling GRPC GRPCAsyncResponseStream.swift
+[1914/2021] Compiling GRPC GRPCAsyncResponseStreamWriter.swift
+[1915/2021] Compiling GRPC GRPCAsyncSequenceProducerDelegate.swift
+[1916/2021] Compiling GRPC GRPCAsyncServerCallContext.swift
+[1917/2021] Compiling GRPC GRPCAsyncServerHandler.swift
+[1918/2021] Compiling GRPC GRPCAsyncServerStreamingCall.swift
+[1919/2021] Compiling GRPC GRPCAsyncUnaryCall.swift
+[1920/2021] Compiling GRPC GRPCAsyncWriterSinkDelegate.swift
+[1921/2021] Compiling GRPC GRPCChannel+AsyncAwaitSupport.swift
+[1922/2021] Compiling GRPC GRPCClient+AsyncAwaitSupport.swift
+[1923/2021] Compiling GRPC GRPCSendable.swift
+[1924/2021] Compiling GRPC NIOAsyncWrappers.swift
+[1925/2021] Compiling GRPC BidirectionalStreamingServerHandler.swift
+[1926/2021] Compiling GRPC ClientStreamingServerHandler.swift
+[1927/2021] Compiling GRPC ServerHandlerProtocol.swift
+[1928/2021] Compiling GRPC ServerStreamingServerHandler.swift
+[1929/2021] Compiling GRPC UnaryServerHandler.swift
+[1930/2021] Compiling GRPC CallOptions.swift
+[1947/2021] Compiling GRPC ConnectivityState.swift
+[1948/2021] Compiling GRPC DebugOnly.swift
+[1967/2021] Compiling ContainerizationOCI URL+Extensions.swift
+[1968/2021] Compiling ContainerizationOCI Descriptor.swift
+[1969/2021] Compiling ContainerizationOCI LocalOCILayoutClient.swift
+[1970/2021] Compiling ContainerizationOCI RegistryClient+Error.swift
+[1971/2021] Compiling ContainerizationOCI RegistryClient+Fetch.swift
+[1972/2021] Compiling ContainerizationOCI RegistryClient+Push.swift
+[1973/2021] Compiling ContainerizationOCI MediaType.swift
+[1974/2021] Compiling ContainerizationOCI Platform.swift
+[1975/2021] Compiling ContainerizationOCI Reference.swift
+[1985/2021] Compiling ContainerizationOCI LocalContent.swift
+[1986/2021] Compiling ContainerizationOCI LocalContentStore.swift
+[1987/2021] Compiling ContainerizationOCI ContentStoreProtocol.swift
+[1988/2021] Compiling ContainerizationOCI ContentWriter.swift
+[1989/2021] Compiling ContainerizationOCI SHA256+Extensions.swift
+[1990/2021] Compiling ContainerizationOCI String+Extension.swift
+[1997/2024] Emitting module ContainerizationOCI
+[1998/2024] Compiling ContainerizationOCI AnnotationKeys.swift
+[1999/2024] Compiling ContainerizationOCI Bundle.swift
+[2000/2024] Compiling ContainerizationOCI Authentication.swift
+[2001/2024] Compiling ContainerizationOCI KeychainHelper.swift
+[2005/2024] Compiling ContainerizationOCI FileManager+Size.swift
+[2006/2024] Compiling ContainerizationOCI ImageConfig.swift
+[2007/2024] Compiling ContainerizationOCI Index.swift
+[2008/2024] Compiling ContainerizationOCI Manifest.swift
+[2009/2024] Compiling ContainerizationOCI RegistryClient+Token.swift
+[2010/2024] Compiling ContainerizationOCI RegistryClient.swift
+[2011/2024] Compiling ContainerizationOCI AsyncTypes.swift
+[2012/2024] Compiling ContainerizationOCI Content.swift
+[2017/2024] Compiling ContainerizationOCI Spec.swift
+[2018/2024] Compiling ContainerizationOCI State.swift
+[2019/2024] Compiling ContainerizationOCI Version.swift
+[2020/2068] Compiling Containerization Hash.swift
+[2021/2068] Compiling Containerization HostsConfiguration.swift
+[2022/2068] Compiling Containerization ReaderStream.swift
+[2023/2068] Compiling Containerization Terminal+ReaderStream.swift
+[2024/2068] Compiling Containerization Writer.swift
+[2025/2068] Compiling Containerization Image.swift
+[2026/2074] Emitting module Containerization
+[2027/2074] Compiling Containerization LinuxPod.swift
+[2028/2074] Compiling Containerization LinuxProcess.swift
+[2029/2074] Compiling Containerization LinuxProcessConfiguration.swift
+[2030/2074] Compiling Containerization Mount.swift
+[2031/2074] Compiling Containerization NATInterface.swift
+[2032/2074] Compiling Containerization NATNetworkInterface.swift
+[2033/2074] Compiling Containerization VirtualMachineInstance.swift
+[2034/2074] Compiling Containerization VirtualMachineManager.swift
+[2035/2074] Compiling Containerization Vminitd+Rosetta.swift
+[2036/2074] Compiling Containerization Vminitd+SocketRelay.swift
+[2037/2074] Compiling Containerization Vminitd.swift
+[2038/2074] Compiling Containerization VsockListener.swift
+[2039/2074] Compiling Containerization VMConfiguration.swift
+[2040/2074] Compiling Containerization VZVirtualMachine+Helpers.swift
+[2041/2074] Compiling Containerization VZVirtualMachineInstance.swift
+[2042/2074] Compiling Containerization VZVirtualMachineManager.swift
+[2043/2074] Compiling Containerization VirtualMachineAgent+Additions.swift
+[2044/2074] Compiling Containerization VirtualMachineAgent.swift
+[2045/2074] Compiling Containerization KernelImage.swift
+[2046/2074] Compiling Containerization EXT4Unpacker.swift
+[2047/2074] Compiling Containerization Unpacker.swift
+[2048/2074] Compiling Containerization Interface.swift
+[2049/2074] Compiling Containerization Kernel.swift
+[2050/2074] Compiling Containerization LinuxContainer.swift
+[2051/2074] Compiling Containerization AttachedFilesystem.swift
+[2052/2074] Compiling Containerization Container.swift
+[2053/2074] Compiling Containerization ContainerManager.swift
+[2054/2074] Compiling Containerization ContainerStatistics.swift
+[2055/2074] Compiling Containerization DNSConfiguration.swift
+[2056/2074] Compiling Containerization ExitStatus.swift
+[2057/2074] Compiling Containerization FileMount.swift
+[2058/2074] Compiling Containerization SandboxContext.grpc.swift
+[2059/2074] Compiling Containerization SandboxContext.pb.swift
+[2060/2074] Compiling Containerization SystemPlatform.swift
+[2061/2074] Compiling Containerization TimeSyncer.swift
+[2062/2074] Compiling Containerization UnixSocketConfiguration.swift
+[2063/2074] Compiling Containerization UnixSocketRelay.swift
+[2064/2074] Compiling Containerization ImageStore+Export.swift
+[2065/2074] Compiling Containerization ImageStore+Import.swift
+[2066/2074] Compiling Containerization ImageStore+OCILayout.swift
+[2067/2074] Compiling Containerization ImageStore+ReferenceManager.swift
+[2068/2074] Compiling Containerization ImageStore.swift
+[2069/2074] Compiling Containerization InitImage.swift
+[2070/2101] Compiling ContainerImagesServiceClient ImageServiceXPCRoutes.swift
+[2071/2101] Compiling ContainerPersistence EntityStore.swift
+[2072/2101] Emitting module ContainerPersistence
+[2073/2101] Compiling ContainerPersistence DefaultsStore.swift
+[2074/2101] Emitting module ContainerImagesServiceClient
+[2075/2101] Compiling ContainerImagesServiceClient RemoteContentStoreClient.swift
+[2076/2101] Compiling ContainerImagesServiceClient ImageServiceXPCKeys.swift
+[2077/2101] Compiling ContainerResource ContainerConfiguration.swift
+[2078/2101] Compiling ContainerResource ContainerCreateOptions.swift
+[2079/2101] Compiling ContainerResource ContainerSnapshot.swift
+[2080/2103] Compiling ContainerResource NetworkConfiguration.swift
+[2081/2103] Compiling ContainerResource NetworkMode.swift
+[2082/2103] Compiling ContainerResource Attachment.swift
+[2083/2103] Compiling ContainerResource AttachmentConfiguration.swift
+[2084/2103] Compiling ContainerResource ManagedResource.swift
+[2085/2103] Compiling ContainerResource ResourceLabels.swift
+[2086/2103] Compiling ContainerResource Bundle.swift
+[2087/2103] Emitting module ContainerResource
+[2088/2103] Compiling ContainerResource ProcessConfiguration.swift
+[2089/2103] Compiling ContainerResource PublishPort.swift
+[2090/2103] Compiling ContainerResource PublishSocket.swift
+[2091/2103] Compiling ContainerResource ContainerStats.swift
+[2092/2103] Compiling ContainerResource ContainerStopOptions.swift
+[2093/2103] Compiling ContainerResource Filesystem.swift
+[2094/2103] Compiling ContainerResource RuntimeStatus.swift
+[2095/2103] Compiling ContainerResource ImageDescription.swift
+[2096/2103] Compiling ContainerResource ImageDetail.swift
+[2097/2103] Compiling ContainerResource NetworkState.swift
+[2098/2103] Compiling ContainerResource Volume.swift
+[2099/2136] Compiling ContainerNetworkServiceClient NetworkRoutes.swift
+[2100/2136] Compiling ContainerNetworkServiceClient NetworkKeys.swift
+[2101/2136] Emitting module ContainerNetworkServiceClient
+[2102/2136] Compiling ContainerNetworkServiceClient NetworkClient.swift
+[2103/2142] Emitting module ContainerAPIClient
+[2104/2145] Compiling ContainerAPIClient RequestScheme.swift
+[2105/2145] Compiling ContainerAPIClient SignalThreshold.swift
+[2106/2145] Compiling ContainerAPIClient String+Extensions.swift
+[2107/2145] Compiling ContainerAPIClient SystemHealth.swift
+[2108/2145] Emitting module ContainerNetworkService
+[2109/2145] Compiling ContainerNetworkService AllocationOnlyVmnetNetwork.swift
+[2110/2145] Compiling ContainerAPIClient HostDNSResolver.swift
+[2111/2145] Compiling ContainerAPIClient ImageLoadResult.swift
+[2112/2145] Compiling ContainerAPIClient Measurement+Parse.swift
+[2113/2145] Compiling ContainerAPIClient PacketFilter.swift
+[2114/2145] Compiling ContainerAPIClient ClientDiskUsage.swift
+[2115/2145] Compiling ContainerAPIClient ClientHealthCheck.swift
+[2116/2145] Compiling ContainerAPIClient ClientImage.swift
+[2117/2145] Compiling ContainerAPIClient ClientKernel.swift
+[2118/2145] Compiling ContainerAPIClient Arch.swift
+[2119/2145] Compiling ContainerAPIClient Archiver.swift
+[2120/2145] Compiling ContainerAPIClient Array+Dedupe.swift
+[2121/2145] Compiling ContainerAPIClient ClientContainer.swift
+[2122/2145] Compiling ContainerNetworkService AttachmentAllocator.swift
+[2123/2145] Compiling ContainerNetworkService NetworkService.swift
+[2124/2145] Compiling ContainerNetworkService ReservedVmnetNetwork.swift
+[2125/2145] Compiling ContainerNetworkService Network.swift
+[2126/2145] Compiling ContainerAPIClient ContainerizationProgressAdapter.swift
+[2127/2145] Compiling ContainerAPIClient DiskUsage.swift
+[2128/2145] Compiling ContainerAPIClient FileDownloader.swift
+[2129/2145] Compiling ContainerAPIClient Flags.swift
+[2130/2145] Compiling ContainerAPIClient ClientNetwork.swift
+[2131/2145] Compiling ContainerAPIClient ClientProcess.swift
+[2132/2145] Compiling ContainerAPIClient ClientVolume.swift
+[2133/2145] Compiling ContainerAPIClient Constants.swift
+[2134/2145] Compiling ContainerAPIClient Parser.swift
+[2135/2145] Compiling ContainerAPIClient ProcessIO.swift
+[2136/2145] Compiling ContainerAPIClient ProgressUpdateClient.swift
+[2137/2145] Compiling ContainerAPIClient ProgressUpdateService.swift
+[2138/2145] Compiling ContainerAPIClient TableOutput.swift
+[2139/2145] Compiling ContainerAPIClient Utility.swift
+[2140/2145] Compiling ContainerAPIClient XPC+.swift
+[2141/2162] Compiling ContainerBuild TerminalCommand.swift
+[2142/2163] Compiling ContainerBuild URL+Extensions.swift
+[2143/2163] Compiling ContainerBuild BuildStdio.swift
+[2144/2163] Compiling ContainerBuild Builder.grpc.swift
+[2145/2163] Compiling ContainerBuild BuildPipelineHandler.swift
+[2146/2163] Compiling ContainerBuild BuildRemoteContentProxy.swift
+[2147/2163] Compiling ContainerBuild Globber.swift
+[2148/2163] Compiling ContainerBuild BuildAPI+Extensions.swift
+[2149/2163] Compiling ContainerBuild BuildFSSync.swift
+[2150/2163] Emitting module ContainerBuild
+[2151/2163] Compiling ContainerBuild BuildFile.swift
+[2152/2163] Compiling ContainerBuild BuildImageResolver.swift
+[2153/2163] Compiling ContainerBuild Builder.pb.swift
+[2154/2163] Compiling ContainerBuild Builder.swift
+[2155/2222] Emitting module ContainerCommands
+[2156/2230] Compiling TestHelpers DockerComposeYamlFiles.swift
+[2157/2230] Compiling TestHelpers ContainerReliability.swift
+/Users/kieranlal/workspace/Container-Compose/Tests/TestHelpers/ContainerReliability.swift:59:16: warning: value 'error' was defined but never used; consider replacing with boolean test [#no-usage]
+ 57 |         }
+ 58 | 
+ 59 |         if let error = lastError {
+    |                `- warning: value 'error' was defined but never used; consider replacing with boolean test [#no-usage]
+ 60 |             print("Warning: All \(maxRetries) stop attempts failed for \(name), container may still be stopping")
+ 61 |         }
+
+/Users/kieranlal/workspace/Container-Compose/Tests/TestHelpers/ContainerReliability.swift:119:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+117 |                 try? await container.delete()
+118 |             }
+119 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+120 |             print("Warning: Failed to cleanup container \(id): \(error)")
+121 |         }
+[2158/2230] Emitting module TestHelpers
+[2159/2230] Compiling TestHelpers ContainerPollingHelpers.swift
+/Users/kieranlal/workspace/Container-Compose/Tests/TestHelpers/ContainerPollingHelpers.swift:355:17: warning: '#expect(_:_:)' will always fail here; use 'Bool(
+                false)' to silence this warning (from macro 'expect')
+353 |         guard let firstIP = ips.first else {
+354 |             #expect(
+355 |                 false,
+    |                 `- warning: '#expect(_:_:)' will always fail here; use 'Bool(
+                false)' to silence this warning (from macro 'expect')
+356 |                 "Container '\(container.configuration.id)' has no network IPs. Networks: \(container.networks)",
+357 |                 sourceLocation: sourceLocation
+[2160/2230] Compiling ContainerCommands SystemCommand.swift
+[2161/2230] Compiling ContainerCommands SystemDF.swift
+[2162/2230] Compiling ContainerCommands SystemDNS.swift
+[2163/2230] Compiling ContainerCommands SystemKernel.swift
+[2164/2230] Compiling ContainerCommands SystemLogs.swift
+[2165/2230] Compiling ContainerCommands SystemProperty.swift
+[2166/2230] Compiling ContainerCommands SystemStart.swift
+[2167/2230] Compiling ContainerCommands SystemStatus.swift
+[2168/2230] Compiling ContainerCommands DNSCreate.swift
+[2169/2230] Compiling ContainerCommands DNSDelete.swift
+[2170/2230] Compiling ContainerCommands DNSList.swift
+[2171/2230] Compiling ContainerCommands KernelSet.swift
+[2172/2230] Compiling ContainerCommands PropertyClear.swift
+[2173/2230] Compiling ContainerCommands PropertyGet.swift
+[2174/2230] Compiling ContainerCommands PropertyList.swift
+[2175/2230] Compiling ContainerCommands PropertySet.swift
+[2176/2230] Compiling ContainerCommands NetworkCreate.swift
+[2177/2230] Compiling ContainerCommands NetworkDelete.swift
+[2178/2230] Compiling ContainerCommands NetworkInspect.swift
+[2179/2230] Compiling ContainerCommands NetworkList.swift
+[2180/2230] Compiling ContainerCommands NetworkPrune.swift
+[2181/2230] Compiling ContainerCommands Login.swift
+[2182/2230] Compiling ContainerCommands Logout.swift
+[2183/2230] Compiling ContainerCommands RegistryCommand.swift
+[2184/2230] Compiling ContainerCommands ContainerStart.swift
+[2185/2230] Compiling ContainerCommands ContainerStats.swift
+[2186/2230] Compiling ContainerCommands ContainerStop.swift
+[2187/2230] Compiling ContainerCommands ProcessUtils.swift
+[2188/2230] Compiling ContainerCommands DefaultCommand.swift
+[2189/2230] Compiling ContainerCommands ImageCommand.swift
+[2190/2230] Compiling ContainerCommands ImageDelete.swift
+[2191/2230] Compiling ContainerCommands ImageInspect.swift
+[2192/2230] Compiling ContainerCommands ContainerCreate.swift
+[2193/2230] Compiling ContainerCommands ContainerDelete.swift
+[2194/2230] Compiling ContainerCommands ContainerExec.swift
+[2195/2230] Compiling ContainerCommands ContainerInspect.swift
+[2196/2230] Compiling ContainerCommands ContainerKill.swift
+[2197/2230] Compiling ContainerCommands ContainerList.swift
+[2198/2230] Compiling ContainerCommands ContainerLogs.swift
+[2199/2230] Compiling ContainerCommands ContainerPrune.swift
+[2200/2230] Compiling ContainerCommands ContainerRun.swift
+[2201/2230] Compiling ContainerCommands ImageList.swift
+[2202/2230] Compiling ContainerCommands ImageLoad.swift
+[2203/2230] Compiling ContainerCommands ImagePrune.swift
+[2204/2230] Compiling ContainerCommands ImagePull.swift
+[2205/2230] Compiling ContainerCommands ImagePush.swift
+[2206/2230] Compiling ContainerCommands ImageSave.swift
+[2207/2230] Compiling ContainerCommands ImageTag.swift
+[2208/2230] Compiling ContainerCommands NetworkCommand.swift
+[2209/2230] Compiling ContainerCommands SystemStop.swift
+[2210/2230] Compiling ContainerCommands Version.swift
+[2211/2230] Compiling ContainerCommands VolumeCommand.swift
+[2212/2230] Compiling ContainerCommands VolumeCreate.swift
+[2213/2230] Compiling ContainerCommands VolumeDelete.swift
+[2214/2230] Compiling ContainerCommands VolumeInspect.swift
+[2215/2230] Compiling ContainerCommands VolumeList.swift
+[2216/2230] Compiling ContainerCommands VolumePrune.swift
+[2217/2230] Compiling ContainerCommands Application.swift
+[2218/2230] Compiling ContainerCommands AsyncLoggableCommand.swift
+[2219/2230] Compiling ContainerCommands BuildCommand.swift
+[2220/2230] Compiling ContainerCommands Builder.swift
+[2221/2230] Compiling ContainerCommands BuilderDelete.swift
+[2222/2230] Compiling ContainerCommands BuilderStart.swift
+[2223/2230] Compiling ContainerCommands BuilderStatus.swift
+[2224/2230] Compiling ContainerCommands BuilderStop.swift
+[2225/2230] Compiling ContainerCommands Codable+JSON.swift
+[2226/2265] Compiling ContainerComposeCore Application.swift
+[2227/2265] Compiling ContainerComposeCore Build.swift
+[2228/2265] Compiling ContainerComposeCore BuildSecret.swift
+[2229/2265] Compiling ContainerComposeCore Config.swift
+[2230/2265] Compiling ContainerComposeCore Deploy.swift
+[2231/2269] Compiling ContainerComposeCore ExternalNetwork.swift
+[2232/2269] Compiling ContainerComposeCore ExternalSecret.swift
+[2233/2269] Compiling ContainerComposeCore ExternalVolume.swift
+[2234/2269] Compiling ContainerComposeCore Healthcheck.swift
+[2235/2269] Compiling ContainerComposeCore Network.swift
+[2236/2269] Compiling ContainerComposeCore DeployResources.swift
+[2237/2269] Compiling ContainerComposeCore DeployRestartPolicy.swift
+[2238/2269] Compiling ContainerComposeCore DeviceReservation.swift
+[2239/2269] Compiling ContainerComposeCore DockerCompose.swift
+[2240/2269] Compiling ContainerComposeCore ExternalConfig.swift
+[2241/2269] Compiling ContainerComposeCore Helper Functions.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:12:34: error: cannot find type 'ScopedRelay' in scope
+ 10 | /// Port 6000: Native Embedding Relay (ANE)
+ 11 | actor HermesHonchoRelayManager {
+ 12 |     private var relays: [UInt32: ScopedRelay] = [:]
+    |                                  `- error: cannot find type 'ScopedRelay' in scope
+ 13 |     private let logger = Logger(subsystem: "com.container-compose.hermes", category: "RelayManager")
+ 14 |     
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:18:30: error: type 'RelayError' has no member 'portAlreadyRegistered'
+ 16 |     func registerVsockPort(_ port: UInt32, target: RelayActor) async throws {
+ 17 |         guard !relays.keys.contains(port) else {
+ 18 |             throw RelayError.portAlreadyRegistered(port)
+    |                              `- error: type 'RelayError' has no member 'portAlreadyRegistered'
+ 19 |         }
+ 20 |         
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:21:25: error: cannot find 'ScopedRelay' in scope
+ 19 |         }
+ 20 |         
+ 21 |         let relay = try ScopedRelay(port: port, target: target)
+    |                         `- error: cannot find 'ScopedRelay' in scope
+ 22 |         relays[port] = relay
+ 23 |         try await relay.start()
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:102:55: error: cannot convert value of type 'String' to expected dictionary value type 'AnyCododable'
+100 |         
+101 |         // Bridge to honcho-hub (would call actual hub here)
+102 |         let response = MCPResponse(result: ["status": "bridged"])
+    |                                                       `- error: cannot convert value of type 'String' to expected dictionary value type 'AnyCododable'
+103 |         return try JSONEncoder().encode(response)
+104 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:154:37: error: type 'NLContextualEmbedding' has no member 'isAvailable'
+152 |         // NLContextualEmbedding is available in macOS 26+
+153 |         // Uses Apple Neural Engine for < 5ms latency
+154 |         guard NLContextualEmbedding.isAvailable else {
+    |                                     `- error: type 'NLContextualEmbedding' has no member 'isAvailable'
+155 |             throw EmbeddingError.notAvailable
+156 |         }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:158:57: error: type 'NLContextualEmbedding' has no member 'embedding'
+156 |         }
+157 |         
+158 |         let embedding = try await NLContextualEmbedding.embedding(for: text)
+    |                                                         `- error: type 'NLContextualEmbedding' has no member 'embedding'
+159 |         return Array(embedding.vector)
+160 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:164:28: error: 'init()' is unavailable
+162 |     func start() async throws {
+163 |         // Initialize embedding session
+164 |         embeddingSession = NLContextualEmbedding()
+    |                            `- error: 'init()' is unavailable
+165 |         isActive = true
+166 |         logger.info("Embedding relay started on vsock:6000 (ANE-optimized)")
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/NaturalLanguage.framework/Headers/NLContextualEmbedding.h:42:1: note: 'init()' has been explicitly marked unavailable here
+ 40 | @interface NLContextualEmbedding : NSObject
+ 41 | 
+ 42 | - (instancetype)init NS_UNAVAILABLE;
+    | `- note: 'init()' has been explicitly marked unavailable here
+ 43 | 
+ 44 | /// Creates a contextual embedding from a model identifier.
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:188:13: error: cannot find 'SO_VM_SOCKETS_BUFFER_SIZE' in scope
+186 |             socket,
+187 |             SOL_SOCKET,
+188 |             SO_VM_SOCKETS_BUFFER_SIZE,
+    |             `- error: cannot find 'SO_VM_SOCKETS_BUFFER_SIZE' in scope
+189 |             &size,
+190 |             socklen_t(MemoryLayout<Int32>.size)
+[2242/2269] Compiling ContainerComposeCore RuntimeFeatureGate.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:12:34: error: cannot find type 'ScopedRelay' in scope
+ 10 | /// Port 6000: Native Embedding Relay (ANE)
+ 11 | actor HermesHonchoRelayManager {
+ 12 |     private var relays: [UInt32: ScopedRelay] = [:]
+    |                                  `- error: cannot find type 'ScopedRelay' in scope
+ 13 |     private let logger = Logger(subsystem: "com.container-compose.hermes", category: "RelayManager")
+ 14 |     
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:18:30: error: type 'RelayError' has no member 'portAlreadyRegistered'
+ 16 |     func registerVsockPort(_ port: UInt32, target: RelayActor) async throws {
+ 17 |         guard !relays.keys.contains(port) else {
+ 18 |             throw RelayError.portAlreadyRegistered(port)
+    |                              `- error: type 'RelayError' has no member 'portAlreadyRegistered'
+ 19 |         }
+ 20 |         
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:21:25: error: cannot find 'ScopedRelay' in scope
+ 19 |         }
+ 20 |         
+ 21 |         let relay = try ScopedRelay(port: port, target: target)
+    |                         `- error: cannot find 'ScopedRelay' in scope
+ 22 |         relays[port] = relay
+ 23 |         try await relay.start()
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:102:55: error: cannot convert value of type 'String' to expected dictionary value type 'AnyCododable'
+100 |         
+101 |         // Bridge to honcho-hub (would call actual hub here)
+102 |         let response = MCPResponse(result: ["status": "bridged"])
+    |                                                       `- error: cannot convert value of type 'String' to expected dictionary value type 'AnyCododable'
+103 |         return try JSONEncoder().encode(response)
+104 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:154:37: error: type 'NLContextualEmbedding' has no member 'isAvailable'
+152 |         // NLContextualEmbedding is available in macOS 26+
+153 |         // Uses Apple Neural Engine for < 5ms latency
+154 |         guard NLContextualEmbedding.isAvailable else {
+    |                                     `- error: type 'NLContextualEmbedding' has no member 'isAvailable'
+155 |             throw EmbeddingError.notAvailable
+156 |         }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:158:57: error: type 'NLContextualEmbedding' has no member 'embedding'
+156 |         }
+157 |         
+158 |         let embedding = try await NLContextualEmbedding.embedding(for: text)
+    |                                                         `- error: type 'NLContextualEmbedding' has no member 'embedding'
+159 |         return Array(embedding.vector)
+160 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:164:28: error: 'init()' is unavailable
+162 |     func start() async throws {
+163 |         // Initialize embedding session
+164 |         embeddingSession = NLContextualEmbedding()
+    |                            `- error: 'init()' is unavailable
+165 |         isActive = true
+166 |         logger.info("Embedding relay started on vsock:6000 (ANE-optimized)")
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/NaturalLanguage.framework/Headers/NLContextualEmbedding.h:42:1: note: 'init()' has been explicitly marked unavailable here
+ 40 | @interface NLContextualEmbedding : NSObject
+ 41 | 
+ 42 | - (instancetype)init NS_UNAVAILABLE;
+    | `- note: 'init()' has been explicitly marked unavailable here
+ 43 | 
+ 44 | /// Creates a contextual embedding from a model identifier.
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:188:13: error: cannot find 'SO_VM_SOCKETS_BUFFER_SIZE' in scope
+186 |             socket,
+187 |             SOL_SOCKET,
+188 |             SO_VM_SOCKETS_BUFFER_SIZE,
+    |             `- error: cannot find 'SO_VM_SOCKETS_BUFFER_SIZE' in scope
+189 |             &size,
+190 |             socklen_t(MemoryLayout<Int32>.size)
+[2243/2269] Compiling ContainerComposeCore HermesHonchoRelays.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:12:34: error: cannot find type 'ScopedRelay' in scope
+ 10 | /// Port 6000: Native Embedding Relay (ANE)
+ 11 | actor HermesHonchoRelayManager {
+ 12 |     private var relays: [UInt32: ScopedRelay] = [:]
+    |                                  `- error: cannot find type 'ScopedRelay' in scope
+ 13 |     private let logger = Logger(subsystem: "com.container-compose.hermes", category: "RelayManager")
+ 14 |     
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:18:30: error: type 'RelayError' has no member 'portAlreadyRegistered'
+ 16 |     func registerVsockPort(_ port: UInt32, target: RelayActor) async throws {
+ 17 |         guard !relays.keys.contains(port) else {
+ 18 |             throw RelayError.portAlreadyRegistered(port)
+    |                              `- error: type 'RelayError' has no member 'portAlreadyRegistered'
+ 19 |         }
+ 20 |         
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:21:25: error: cannot find 'ScopedRelay' in scope
+ 19 |         }
+ 20 |         
+ 21 |         let relay = try ScopedRelay(port: port, target: target)
+    |                         `- error: cannot find 'ScopedRelay' in scope
+ 22 |         relays[port] = relay
+ 23 |         try await relay.start()
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:102:55: error: cannot convert value of type 'String' to expected dictionary value type 'AnyCododable'
+100 |         
+101 |         // Bridge to honcho-hub (would call actual hub here)
+102 |         let response = MCPResponse(result: ["status": "bridged"])
+    |                                                       `- error: cannot convert value of type 'String' to expected dictionary value type 'AnyCododable'
+103 |         return try JSONEncoder().encode(response)
+104 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:154:37: error: type 'NLContextualEmbedding' has no member 'isAvailable'
+152 |         // NLContextualEmbedding is available in macOS 26+
+153 |         // Uses Apple Neural Engine for < 5ms latency
+154 |         guard NLContextualEmbedding.isAvailable else {
+    |                                     `- error: type 'NLContextualEmbedding' has no member 'isAvailable'
+155 |             throw EmbeddingError.notAvailable
+156 |         }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:158:57: error: type 'NLContextualEmbedding' has no member 'embedding'
+156 |         }
+157 |         
+158 |         let embedding = try await NLContextualEmbedding.embedding(for: text)
+    |                                                         `- error: type 'NLContextualEmbedding' has no member 'embedding'
+159 |         return Array(embedding.vector)
+160 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:164:28: error: 'init()' is unavailable
+162 |     func start() async throws {
+163 |         // Initialize embedding session
+164 |         embeddingSession = NLContextualEmbedding()
+    |                            `- error: 'init()' is unavailable
+165 |         isActive = true
+166 |         logger.info("Embedding relay started on vsock:6000 (ANE-optimized)")
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/NaturalLanguage.framework/Headers/NLContextualEmbedding.h:42:1: note: 'init()' has been explicitly marked unavailable here
+ 40 | @interface NLContextualEmbedding : NSObject
+ 41 | 
+ 42 | - (instancetype)init NS_UNAVAILABLE;
+    | `- note: 'init()' has been explicitly marked unavailable here
+ 43 | 
+ 44 | /// Creates a contextual embedding from a model identifier.
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:188:13: error: cannot find 'SO_VM_SOCKETS_BUFFER_SIZE' in scope
+186 |             socket,
+187 |             SOL_SOCKET,
+188 |             SO_VM_SOCKETS_BUFFER_SIZE,
+    |             `- error: cannot find 'SO_VM_SOCKETS_BUFFER_SIZE' in scope
+189 |             &size,
+190 |             socklen_t(MemoryLayout<Int32>.size)
+[2244/2269] Compiling ContainerComposeCore NetworkTrace.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:12:34: error: cannot find type 'ScopedRelay' in scope
+ 10 | /// Port 6000: Native Embedding Relay (ANE)
+ 11 | actor HermesHonchoRelayManager {
+ 12 |     private var relays: [UInt32: ScopedRelay] = [:]
+    |                                  `- error: cannot find type 'ScopedRelay' in scope
+ 13 |     private let logger = Logger(subsystem: "com.container-compose.hermes", category: "RelayManager")
+ 14 |     
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:18:30: error: type 'RelayError' has no member 'portAlreadyRegistered'
+ 16 |     func registerVsockPort(_ port: UInt32, target: RelayActor) async throws {
+ 17 |         guard !relays.keys.contains(port) else {
+ 18 |             throw RelayError.portAlreadyRegistered(port)
+    |                              `- error: type 'RelayError' has no member 'portAlreadyRegistered'
+ 19 |         }
+ 20 |         
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:21:25: error: cannot find 'ScopedRelay' in scope
+ 19 |         }
+ 20 |         
+ 21 |         let relay = try ScopedRelay(port: port, target: target)
+    |                         `- error: cannot find 'ScopedRelay' in scope
+ 22 |         relays[port] = relay
+ 23 |         try await relay.start()
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:102:55: error: cannot convert value of type 'String' to expected dictionary value type 'AnyCododable'
+100 |         
+101 |         // Bridge to honcho-hub (would call actual hub here)
+102 |         let response = MCPResponse(result: ["status": "bridged"])
+    |                                                       `- error: cannot convert value of type 'String' to expected dictionary value type 'AnyCododable'
+103 |         return try JSONEncoder().encode(response)
+104 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:154:37: error: type 'NLContextualEmbedding' has no member 'isAvailable'
+152 |         // NLContextualEmbedding is available in macOS 26+
+153 |         // Uses Apple Neural Engine for < 5ms latency
+154 |         guard NLContextualEmbedding.isAvailable else {
+    |                                     `- error: type 'NLContextualEmbedding' has no member 'isAvailable'
+155 |             throw EmbeddingError.notAvailable
+156 |         }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:158:57: error: type 'NLContextualEmbedding' has no member 'embedding'
+156 |         }
+157 |         
+158 |         let embedding = try await NLContextualEmbedding.embedding(for: text)
+    |                                                         `- error: type 'NLContextualEmbedding' has no member 'embedding'
+159 |         return Array(embedding.vector)
+160 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:164:28: error: 'init()' is unavailable
+162 |     func start() async throws {
+163 |         // Initialize embedding session
+164 |         embeddingSession = NLContextualEmbedding()
+    |                            `- error: 'init()' is unavailable
+165 |         isActive = true
+166 |         logger.info("Embedding relay started on vsock:6000 (ANE-optimized)")
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/NaturalLanguage.framework/Headers/NLContextualEmbedding.h:42:1: note: 'init()' has been explicitly marked unavailable here
+ 40 | @interface NLContextualEmbedding : NSObject
+ 41 | 
+ 42 | - (instancetype)init NS_UNAVAILABLE;
+    | `- note: 'init()' has been explicitly marked unavailable here
+ 43 | 
+ 44 | /// Creates a contextual embedding from a model identifier.
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:188:13: error: cannot find 'SO_VM_SOCKETS_BUFFER_SIZE' in scope
+186 |             socket,
+187 |             SOL_SOCKET,
+188 |             SO_VM_SOCKETS_BUFFER_SIZE,
+    |             `- error: cannot find 'SO_VM_SOCKETS_BUFFER_SIZE' in scope
+189 |             &size,
+190 |             socklen_t(MemoryLayout<Int32>.size)
+[2245/2269] Compiling ContainerComposeCore ResourceLimits.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Codable Structs/Service.swift:514:9: warning: variable 'serviceTuple' was never mutated; consider changing to 'let' constant
+512 |       ])
+513 |     }
+514 |     var serviceTuple = services[serviceTupleIndex]
+    |         `- warning: variable 'serviceTuple' was never mutated; consider changing to 'let' constant
+515 |             if let service {
+516 |                 serviceTuple.service.dependedBy.append(service)
+[2246/2269] Compiling ContainerComposeCore ResourceReservations.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Codable Structs/Service.swift:514:9: warning: variable 'serviceTuple' was never mutated; consider changing to 'let' constant
+512 |       ])
+513 |     }
+514 |     var serviceTuple = services[serviceTupleIndex]
+    |         `- warning: variable 'serviceTuple' was never mutated; consider changing to 'let' constant
+515 |             if let service {
+516 |                 serviceTuple.service.dependedBy.append(service)
+[2247/2269] Compiling ContainerComposeCore Secret.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Codable Structs/Service.swift:514:9: warning: variable 'serviceTuple' was never mutated; consider changing to 'let' constant
+512 |       ])
+513 |     }
+514 |     var serviceTuple = services[serviceTupleIndex]
+    |         `- warning: variable 'serviceTuple' was never mutated; consider changing to 'let' constant
+515 |             if let service {
+516 |                 serviceTuple.service.dependedBy.append(service)
+[2248/2269] Compiling ContainerComposeCore Service.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Codable Structs/Service.swift:514:9: warning: variable 'serviceTuple' was never mutated; consider changing to 'let' constant
+512 |       ])
+513 |     }
+514 |     var serviceTuple = services[serviceTupleIndex]
+    |         `- warning: variable 'serviceTuple' was never mutated; consider changing to 'let' constant
+515 |             if let service {
+516 |                 serviceTuple.service.dependedBy.append(service)
+[2249/2269] Compiling ContainerComposeCore ServiceConfig.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Codable Structs/Service.swift:514:9: warning: variable 'serviceTuple' was never mutated; consider changing to 'let' constant
+512 |       ])
+513 |     }
+514 |     var serviceTuple = services[serviceTupleIndex]
+    |         `- warning: variable 'serviceTuple' was never mutated; consider changing to 'let' constant
+515 |             if let service {
+516 |                 serviceTuple.service.dependedBy.append(service)
+[2250/2269] Compiling ContainerComposeCore RelayConfigurationLoader.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:87:45: error: value of type 'Service' has no member 'x_apple_relays'
+ 85 |         
+ 86 |         for (serviceName, service) in services {
+ 87 |             guard let appleRelays = service.x_apple_relays else { continue }
+    |                                             `- error: value of type 'Service' has no member 'x_apple_relays'
+ 88 |             
+ 89 |             logger.info("Processing \(appleRelays.count) relay(s) for service: \(serviceName)")
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:133:21: error: value of type 'Service' has no member 'x_apple_relays'
+131 |     public func hasAppleRelays(in services: [(serviceName: String, service: Service)]) -> Bool {
+132 |         return services.contains { _, service in
+133 |             service.x_apple_relays != nil && !service.x_apple_relays!.isEmpty
+    |                     `- error: value of type 'Service' has no member 'x_apple_relays'
+134 |         }
+135 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:133:55: error: value of type 'Service' has no member 'x_apple_relays'
+131 |     public func hasAppleRelays(in services: [(serviceName: String, service: Service)]) -> Bool {
+132 |         return services.contains { _, service in
+133 |             service.x_apple_relays != nil && !service.x_apple_relays!.isEmpty
+    |                                                       `- error: value of type 'Service' has no member 'x_apple_relays'
+134 |         }
+135 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayManager.swift:103:13: warning: capture of 'completion' with non-Sendable type '((any Error)?) -> Void' in a '@Sendable' closure [#SendableClosureCaptures]
+101 |     func send(content: Data?, completion: @escaping (Error?) -> Void) {
+102 |         connection.send(content: content, completion: .contentProcessed { error in
+103 |             completion(error)
+    |             |- warning: capture of 'completion' with non-Sendable type '((any Error)?) -> Void' in a '@Sendable' closure [#SendableClosureCaptures]
+    |             `- note: a function type must be marked '@Sendable' to conform to 'Sendable'
+104 |         })
+105 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayManager.swift:108:120: warning: passing non-Sendable parameter 'completion' to function expecting a '@Sendable' closure
+105 |     }
+106 | 
+107 |     func receive(minimumIncompleteLength: Int, maximumLength: Int, completion: @escaping (Data?, NWConnection.ContentContext?, Bool, Error?) -> Void) {
+    |                                                                    `- note: parameter 'completion' is implicitly non-Sendable
+108 |         connection.receive(minimumIncompleteLength: minimumIncompleteLength, maximumLength: maximumLength, completion: completion)
+    |                                                                                                                        `- warning: passing non-Sendable parameter 'completion' to function expecting a '@Sendable' closure
+109 |     }
+110 | }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:206:13: warning: result of call to 'fcntl' is unused [#no-usage]
+204 |             // Set non-blocking mode
+205 |             var flags = fcntl(clientSock, F_GETFL, 0)
+206 |             fcntl(clientSock, F_SETFL, flags | O_NONBLOCK)
+    |             `- warning: result of call to 'fcntl' is unused [#no-usage]
+207 | 
+208 |             // Verify CID
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:205:17: warning: variable 'flags' was never mutated; consider changing to 'let' constant
+203 | 
+204 |             // Set non-blocking mode
+205 |             var flags = fcntl(clientSock, F_GETFL, 0)
+    |                 `- warning: variable 'flags' was never mutated; consider changing to 'let' constant
+206 |             fcntl(clientSock, F_SETFL, flags | O_NONBLOCK)
+207 | 
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:331:14: warning: result of call to 'withCString' is unused [#no-usage]
+329 |         var addr = sockaddr_un()
+330 |         addr.sun_family = sa_family_t(AF_UNIX)
+331 |         path.withCString { cString in
+    |              `- warning: result of call to 'withCString' is unused [#no-usage]
+332 |             strncpy(&addr.sun_path.0, cString, Int(SUNPATH_MAX) - 1)
+333 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[2251/2269] Compiling ContainerComposeCore RelayManager.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:87:45: error: value of type 'Service' has no member 'x_apple_relays'
+ 85 |         
+ 86 |         for (serviceName, service) in services {
+ 87 |             guard let appleRelays = service.x_apple_relays else { continue }
+    |                                             `- error: value of type 'Service' has no member 'x_apple_relays'
+ 88 |             
+ 89 |             logger.info("Processing \(appleRelays.count) relay(s) for service: \(serviceName)")
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:133:21: error: value of type 'Service' has no member 'x_apple_relays'
+131 |     public func hasAppleRelays(in services: [(serviceName: String, service: Service)]) -> Bool {
+132 |         return services.contains { _, service in
+133 |             service.x_apple_relays != nil && !service.x_apple_relays!.isEmpty
+    |                     `- error: value of type 'Service' has no member 'x_apple_relays'
+134 |         }
+135 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:133:55: error: value of type 'Service' has no member 'x_apple_relays'
+131 |     public func hasAppleRelays(in services: [(serviceName: String, service: Service)]) -> Bool {
+132 |         return services.contains { _, service in
+133 |             service.x_apple_relays != nil && !service.x_apple_relays!.isEmpty
+    |                                                       `- error: value of type 'Service' has no member 'x_apple_relays'
+134 |         }
+135 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayManager.swift:103:13: warning: capture of 'completion' with non-Sendable type '((any Error)?) -> Void' in a '@Sendable' closure [#SendableClosureCaptures]
+101 |     func send(content: Data?, completion: @escaping (Error?) -> Void) {
+102 |         connection.send(content: content, completion: .contentProcessed { error in
+103 |             completion(error)
+    |             |- warning: capture of 'completion' with non-Sendable type '((any Error)?) -> Void' in a '@Sendable' closure [#SendableClosureCaptures]
+    |             `- note: a function type must be marked '@Sendable' to conform to 'Sendable'
+104 |         })
+105 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayManager.swift:108:120: warning: passing non-Sendable parameter 'completion' to function expecting a '@Sendable' closure
+105 |     }
+106 | 
+107 |     func receive(minimumIncompleteLength: Int, maximumLength: Int, completion: @escaping (Data?, NWConnection.ContentContext?, Bool, Error?) -> Void) {
+    |                                                                    `- note: parameter 'completion' is implicitly non-Sendable
+108 |         connection.receive(minimumIncompleteLength: minimumIncompleteLength, maximumLength: maximumLength, completion: completion)
+    |                                                                                                                        `- warning: passing non-Sendable parameter 'completion' to function expecting a '@Sendable' closure
+109 |     }
+110 | }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:206:13: warning: result of call to 'fcntl' is unused [#no-usage]
+204 |             // Set non-blocking mode
+205 |             var flags = fcntl(clientSock, F_GETFL, 0)
+206 |             fcntl(clientSock, F_SETFL, flags | O_NONBLOCK)
+    |             `- warning: result of call to 'fcntl' is unused [#no-usage]
+207 | 
+208 |             // Verify CID
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:205:17: warning: variable 'flags' was never mutated; consider changing to 'let' constant
+203 | 
+204 |             // Set non-blocking mode
+205 |             var flags = fcntl(clientSock, F_GETFL, 0)
+    |                 `- warning: variable 'flags' was never mutated; consider changing to 'let' constant
+206 |             fcntl(clientSock, F_SETFL, flags | O_NONBLOCK)
+207 | 
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:331:14: warning: result of call to 'withCString' is unused [#no-usage]
+329 |         var addr = sockaddr_un()
+330 |         addr.sun_family = sa_family_t(AF_UNIX)
+331 |         path.withCString { cString in
+    |              `- warning: result of call to 'withCString' is unused [#no-usage]
+332 |             strncpy(&addr.sun_path.0, cString, Int(SUNPATH_MAX) - 1)
+333 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[2252/2269] Compiling ContainerComposeCore RelayTypes.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:87:45: error: value of type 'Service' has no member 'x_apple_relays'
+ 85 |         
+ 86 |         for (serviceName, service) in services {
+ 87 |             guard let appleRelays = service.x_apple_relays else { continue }
+    |                                             `- error: value of type 'Service' has no member 'x_apple_relays'
+ 88 |             
+ 89 |             logger.info("Processing \(appleRelays.count) relay(s) for service: \(serviceName)")
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:133:21: error: value of type 'Service' has no member 'x_apple_relays'
+131 |     public func hasAppleRelays(in services: [(serviceName: String, service: Service)]) -> Bool {
+132 |         return services.contains { _, service in
+133 |             service.x_apple_relays != nil && !service.x_apple_relays!.isEmpty
+    |                     `- error: value of type 'Service' has no member 'x_apple_relays'
+134 |         }
+135 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:133:55: error: value of type 'Service' has no member 'x_apple_relays'
+131 |     public func hasAppleRelays(in services: [(serviceName: String, service: Service)]) -> Bool {
+132 |         return services.contains { _, service in
+133 |             service.x_apple_relays != nil && !service.x_apple_relays!.isEmpty
+    |                                                       `- error: value of type 'Service' has no member 'x_apple_relays'
+134 |         }
+135 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayManager.swift:103:13: warning: capture of 'completion' with non-Sendable type '((any Error)?) -> Void' in a '@Sendable' closure [#SendableClosureCaptures]
+101 |     func send(content: Data?, completion: @escaping (Error?) -> Void) {
+102 |         connection.send(content: content, completion: .contentProcessed { error in
+103 |             completion(error)
+    |             |- warning: capture of 'completion' with non-Sendable type '((any Error)?) -> Void' in a '@Sendable' closure [#SendableClosureCaptures]
+    |             `- note: a function type must be marked '@Sendable' to conform to 'Sendable'
+104 |         })
+105 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayManager.swift:108:120: warning: passing non-Sendable parameter 'completion' to function expecting a '@Sendable' closure
+105 |     }
+106 | 
+107 |     func receive(minimumIncompleteLength: Int, maximumLength: Int, completion: @escaping (Data?, NWConnection.ContentContext?, Bool, Error?) -> Void) {
+    |                                                                    `- note: parameter 'completion' is implicitly non-Sendable
+108 |         connection.receive(minimumIncompleteLength: minimumIncompleteLength, maximumLength: maximumLength, completion: completion)
+    |                                                                                                                        `- warning: passing non-Sendable parameter 'completion' to function expecting a '@Sendable' closure
+109 |     }
+110 | }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:206:13: warning: result of call to 'fcntl' is unused [#no-usage]
+204 |             // Set non-blocking mode
+205 |             var flags = fcntl(clientSock, F_GETFL, 0)
+206 |             fcntl(clientSock, F_SETFL, flags | O_NONBLOCK)
+    |             `- warning: result of call to 'fcntl' is unused [#no-usage]
+207 | 
+208 |             // Verify CID
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:205:17: warning: variable 'flags' was never mutated; consider changing to 'let' constant
+203 | 
+204 |             // Set non-blocking mode
+205 |             var flags = fcntl(clientSock, F_GETFL, 0)
+    |                 `- warning: variable 'flags' was never mutated; consider changing to 'let' constant
+206 |             fcntl(clientSock, F_SETFL, flags | O_NONBLOCK)
+207 | 
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:331:14: warning: result of call to 'withCString' is unused [#no-usage]
+329 |         var addr = sockaddr_un()
+330 |         addr.sun_family = sa_family_t(AF_UNIX)
+331 |         path.withCString { cString in
+    |              `- warning: result of call to 'withCString' is unused [#no-usage]
+332 |             strncpy(&addr.sun_path.0, cString, Int(SUNPATH_MAX) - 1)
+333 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[2253/2269] Compiling ContainerComposeCore VsockRelay.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:87:45: error: value of type 'Service' has no member 'x_apple_relays'
+ 85 |         
+ 86 |         for (serviceName, service) in services {
+ 87 |             guard let appleRelays = service.x_apple_relays else { continue }
+    |                                             `- error: value of type 'Service' has no member 'x_apple_relays'
+ 88 |             
+ 89 |             logger.info("Processing \(appleRelays.count) relay(s) for service: \(serviceName)")
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:133:21: error: value of type 'Service' has no member 'x_apple_relays'
+131 |     public func hasAppleRelays(in services: [(serviceName: String, service: Service)]) -> Bool {
+132 |         return services.contains { _, service in
+133 |             service.x_apple_relays != nil && !service.x_apple_relays!.isEmpty
+    |                     `- error: value of type 'Service' has no member 'x_apple_relays'
+134 |         }
+135 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayConfigurationLoader.swift:133:55: error: value of type 'Service' has no member 'x_apple_relays'
+131 |     public func hasAppleRelays(in services: [(serviceName: String, service: Service)]) -> Bool {
+132 |         return services.contains { _, service in
+133 |             service.x_apple_relays != nil && !service.x_apple_relays!.isEmpty
+    |                                                       `- error: value of type 'Service' has no member 'x_apple_relays'
+134 |         }
+135 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayManager.swift:103:13: warning: capture of 'completion' with non-Sendable type '((any Error)?) -> Void' in a '@Sendable' closure [#SendableClosureCaptures]
+101 |     func send(content: Data?, completion: @escaping (Error?) -> Void) {
+102 |         connection.send(content: content, completion: .contentProcessed { error in
+103 |             completion(error)
+    |             |- warning: capture of 'completion' with non-Sendable type '((any Error)?) -> Void' in a '@Sendable' closure [#SendableClosureCaptures]
+    |             `- note: a function type must be marked '@Sendable' to conform to 'Sendable'
+104 |         })
+105 |     }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/RelayManager.swift:108:120: warning: passing non-Sendable parameter 'completion' to function expecting a '@Sendable' closure
+105 |     }
+106 | 
+107 |     func receive(minimumIncompleteLength: Int, maximumLength: Int, completion: @escaping (Data?, NWConnection.ContentContext?, Bool, Error?) -> Void) {
+    |                                                                    `- note: parameter 'completion' is implicitly non-Sendable
+108 |         connection.receive(minimumIncompleteLength: minimumIncompleteLength, maximumLength: maximumLength, completion: completion)
+    |                                                                                                                        `- warning: passing non-Sendable parameter 'completion' to function expecting a '@Sendable' closure
+109 |     }
+110 | }
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:206:13: warning: result of call to 'fcntl' is unused [#no-usage]
+204 |             // Set non-blocking mode
+205 |             var flags = fcntl(clientSock, F_GETFL, 0)
+206 |             fcntl(clientSock, F_SETFL, flags | O_NONBLOCK)
+    |             `- warning: result of call to 'fcntl' is unused [#no-usage]
+207 | 
+208 |             // Verify CID
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:205:17: warning: variable 'flags' was never mutated; consider changing to 'let' constant
+203 | 
+204 |             // Set non-blocking mode
+205 |             var flags = fcntl(clientSock, F_GETFL, 0)
+    |                 `- warning: variable 'flags' was never mutated; consider changing to 'let' constant
+206 |             fcntl(clientSock, F_SETFL, flags | O_NONBLOCK)
+207 | 
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/VsockRelay.swift:331:14: warning: result of call to 'withCString' is unused [#no-usage]
+329 |         var addr = sockaddr_un()
+330 |         addr.sun_family = sa_family_t(AF_UNIX)
+331 |         path.withCString { cString in
+    |              `- warning: result of call to 'withCString' is unused [#no-usage]
+332 |             strncpy(&addr.sun_path.0, cString, Int(SUNPATH_MAX) - 1)
+333 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[2254/2269] Compiling ContainerComposeCore ServiceSecret.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeDown.swift:230:105: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+228 |     } else {
+229 |       projectName = try deriveProjectName(cwd: cwd)
+230 |       print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+    |                                                                                                         |- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+    |                                                                                                         |- note: provide a default value to avoid this warning
+    |                                                                                                         `- note: use 'String(describing:)' to silence this warning
+231 |     }
+232 | 
+[2255/2269] Compiling ContainerComposeCore Volume.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeDown.swift:230:105: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+228 |     } else {
+229 |       projectName = try deriveProjectName(cwd: cwd)
+230 |       print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+    |                                                                                                         |- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+    |                                                                                                         |- note: provide a default value to avoid this warning
+    |                                                                                                         `- note: use 'String(describing:)' to silence this warning
+231 |     }
+232 | 
+[2256/2269] Compiling ContainerComposeCore CheckpointCommand.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeDown.swift:230:105: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+228 |     } else {
+229 |       projectName = try deriveProjectName(cwd: cwd)
+230 |       print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+    |                                                                                                         |- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+    |                                                                                                         |- note: provide a default value to avoid this warning
+    |                                                                                                         `- note: use 'String(describing:)' to silence this warning
+231 |     }
+232 | 
+[2257/2269] Compiling ContainerComposeCore ComposeDown.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeDown.swift:230:105: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+228 |     } else {
+229 |       projectName = try deriveProjectName(cwd: cwd)
+230 |       print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+    |                                                                                                         |- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+    |                                                                                                         |- note: provide a default value to avoid this warning
+    |                                                                                                         `- note: use 'String(describing:)' to silence this warning
+231 |     }
+232 | 
+[2258/2269] Compiling ContainerComposeCore ComposePs.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeDown.swift:230:105: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+228 |     } else {
+229 |       projectName = try deriveProjectName(cwd: cwd)
+230 |       print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+    |                                                                                                         |- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+    |                                                                                                         |- note: provide a default value to avoid this warning
+    |                                                                                                         `- note: use 'String(describing:)' to silence this warning
+231 |     }
+232 | 
+[2259/2269] Compiling ContainerComposeCore ComposeUp.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:228:111: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+ 226 |         } else {
+ 227 |             projectName = try deriveProjectName(cwd: cwd)
+ 228 |             print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+     |                                                                                                               |- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+     |                                                                                                               |- note: provide a default value to avoid this warning
+     |                                                                                                               `- note: use 'String(describing:)' to silence this warning
+ 229 |         }
+ 230 | 
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1429:13: warning: variable 'lastError' was written to, but never read
+1427 |         }
+1428 | 
+1429 |         var lastError: Error?
+     |             `- warning: variable 'lastError' was written to, but never read
+1430 |         for attempt in 1...retryConfig.maxRetries {
+1431 |             do {
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1502:123: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+1500 |         // Add build arguments
+1501 |         for (key, value) in buildConfig.args ?? [:] {
+1502 |             commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
+     |                                                                                                                           `- warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+1503 |         }
+1504 |         
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1502:67: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+1500 |         // Add build arguments
+1501 |         for (key, value) in buildConfig.args ?? [:] {
+1502 |             commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
+     |                                                                   |                                                       |- note: provide a default value to avoid this warning
+     |                                                                   |                                                       `- note: use 'String(describing:)' to silence this warning
+     |                                                                   `- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+1503 |         }
+1504 |         
+[2260/2269] Compiling ContainerComposeCore HealthCommand.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:228:111: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+ 226 |         } else {
+ 227 |             projectName = try deriveProjectName(cwd: cwd)
+ 228 |             print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+     |                                                                                                               |- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+     |                                                                                                               |- note: provide a default value to avoid this warning
+     |                                                                                                               `- note: use 'String(describing:)' to silence this warning
+ 229 |         }
+ 230 | 
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1429:13: warning: variable 'lastError' was written to, but never read
+1427 |         }
+1428 | 
+1429 |         var lastError: Error?
+     |             `- warning: variable 'lastError' was written to, but never read
+1430 |         for attempt in 1...retryConfig.maxRetries {
+1431 |             do {
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1502:123: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+1500 |         // Add build arguments
+1501 |         for (key, value) in buildConfig.args ?? [:] {
+1502 |             commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
+     |                                                                                                                           `- warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+1503 |         }
+1504 |         
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1502:67: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+1500 |         // Add build arguments
+1501 |         for (key, value) in buildConfig.args ?? [:] {
+1502 |             commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
+     |                                                                   |                                                       |- note: provide a default value to avoid this warning
+     |                                                                   |                                                       `- note: use 'String(describing:)' to silence this warning
+     |                                                                   `- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+1503 |         }
+1504 |         
+[2261/2269] Compiling ContainerComposeCore SystemReset.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:228:111: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+ 226 |         } else {
+ 227 |             projectName = try deriveProjectName(cwd: cwd)
+ 228 |             print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+     |                                                                                                               |- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+     |                                                                                                               |- note: provide a default value to avoid this warning
+     |                                                                                                               `- note: use 'String(describing:)' to silence this warning
+ 229 |         }
+ 230 | 
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1429:13: warning: variable 'lastError' was written to, but never read
+1427 |         }
+1428 | 
+1429 |         var lastError: Error?
+     |             `- warning: variable 'lastError' was written to, but never read
+1430 |         for attempt in 1...retryConfig.maxRetries {
+1431 |             do {
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1502:123: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+1500 |         // Add build arguments
+1501 |         for (key, value) in buildConfig.args ?? [:] {
+1502 |             commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
+     |                                                                                                                           `- warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+1503 |         }
+1504 |         
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1502:67: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+1500 |         // Add build arguments
+1501 |         for (key, value) in buildConfig.args ?? [:] {
+1502 |             commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
+     |                                                                   |                                                       |- note: provide a default value to avoid this warning
+     |                                                                   |                                                       `- note: use 'String(describing:)' to silence this warning
+     |                                                                   `- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+1503 |         }
+1504 |         
+error: emit-module command failed with exit code 1 (use -v to see invocation)
+[2262/2269] Compiling ContainerComposeCore Version.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:228:111: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+ 226 |         } else {
+ 227 |             projectName = try deriveProjectName(cwd: cwd)
+ 228 |             print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+     |                                                                                                               |- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+     |                                                                                                               |- note: provide a default value to avoid this warning
+     |                                                                                                               `- note: use 'String(describing:)' to silence this warning
+ 229 |         }
+ 230 | 
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1429:13: warning: variable 'lastError' was written to, but never read
+1427 |         }
+1428 | 
+1429 |         var lastError: Error?
+     |             `- warning: variable 'lastError' was written to, but never read
+1430 |         for attempt in 1...retryConfig.maxRetries {
+1431 |             do {
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1502:123: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+1500 |         // Add build arguments
+1501 |         for (key, value) in buildConfig.args ?? [:] {
+1502 |             commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
+     |                                                                                                                           `- warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+1503 |         }
+1504 |         
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1502:67: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+1500 |         // Add build arguments
+1501 |         for (key, value) in buildConfig.args ?? [:] {
+1502 |             commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
+     |                                                                   |                                                       |- note: provide a default value to avoid this warning
+     |                                                                   |                                                       `- note: use 'String(describing:)' to silence this warning
+     |                                                                   `- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+1503 |         }
+1504 |         
+[2263/2269] Compiling ContainerComposeCore Errors.swift
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:228:111: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+ 226 |         } else {
+ 227 |             projectName = try deriveProjectName(cwd: cwd)
+ 228 |             print("Info: No 'name' field found in docker-compose.yml. Using directory name as project name: \(projectName)")
+     |                                                                                                               |- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+     |                                                                                                               |- note: provide a default value to avoid this warning
+     |                                                                                                               `- note: use 'String(describing:)' to silence this warning
+ 229 |         }
+ 230 | 
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1429:13: warning: variable 'lastError' was written to, but never read
+1427 |         }
+1428 | 
+1429 |         var lastError: Error?
+     |             `- warning: variable 'lastError' was written to, but never read
+1430 |         for attempt in 1...retryConfig.maxRetries {
+1431 |             do {
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1502:123: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+1500 |         // Add build arguments
+1501 |         for (key, value) in buildConfig.args ?? [:] {
+1502 |             commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
+     |                                                                                                                           `- warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+1503 |         }
+1504 |         
+
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Commands/ComposeUp.swift:1502:67: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+1500 |         // Add build arguments
+1501 |         for (key, value) in buildConfig.args ?? [:] {
+1502 |             commands.append(contentsOf: ["--build-arg", "\(key)=\(try? resolveVariable(value, with: environmentVariables) ?? value)"])
+     |                                                                   |                                                       |- note: provide a default value to avoid this warning
+     |                                                                   |                                                       `- note: use 'String(describing:)' to silence this warning
+     |                                                                   `- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+1503 |         }
+1504 |         
+[2264/2269] Emitting module ContainerComposeCore
+/Users/kieranlal/workspace/Container-Compose/Sources/Container-Compose/Networking/HermesHonchoRelays.swift:12:34: error: cannot find type 'ScopedRelay' in scope
+ 10 | /// Port 6000: Native Embedding Relay (ANE)
+ 11 | actor HermesHonchoRelayManager {
+ 12 |     private var relays: [UInt32: ScopedRelay] = [:]
+    |                                  `- error: cannot find type 'ScopedRelay' in scope
+ 13 |     private let logger = Logger(subsystem: "com.container-compose.hermes", category: "RelayManager")
+ 14 |     
+error: fatalError
