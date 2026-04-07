@@ -518,22 +518,58 @@ services:
 
 ---
 
+## Verification Results (2026-04-07)
+
+### Test Integrity Check
+
+All 147 inline YAML snippets in test files have been validated:
+
+```
+$ python3 scripts/validate-swift-yaml.py
+Summary: 147 YAML snippets in 27 test files
+Errors: 0 in 0 files
+✅ All YAML snippets validated successfully!
+```
+
+### Files Validated
+- ComposeUpMappingTests.swift
+- ComposeDownMappingTests.swift
+- ComposePsMappingTests.swift
+- RelayConfigurationTests.swift
+- NetworkConfigurationTests.swift
+- HealthcheckConfigurationTests.swift
+- (22 more test files)
+
+---
+
 ## Conclusion
 
-**Current State**: Container-Compose lacks YAML indentation validation, leading to silent parsing failures.
+**Current State**: ✅ IMPLEMENTED - YAML validation infrastructure in place
 
-**Solution**: Implement a **two-layer validation** approach:
-1. **Python pre-validation** (ruamel.yaml AST) for detailed error detection
-2. **Swift integrated validator** for production checks
+**Delivered**:
+1. **Python Reference Validator** (`scripts/validate-compose-yaml.py`)
+   - Uses ruamel.yaml (stricter than Swift's Yams)
+   - Validates structure, indentation, x-apple-relays
+   - Auto-fix capability via `--fix` flag
+
+2. **Swift YAMLValidator** (`Tests/TestHelpers/YAMLValidation.swift`)
+   - Native Swift solution for test integrity
+   - `validateRootIndentation()` - catches root-level indentation bugs
+
+3. **Swift YAML Extractor** (`scripts/validate-swift-yaml.py`)
+   - Extracts YAML from Swift string literals
+   - Validates all 147 test fixtures
+   - Skips Swift string interpolations
 
 **Impact**:
-- ✅ Prevents issues like the isaac_ros_custom indentation bug
-- ✅ Provides clear error messages with line numbers
-- ✅ Maintains Swift performance for production use
-- ✅ Leverages ruamel.yaml's proven AST validation
+- ✅ Prevents silent parsing failures
+- ✅ Validates 147 test YAML fixtures
+- ✅ Clear error messages with line numbers
+- ✅ Two-layer validation (Python + Swift)
 
-**Next Steps**:
-1. Add `validate-compose-yaml.py` to scripts/
-2. Integrate into run-tests.sh
-3. Add YAMLValidator.swift for integrated checks
-4. Update test suite to validate YAML fixtures
+**Verification**:
+```bash
+# Validate all test YAML fixtures
+python3 scripts/validate-swift-yaml.py
+# ✅ All 147 YAML snippets validated successfully!
+```
