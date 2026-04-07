@@ -114,16 +114,22 @@ done
 echo ""
 
 # Parse arguments for flags (filters out --auto-clean and --no-sudo)
+# Also handles test filter arguments - validates and adds --filter if needed
 FORCE_NO_SUDO=false
 FILTERED_ARGS=()
 for arg in "$@"; do
-    if [[ "$arg" == "--no-sudo" ]]; then
-        FORCE_NO_SUDO=true
-    elif [[ "$arg" == "--auto-clean" ]]; then
-        true  # already handled above
-    else
-        FILTERED_ARGS+=("$arg")
-    fi
+  if [[ "$arg" == "--no-sudo" ]]; then
+    FORCE_NO_SUDO=true
+  elif [[ "$arg" == "--auto-clean" ]]; then
+    true # already handled above
+  elif [[ "$arg" == "--filter" ]]; then
+    FILTERED_ARGS+=("$arg") # keep --filter as-is
+  elif [[ "$arg" =~ ^[A-Za-z].*Tests?$ ]]; then
+    # Argument looks like a test name without --filter, add --filter prefix
+    FILTERED_ARGS+=("--filter" "$arg")
+  else
+    FILTERED_ARGS+=("$arg")
+  fi
 done
 
 # Check if already running as root/sudo
