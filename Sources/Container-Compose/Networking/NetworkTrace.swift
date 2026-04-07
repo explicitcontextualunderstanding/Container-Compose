@@ -4,7 +4,7 @@ import os.log
 // MARK: - Network Trace Observability (Plan 77 Phase 3)
 
 /// Network trace event types for vsock and UDS channels
-enum TraceEvent: Sendable {
+public enum TraceEvent: Sendable {
     case connectionAttempt(cid: UInt32, port: UInt32, authorized: Bool)
     case connectionEstablished(relayId: String, connectionId: UUID, transport: RelayTransport)
     case dataTransfer(relayId: String, connectionId: UUID, bytes: Int, direction: DataDirection, timestamp: Date)
@@ -12,12 +12,12 @@ enum TraceEvent: Sendable {
     case unauthorizedAttempt(relayId: String, attemptedCID: UInt32, expectedCID: UInt32?)
     case securityEvent(relayId: String, event: SecurityEvent)
     
-    enum DataDirection: String, Sendable {
+    public enum DataDirection: String, Sendable {
         case inbound = "IN"
         case outbound = "OUT"
     }
     
-    enum SecurityEvent: String, Sendable {
+    public enum SecurityEvent: String, Sendable {
         case cidMismatch
         case pidVerificationFailed
         case unauthorizedConnection
@@ -26,17 +26,17 @@ enum TraceEvent: Sendable {
 }
 
 /// Real-time network trace for monitoring vsock channels
-actor NetworkTrace {
+public actor NetworkTrace {
     private var events: [TraceEvent] = []
     private let maxEvents: Int
     private let logger = Logger(subsystem: "com.container-compose.trace", category: "NetworkTrace")
     
-    init(maxEvents: Int = 10000) {
+    public init(maxEvents: Int = 10000) {
         self.maxEvents = maxEvents
     }
     
     /// Record a trace event
-    func record(_ event: TraceEvent) {
+    public func record(_ event: TraceEvent) {
         events.append(event)
         
         // Trim old events if over limit

@@ -101,6 +101,29 @@ public struct ServiceRelay: Codable, Hashable {
     }
 }
 
+/// Apple Container vsock relay configuration (Plan 77 Phase 6)
+/// Enables declarative vsock routing in compose files
+public struct AppleRelayConfig: Codable, Hashable {
+    /// Relay type identifier
+    public let type: String
+    
+    /// VSOCK port number
+    public let port: UInt32
+    
+    /// Target service for routing (optional)
+    public let target: String?
+    
+    /// Priority level (optional)
+    public let priority: String?
+    
+    public init(type: String, port: UInt32, target: String? = nil, priority: String? = nil) {
+        self.type = type
+        self.port = port
+        self.target = target
+        self.priority = priority
+    }
+}
+
 /// A single entry in the long-form `depends_on` map.
 public struct DependsOnEntry: Codable, Hashable {
     public let condition: DependsOnCondition?
@@ -215,6 +238,10 @@ public final class Service: Codable, Hashable {
     /// Relay configuration for declarative routing (Phase 5)
     /// Enables vsock/tcp/unix socket routing to other services
     public let relay: ServiceRelay?
+    
+    /// Apple Container vsock relay extensions (Plan 77 Phase 6)
+    /// Declarative vsock configuration for hardware-isolated IPC
+    public let x_apple_relays: [AppleRelayConfig]?
 
     /// Other services that depend on this service
     public var dependedBy: [String] = []
@@ -238,11 +265,12 @@ public final class Service: Codable, Hashable {
         }.sorted() ?? []
     }
     
-    // Defines custom coding keys to map YAML keys to Swift properties
-    // Note: 'env' is a shorthand alias for 'environment' in Docker Compose
-    enum CodingKeys: String, CodingKey {
-        case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user, container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns, dns_search, publish_socket, relay
-    }
+// Defines custom coding keys to map YAML keys to Swift properties
+// Note: 'env' is a shorthand alias for 'environment' in Docker Compose
+enum CodingKeys: String, CodingKey {
+    case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user, container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns, dns_search, publish_socket, relay
+    case x_apple_relays = "x-apple-relays"
+}
     
     /// Public memberwise initializer for testing
     public init(
@@ -278,6 +306,7 @@ public final class Service: Codable, Hashable {
         init_image: String? = nil,
         publish_socket: String? = nil,
         relay: ServiceRelay? = nil,
+        x_apple_relays: [AppleRelayConfig]? = nil,
         dependedBy: [String] = []
     ) {
         self.image = image
@@ -312,6 +341,7 @@ public final class Service: Codable, Hashable {
         self.init_image = init_image
         self.publish_socket = publish_socket
         self.relay = relay
+        self.x_apple_relays = x_apple_relays
         self.dependedBy = dependedBy
     }
 
@@ -494,6 +524,9 @@ public final class Service: Codable, Hashable {
 
     // Decode relay configuration if present (Phase 5)
     relay = try container.decodeIfPresent(ServiceRelay.self, forKey: .relay)
+    
+    // Decode Apple relay extensions if present (Plan 77 Phase 6)
+    x_apple_relays = try container.decodeIfPresent([AppleRelayConfig].self, forKey: .x_apple_relays)
   }
     
     /// Returns the services in topological order based on `depends_on` relationships.

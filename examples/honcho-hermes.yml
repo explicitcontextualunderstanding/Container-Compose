@@ -1,0 +1,62 @@
+# Example: Honcho + Hermes + Codegraph with VSOCK Relays
+# This demonstrates the declarative approach for vsock IPC
+# 
+# IMPORTANT: This is a USER compose file, not part of Container-Compose.
+# Container-Compose is a generic orchestration tool that reads YOUR compose files.
+
+services:
+  # PostgreSQL with WAL-G backup
+  honcho-db:
+    image: registry.rossollc.com/walg-db:vsock
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=honcho
+      - POSTGRES_PASSWORD=${HONCHO_DB_PASSWORD}
+      - VSOCK_CID=2
+      - VSOCK_PORT=5432
+    x-apple-relays:
+      - type: 'vsock-db'
+        port: 5432
+        priority: 'high'
+    # No TCP ports exposed - runs "dark" via vsock only
+
+  # Honcho Hub - Session management
+  honcho-hub:
+    image: registry.rossollc.com/honcho-hub:latest
+    environment:
+      - DATABASE_URL=vsock://honcho-db:5432/honcho
+    depends_on:
+      honcho-db:
+        condition: service_healthy
+    x-apple-relays:
+      - type: 'vsock-mcp-bridge'
+        port: 5002
+        target: 'hermes-agent'
+        priority: 'high'
+
+  # Hermes Agent - AI inference agent
+  hermes-agent:
+    image: registry.rossollc.com/hermes:v26
+    environment:
+      - HONCHO_HUB_URL=vsock://honcho-hub:5002
+      - CODE_GRAPH_URL=vsock://code-graph:5001
+    depends_on:
+      - honcho-hub
+    x-apple-relays:
+      - type: 'vsock-log-stream'
+        port: 5001
+        target: 'code-graph'
+      - type: 'vsock-ane-embedding'
+        port: 6000
+        priority: 'high'
+
+  # Code Graph - Knowledge management
+  code-graph:
+    image: registry.rossollc.com/code-graph:latest
+    environment:
+      - POSTGRES_URL=vsock://honcho-db:5432/codegraph
+    depends_on:
+      - honcho-db
+    x-apple-relays:
+      - type: 'vsock-generic'
+        port: 5001

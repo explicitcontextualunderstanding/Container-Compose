@@ -1,0 +1,258 @@
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:264:42: warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+262 |     }
+263 | 
+264 |     let workDirectory = PathLike(context.pluginWorkDirectory)
+    |                                          |- warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+    |                                          `- note: use 'pluginWorkDirectoryURL' instead
+265 | 
+266 |     return try self.createBuildCommands(
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:287:18: warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+285 | 
+286 |   init(_ path: String) {
+287 |     self.value = Path(path)
+    |                  `- warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+288 |   }
+289 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:291:26: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+289 | 
+290 |   init(_ element: FileList.Element) {
+291 |     self.value = element.path
+    |                          |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                          `- note: use 'url' instead
+292 |   }
+293 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:295:26: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+293 | 
+294 |   init(_ element: PluginContext.Tool) {
+295 |     self.value = element.path
+    |                          |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                          `- note: use 'url' instead
+296 |   }
+297 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:303:23: warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+301 | 
+302 |   var lastComponent: String {
+303 |     return self.value.lastComponent
+    |                       `- warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+304 |   }
+305 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:308:29: warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+306 |   func removingLastComponent() -> Self {
+307 |     var copy = self
+308 |     copy.value = self.value.removingLastComponent()
+    |                             `- warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+309 |     return copy
+310 |   }
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:314:29: warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+312 |   func appending(_ path: String) -> Self {
+313 |     var copy = self
+314 |     copy.value = self.value.appending(path)
+    |                             `- warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+315 |     return copy
+316 |   }
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:327:17: warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+325 |     outputFiles: [PathLike]
+326 |   ) -> PackagePlugin.Command {
+327 |     return Self.buildCommand(
+    |                 `- warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+328 |       displayName: displayName,
+329 |       executable: executable.value,
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/grpc-swift/Plugins/GRPCSwiftPlugin/plugin.swift:339:35: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+337 | extension URL {
+338 |   init(_ pathLike: PathLike) {
+339 |     self = URL(fileURLWithPath: "\(pathLike.value)")
+    |                                   `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+340 |   }
+341 | }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[1/1] Compiling plugin GRPCSwiftPlugin
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:9:14: warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+  7 |     enum PluginError: Error, CustomStringConvertible {
+  8 |         /// Indicates that the target where the plugin was applied to was not `SourceModuleTarget`.
+  9 |         case invalidTarget(Target)
+    |              `- warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+ 10 |         /// Indicates that the file extension of an input file was not `.proto`.
+ 11 |         case invalidInputFileExtension(String)
+
+PackagePlugin.Target:1:17: note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 1 | public protocol Target {
+   |                 `- note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 2 |     var id: Self.ID { get }
+ 3 |     typealias ID = String
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:2:1: warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  1 | import Foundation
+  2 | import PackagePlugin
+    | `- warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  3 | 
+  4 | @main
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:9:14: warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+  7 |     enum PluginError: Error, CustomStringConvertible {
+  8 |         /// Indicates that the target where the plugin was applied to was not `SourceModuleTarget`.
+  9 |         case invalidTarget(Target)
+    |              `- warning: associated value 'invalidTarget' of 'Sendable'-conforming enum 'PluginError' has non-Sendable type 'any Target'
+ 10 |         /// Indicates that the file extension of an input file was not `.proto`.
+ 11 |         case invalidInputFileExtension(String)
+
+PackagePlugin.Target:1:17: note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 1 | public protocol Target {
+   |                 `- note: protocol 'Target' does not conform to the 'Sendable' protocol
+ 2 |     var id: Self.ID { get }
+ 3 |     typealias ID = String
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:2:1: warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  1 | import Foundation
+  2 | import PackagePlugin
+    | `- warning: add '@preconcurrency' to treat 'Sendable'-related errors from module 'PackagePlugin' as warnings
+  3 | 
+  4 | @main
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:117:24: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+115 |             let configurationFilePath = sourceFiles.first(
+116 |                 where: {
+117 |                     $0.path.lastComponent == Self.configurationFileName
+    |                        |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                        `- note: use 'url' instead
+118 |                 }
+119 |             )?.path
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:117:29: warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+115 |             let configurationFilePath = sourceFiles.first(
+116 |                 where: {
+117 |                     $0.path.lastComponent == Self.configurationFileName
+    |                             `- warning: 'lastComponent' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+118 |                 }
+119 |             )?.path
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:119:16: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+117 |                     $0.path.lastComponent == Self.configurationFileName
+118 |                 }
+119 |             )?.path
+    |                |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                `- note: use 'url' instead
+120 |         else {
+121 |             throw PluginError.noConfigFound(Self.configurationFileName)
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:123:64: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+121 |             throw PluginError.noConfigFound(Self.configurationFileName)
+122 |         }
+123 |         let data = try Data(contentsOf: URL(fileURLWithPath: "\(configurationFilePath)"))
+    |                                                                `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+124 |         let configuration = try JSONDecoder().decode(Configuration.self, from: data)
+125 |         try validateConfiguration(configuration)
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:131:26: warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+129 |         if let configuredProtocPath = configuration.protocPath {
+130 |             // The user set the config path in the file. So let's take that
+131 |             protocPath = Path(configuredProtocPath)
+    |                          `- warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+132 |         } else if let environmentPath = ProcessInfo.processInfo.environment["PROTOC_PATH"] {
+133 |             // The user set the env variable. So let's take that
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:134:26: warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+132 |         } else if let environmentPath = ProcessInfo.processInfo.environment["PROTOC_PATH"] {
+133 |             // The user set the env variable. So let's take that
+134 |             protocPath = Path(environmentPath)
+    |                          `- warning: 'init(_:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+135 |         } else {
+136 |             // The user didn't set anything so let's try see if SPM can find a binary for us
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:137:45: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+135 |         } else {
+136 |             // The user didn't set anything so let's try see if SPM can find a binary for us
+137 |             protocPath = try tool("protoc").path
+    |                                             |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                                             `- note: use 'url' instead
+138 |         }
+139 |         let protocGenSwiftPath = try tool("protoc-gen-swift").path
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:139:63: warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+137 |             protocPath = try tool("protoc").path
+138 |         }
+139 |         let protocGenSwiftPath = try tool("protoc-gen-swift").path
+    |                                                               |- warning: 'path' is deprecated: renamed to 'url' [#DeprecatedDeclaration]
+    |                                                               `- note: use 'url' instead
+140 | 
+141 |         return configuration.invocations.map { invocation in
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:143:50: warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+141 |         return configuration.invocations.map { invocation in
+142 |             self.invokeProtoc(
+143 |                 directory: configurationFilePath.removingLastComponent(),
+    |                                                  `- warning: 'removingLastComponent()' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+144 |                 invocation: invocation,
+145 |                 protocPath: protocPath,
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:170:41: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+168 |         // Construct the `protoc` arguments.
+169 |         var protocArgs = [
+170 |             "--plugin=protoc-gen-swift=\(protocGenSwiftPath)",
+    |                                         `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+171 |             "--swift_out=\(outputDirectory)",
+172 |         ]
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:171:27: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+169 |         var protocArgs = [
+170 |             "--plugin=protoc-gen-swift=\(protocGenSwiftPath)",
+171 |             "--swift_out=\(outputDirectory)",
+    |                           `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+172 |         ]
+173 | 
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:177:29: warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+175 |         // the proto files relative to it.
+176 |         protocArgs.append("-I")
+177 |         protocArgs.append("\(directory)")
+    |                             `- warning: 'appendInterpolation' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+178 | 
+179 |         // Add the visibility if it was set
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:205:41: warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+203 |             // Append the file to the protoc args so that it is used for generating
+204 |             protocArgs.append("\(file)")
+205 |             inputFiles.append(directory.appending(file))
+    |                                         `- warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+206 | 
+207 |             // The name of the output file is based on the name of the input file.
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:212:54: warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+210 |             file.removeLast(5)
+211 |             file.append("pb.swift")
+212 |             let protobufOutputPath = outputDirectory.appending(file)
+    |                                                      `- warning: 'appending' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+213 | 
+214 |             // Add the outputPath as an output file
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:221:24: warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+219 |         // system know when to invoke the command. The output paths are passed on to
+220 |         // the rule engine in the build system.
+221 |         return Command.buildCommand(
+    |                        `- warning: 'buildCommand(displayName:executable:arguments:environment:inputFiles:outputFiles:)' is deprecated: Use `URL` type instead of `Path`. [#DeprecatedDeclaration]
+222 |             displayName: "Generating swift files from proto files",
+223 |             executable: protocPath,
+
+/Users/kieranlal/workspace/Container-Compose/.build/checkouts/swift-protobuf/Plugins/SwiftProtobufPlugin/plugin.swift:251:42: warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+249 |         }
+250 |         return try createBuildCommands(
+251 |             pluginWorkDirectory: context.pluginWorkDirectory,
+    |                                          |- warning: 'pluginWorkDirectory' is deprecated: renamed to 'pluginWorkDirectoryURL' [#DeprecatedDeclaration]
+    |                                          `- note: use 'pluginWorkDirectoryURL' instead
+252 |             sourceFiles: swiftTarget.sourceFiles,
+253 |             tool: context.tool
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[2/2] Compiling plugin SwiftProtobufPlugin
+[3/3] Compiling plugin GenerateManual
+[4/4] Compiling plugin GenerateDoccReference
+Building for debugging...
+[4/10] Write sources
+[5/10] Write swift-version--58304C5D6DBC2206.txt
