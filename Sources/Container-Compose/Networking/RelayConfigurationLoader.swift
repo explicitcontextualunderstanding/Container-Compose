@@ -43,6 +43,7 @@ public struct RelayConfigurationLoader {
         case invalidPort(UInt32)
         case missingTarget(String)
         case conflictingPort(UInt32, String)
+        case invalidPriority(String)
         
         public var description: String {
             switch self {
@@ -54,6 +55,8 @@ public struct RelayConfigurationLoader {
                 return "Relay in service '\(service)' requires 'target' for inter-container routing"
             case .conflictingPort(let port, let service):
                 return "Port \(port) already in use by service '\(service)'"
+            case .invalidPriority(let priority):
+                return "Invalid priority: '\(priority)'. Must be 'high', 'medium', or 'low' (case-insensitive)"
             }
         }
     }
@@ -107,6 +110,14 @@ public struct RelayConfigurationLoader {
                 // Validate target requirement
                 if supportedType.requiresTarget && relayConfig.target == nil {
                     throw ConfigurationError.missingTarget(serviceName)
+                }
+                
+                // Validate priority (if provided)
+                if let priority = relayConfig.priority {
+                    let validPriorities = ["high", "medium", "low"]
+                    guard validPriorities.contains(priority.lowercased()) else {
+                        throw ConfigurationError.invalidPriority(priority)
+                    }
                 }
                 
                 let loaded = LoadedRelay(

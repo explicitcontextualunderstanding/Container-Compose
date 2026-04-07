@@ -1,5 +1,5 @@
 import XCTest
-@testable import Container_Compose
+@testable import ContainerComposeCore
 
 // MARK: - Network Trace Tests (Plan 77 Phase 3)
 

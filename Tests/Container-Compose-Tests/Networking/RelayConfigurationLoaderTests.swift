@@ -1,5 +1,5 @@
 import XCTest
-@testable import Container_Compose
+@testable import ContainerComposeCore
 
 // MARK: - Relay Configuration Loader Tests (Plan 77 Phase 6)
 
@@ -153,6 +153,45 @@ final class RelayConfigurationLoaderTests: XCTestCase {
             }
             XCTAssertEqual(serviceName, "test")
         }
+    }
+    
+    // MARK: - Priority Validation Tests
+    
+    func testAcceptsValidPriorityValues() throws {
+        let validPriorities = ["high", "medium", "low", "HIGH", "Medium", "LOW"]
+        
+        for priority in validPriorities {
+            let relay = AppleRelayConfig(type: "vsock-db", port: 5432, priority: priority)
+            let service = Service(image: "test:latest", x_apple_relays: [relay])
+            
+            // Should not throw
+            let loaded = try loader.loadRelays(from: [("test", service)])
+            XCTAssertEqual(loaded.count, 1, "Should load relay with priority: \(priority)")
+        }
+    }
+    
+    func testRejectsInvalidPriorityValues() {
+        let relay = AppleRelayConfig(type: "vsock-db", port: 5432, priority: "urgent")
+        let service = Service(image: "test:latest", x_apple_relays: [relay])
+        
+        XCTAssertThrowsError(try loader.loadRelays(from: [("test", service)])) { error in
+            guard let configError = error as? RelayConfigurationLoader.ConfigurationError,
+                  case .invalidPriority(let priority) = configError else {
+                XCTFail("Wrong error type")
+                return
+            }
+            XCTAssertEqual(priority, "urgent")
+        }
+    }
+    
+    func testAcceptsNilPriority() throws {
+        // Priority is optional
+        let relay = AppleRelayConfig(type: "vsock-db", port: 5432, priority: nil)
+        let service = Service(image: "test:latest", x_apple_relays: [relay])
+        
+        // Should not throw
+        let loaded = try loader.loadRelays(from: [("test", service)])
+        XCTAssertNil(loaded.first?.priority, "Priority should be nil")
     }
     
     // MARK: - Integration Tests

@@ -91,7 +91,37 @@ Container-Compose validates:
 - Port number is valid (1-65535)
 - No port conflicts across services
 - Required `target` field for MCP/log-stream types
+- Priority values (if provided) are `high`, `medium`, or `low`
 - Schema correctness before starting containers
+
+### Error Types
+
+Container-Compose throws specific errors that can be caught:
+
+```swift
+enum ConfigurationError: Error {
+    case unsupportedRelayType(String)   // Unknown relay type
+    case invalidPort(UInt32)              // Port 0 or > 65535
+    case missingTarget(String)           // MCP/log-stream missing target
+    case conflictingPort(UInt32, String) // Port already used
+    case invalidPriority(String)          // Priority not high/medium/low
+}
+```
+
+**Example error handling:**
+```swift
+do {
+    let relays = try loader.loadRelays(from: services)
+} catch let error as RelayConfigurationLoader.ConfigurationError {
+    switch error {
+    case .invalidPriority(let value):
+        print("Priority '\(value)' not supported. Use: high, medium, low")
+    case .missingTarget(let service):
+        print("Service '\(service)' requires target field")
+    // ... handle other errors
+    }
+}
+```
 
 ## Test Coverage
 
