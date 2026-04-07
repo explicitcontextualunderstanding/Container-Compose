@@ -194,12 +194,45 @@ public enum XPCHealth {
         }
     }
     
+    /// Find the container CLI executable in common locations
+    /// - Returns: Path to container CLI if found, nil otherwise
+    private static func findContainerCLI() -> String? {
+        let paths = [
+            "/usr/local/bin/container",
+            "/usr/bin/container",
+            "/opt/homebrew/bin/container"
+        ]
+        
+        for path in paths {
+            if FileManager.default.isExecutableFile(atPath: path) {
+                return path
+            }
+        }
+        
+        // Try to find in PATH
+        if let path = ProcessInfo.processInfo.environment["PATH"] {
+            let pathDirs = path.split(separator: ":")
+            for dir in pathDirs {
+                let containerPath = "\(dir)/container"
+                if FileManager.default.isExecutableFile(atPath: containerPath) {
+                    return containerPath
+                }
+            }
+        }
+        
+        return nil
+    }
+    
     /// Get container CLI version (tests API responsiveness)
     /// - Returns: Version string if API is responsive
     /// - Throws: Error if API is unresponsive
     public static func getContainerVersion() async throws -> String {
+        guard let containerPath = findContainerCLI() else {
+            throw XPCIssue.daemonNotRunning
+        }
+        
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/container")
+        task.executableURL = URL(fileURLWithPath: containerPath)
         task.arguments = ["--version"]
         
         let pipe = Pipe()

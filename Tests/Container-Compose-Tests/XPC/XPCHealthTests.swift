@@ -142,8 +142,11 @@ final class XPCHealthTests: XCTestCase {
         // This test requires container daemon to be running
         // Skip if daemon not available
         
-        // Check if container CLI exists
-        guard FileManager.default.isExecutableFile(atPath: "/usr/bin/container") else {
+        // Check if container CLI exists in common locations
+        let containerPaths = ["/usr/local/bin/container", "/usr/bin/container"]
+        let containerExists = containerPaths.contains { FileManager.default.isExecutableFile(atPath: $0) }
+        
+        guard containerExists else {
             throw XCTSkip("Container CLI not available")
         }
         
@@ -167,7 +170,10 @@ final class XPCHealthTests: XCTestCase {
     
     func testIsHealthyIntegration() async {
         // This test requires container daemon to be running
-        guard FileManager.default.isExecutableFile(atPath: "/usr/bin/container") else {
+        let containerPaths = ["/usr/local/bin/container", "/usr/bin/container"]
+        let containerExists = containerPaths.contains { FileManager.default.isExecutableFile(atPath: $0) }
+        
+        guard containerExists else {
             // Skip test if container CLI not available
             return
         }
