@@ -12,9 +12,16 @@
 
 # Setup logging to timestamped file with console mirroring
 # Globals: LOG_DIR, TIMESTAMP, LOG_FILE (set by this function)
-# Usage: setup_test_logging
+# Usage: setup_test_logging [script_dir]
+#   If script_dir not provided, uses parent directory of the calling script
 setup_test_logging() {
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -n "$1" ]; then
+        SCRIPT_DIR="$1"
+    else
+        # Default: use parent directory of the script that sourced this library
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[1]}")/.." && pwd)"
+    fi
+    
     LOG_DIR="$SCRIPT_DIR/logs"
     mkdir -p "$LOG_DIR"
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
