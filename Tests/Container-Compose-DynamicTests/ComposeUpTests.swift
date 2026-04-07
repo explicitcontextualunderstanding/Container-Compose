@@ -700,6 +700,23 @@ struct ContainerDependentTrait: TestScoping, TestTrait, SuiteTrait {
             pingResult = "FAILED — \(error.localizedDescription)"
         }
 
+        // Step 1b: Verify XPC health using XPCHealth module
+        var xpcHealthStatus: XPCHealth.HealthStatus?
+        var xpcCheckResult: String
+        do {
+            xpcHealthStatus = try await XPCHealth.verifyConnection()
+            if xpcHealthStatus!.isHealthy {
+                let version = xpcHealthStatus!.diagnostics.containerVersion ?? "unknown"
+                let pid = xpcHealthStatus!.diagnostics.daemonPID.map { String($0) } ?? "unknown"
+                xpcCheckResult = "OK (v\(version), PID: \(pid))"
+            } else {
+                let issues = xpcHealthStatus!.issues.map { $0.description }.joined(separator: ", ")
+                xpcCheckResult = "UNHEALTHY — \(issues)"
+            }
+        } catch {
+            xpcCheckResult = "FAILED — \(error.localizedDescription)"
+        }
+
         // Step 2: If ping failed, try SystemStart
         var startResult: String?
         if health == nil {
@@ -726,10 +743,23 @@ struct ContainerDependentTrait: TestScoping, TestTrait, SuiteTrait {
             print("✓ Container Runtime Diagnostics:")
             print("  EUID: \(euid)\(isRoot ? " (running as root)" : " (not root — sudo recommended)")")
             print("  API server ping: \(pingResult)")
+            print("  XPC health: \(xpcCheckResult)")
+            
+            // Print system metrics if available
+            if let status = xpcHealthStatus {
+                if let load = status.diagnostics.systemLoad {
+                    print("  System Load: \(String(format: "%.2f", load))")
+                }
+                if let memory = status.diagnostics.availableMemory {
+                    let mb = Double(memory) / 1_048_576.0
+                    print("  Available Memory: \(String(format: "%.1f", mb)) MB")
+                }
+            }
         } else {
             print("⚠️  Container Runtime Diagnostics:")
             print("  EUID: \(euid)\(isRoot ? " (running as root)" : " (not root — container operations may fail without sudo)")")
             print("  API server ping: FAILED — connection timed out")
+            print("  XPC health: \(xpcCheckResult)")
             if let startResult {
                 print("  SystemStart attempt: \(startResult)")
             }
