@@ -21,42 +21,19 @@ public struct YAMLValidator {
     private static let rootKeys = Set(["services:", "version:", "networks:", "volumes:", "configs:", "secrets:"])
 
     public static func validateRootIndentation(_ yaml: String) throws {
+        let trimmed = yaml.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw YAMLValidationError.emptyDocument
+        }
+
         let lines = yaml.components(separatedBy: .newlines)
         for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            for key in rootKeys where trimmed.hasPrefix(key) {
+            let lineTrimmed = line.trimmingCharacters(in: .whitespaces)
+            for key in rootKeys where lineTrimmed.hasPrefix(key) {
                 if line.hasPrefix(" ") || line.hasPrefix("\t") {
                     throw YAMLValidationError.malformedRootIndentation(key: key)
                 }
             }
         }
-    }
-
-    public static func roundTripIntegrity<T: Codable>(yaml: String, as type: T.Type) throws {
-        let decoder = YAMLDecoder()
-        let encoder = YAMLEncoder()
-
-        let decoded = try decoder.decode(type, from: yaml)
-        let reEncoded = try encoder.encode(decoded)
-
-        let originalKeys = Set(getTopLevelKeys(from: yaml))
-        let newKeys = Set(getTopLevelKeys(from: reEncoded))
-
-        if originalKeys != newKeys {
-            throw YAMLValidationError.structureMismatch(original: originalKeys, decoded: newKeys)
-        }
-    }
-
-    private static func getTopLevelKeys(from yaml: String) -> [String] {
-        let lines = yaml.components(separatedBy: .newlines)
-        var keys: [String] = []
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if rootKeys.contains(where: { trimmed.hasPrefix($0.dropLast()) }) {
-                let key = String(trimmed.prefix(while: { $0 != ":" }))
-                if !key.isEmpty { keys.append(key) }
-            }
-        }
-        return keys
     }
 }

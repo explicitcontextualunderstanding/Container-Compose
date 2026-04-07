@@ -81,14 +81,10 @@ fi
 echo "Local development environment detected"
 echo ""
 
-# Check for OCI_REGISTRY_URL for dynamic tests
-if [ -z "$OCI_REGISTRY_URL" ]; then
-    echo "⚠️  OCI_REGISTRY_URL not set"
-    echo " Dynamic tests requiring container registry will be skipped"
-    echo " Set OCI_REGISTRY_URL to run registry-dependent tests:"
-    echo "   export OCI_REGISTRY_URL=ghcr.io"
-    echo "   export OCI_REGISTRY_URL=docker.io"
-    echo ""
+# Check for OCI_REGISTRY_URL (loaded from ops.env by env-setup.sh if available)
+if [ -n "$OCI_REGISTRY_URL" ]; then
+  echo "✓ OCI_REGISTRY_URL: $OCI_REGISTRY_URL"
+  echo ""
 fi
 
 # Check if container runtime is available

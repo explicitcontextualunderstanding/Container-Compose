@@ -1,6 +1,7 @@
 #!/bin/bash
 # Shared environment setup for Container-Compose build/test/install scripts
 # Neutralizes conda-injected compiler flags and removes miniconda from PATH
+# Loads OCI_REGISTRY_URL from ops.env if not already set
 # Compatible with both bash and zsh (for interactive sourcing).
 #
 # Usage: source scripts/env-setup.sh
@@ -8,6 +9,36 @@
 # Sets _ENV_SETUP_SUMMARY with a human-readable summary of what was done.
 
 _ENV_SETUP_SUMMARY=""
+
+# Load OCI_REGISTRY_URL if not already set
+if [ -z "$OCI_REGISTRY_URL" ]; then
+  # Try to load from ops.env
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  ENV_FILE="$SCRIPT_DIR/ops.env"
+
+  if [ -f "$ENV_FILE" ]; then
+    # Source the file and extract OCI_REGISTRY_URL
+    while IFS= read -r line; do
+      # Skip comments and empty lines
+      [[ "$line" =~ ^[[:space:]]*# ]] && continue
+      [[ -z "$line" ]] && continue
+
+      # Extract OCI_REGISTRY_URL value (handles quoted and unquoted)
+      if [[ "$line" =~ ^OCI_REGISTRY_URL=[\"\']?([^\"\'#[:space:]]+)[\"\']? ]]; then
+        export OCI_REGISTRY_URL="${BASH_REMATCH[1]}"
+        _ENV_SETUP_SUMMARY+="Loaded OCI_REGISTRY_URL from ops.env"
+        break
+      fi
+    done < "$ENV_FILE"
+  fi
+
+  # Check if still not set
+  if [ -z "$OCI_REGISTRY_URL" ]; then
+    echo "⚠️ WARNING: OCI_REGISTRY_URL not set and ops.env not found or empty"
+    echo "   Database tests requiring container registry will be skipped"
+    echo "   Create ops.env with: OCI_REGISTRY_URL=registry.example.com"
+  fi
+fi
 
 # Detect conda contamination
 _CONDA_VARS=()
