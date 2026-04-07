@@ -41,7 +41,7 @@ $ swift test --filter testBuildSecretsIntegration
 ✔ Test "Build secrets integration - blocked on upstream" passed after 0.001 seconds.
 
 # Full test suite
-$ OCI_REGISTRY_URL=registry.rossollc.com swift test
+$ swift test
 ✔ Test run with 200 tests in 16 suites passed after 181.894 seconds.
 ```
 

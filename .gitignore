@@ -10,3 +10,6 @@ DerivedData/
 
 # 1Password environment files (contain secret references)
 ops.env
+
+# Test logs
+logs/

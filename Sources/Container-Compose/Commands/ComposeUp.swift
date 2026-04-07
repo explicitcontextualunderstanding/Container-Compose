@@ -1840,24 +1840,25 @@ var isDirectory: ObjCBool = false
         }
 
     // Ensure entrypoint flag is placed before the image name when provided
-        let imageToRun = image ?? service.image ?? "\(serviceName):latest"
-        if let entrypointParts = service.entrypoint, let entrypointCmd = entrypointParts.first {
-            runArgs.append("--entrypoint")
-            runArgs.append(entrypointCmd)
-            // image follows flags
-            runArgs.append(imageToRun)
-            // append any remaining entrypoint args or command after image
-            if entrypointParts.count > 1 {
-                runArgs.append(contentsOf: entrypointParts.dropFirst())
-            } else if let commandParts = service.command {
-                runArgs.append(contentsOf: commandParts)
-            }
-        } else {
-            runArgs.append(imageToRun)
-            if let commandParts = service.command {
-                runArgs.append(contentsOf: commandParts)
-            }
-        }
+    let imageToRun = image ?? service.image ?? "\(serviceName):latest"
+    if let entrypointParts = service.entrypoint, !entrypointParts.isEmpty {
+      // Join entrypoint parts with space, preserving the command structure
+      // e.g., ["/bin/bash", "-lc"] becomes "/bin/bash -lc"
+      let entrypointString = entrypointParts.joined(separator: " ")
+      runArgs.append("--entrypoint")
+      runArgs.append(entrypointString)
+      // image follows flags
+      runArgs.append(imageToRun)
+      // append command after image (entrypoint handles the shell execution)
+      if let commandParts = service.command {
+        runArgs.append(contentsOf: commandParts)
+      }
+    } else {
+      runArgs.append(imageToRun)
+      if let commandParts = service.command {
+        runArgs.append(contentsOf: commandParts)
+      }
+    }
 
         return runArgs
     }

@@ -170,6 +170,10 @@ public actor NetworkTrace {
 extension NetworkTrace {
     /// Generate hex dump of data for debugging
     static func hexDump(_ data: Data, prefix: String = "") -> String {
+        if data.isEmpty {
+            return "(empty)"
+        }
+        
         var output = prefix.isEmpty ? "" : "\(prefix)\n"
         
         let bytes = data.map { String(format: "%02x", $0) }

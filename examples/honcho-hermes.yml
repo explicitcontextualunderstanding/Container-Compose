@@ -3,11 +3,14 @@
 # 
 # IMPORTANT: This is a USER compose file, not part of Container-Compose.
 # Container-Compose is a generic orchestration tool that reads YOUR compose files.
+# 
+# Note: Replace example images with your own registry images.
+# These are placeholder images for demonstration purposes.
 
 services:
   # PostgreSQL with WAL-G backup
   honcho-db:
-    image: registry.rossollc.com/walg-db:vsock
+    image: postgres:15-alpine
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_DB=honcho
@@ -22,7 +25,7 @@ services:
 
   # Honcho Hub - Session management
   honcho-hub:
-    image: registry.rossollc.com/honcho-hub:latest
+    image: nginx:alpine
     environment:
       - DATABASE_URL=vsock://honcho-db:5432/honcho
     depends_on:
@@ -36,7 +39,7 @@ services:
 
   # Hermes Agent - AI inference agent
   hermes-agent:
-    image: registry.rossollc.com/hermes:v26
+    image: alpine:latest
     environment:
       - HONCHO_HUB_URL=vsock://honcho-hub:5002
       - CODE_GRAPH_URL=vsock://code-graph:5001
@@ -52,7 +55,7 @@ services:
 
   # Code Graph - Knowledge management
   code-graph:
-    image: registry.rossollc.com/code-graph:latest
+    image: redis:alpine
     environment:
       - POSTGRES_URL=vsock://honcho-db:5432/codegraph
     depends_on:

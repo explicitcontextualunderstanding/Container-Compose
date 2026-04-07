@@ -635,11 +635,11 @@ final class ComposeUpMappingTests: XCTestCase {
  }
  
  let yaml = """
- services:
- app:
- image: 192.168.1.86:30500/myimage:latest
- scheme: https
- """
+        services:
+          app:
+            image: 192.168.1.86:30500/myimage:latest
+            scheme: https
+        """
  let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
  guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
 
@@ -657,11 +657,11 @@ final class ComposeUpMappingTests: XCTestCase {
  }
  
  let yaml = """
- services:
- app:
- image: registry.local:5000/myimage:latest
- scheme: http
- """
+        services:
+          app:
+            image: registry.local:5000/myimage:latest
+            scheme: http
+        """
  let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
  guard let service = dockerCompose.services["app"] ?? nil else { return XCTFail("Service 'app' missing") }
 
