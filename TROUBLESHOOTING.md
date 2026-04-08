@@ -109,3 +109,58 @@ container-compose up -f honcho-stack-legacy.yml -d
 1. **CID Discovery:** Not implemented - uses default CID 2
 2. **Pure vSock Path:** Not implemented - uses "Ambient" path via Virtio-FS
 3. **Performance:** Ambient path has higher metadata overhead than pure vsock
+## Runtime Validation Checklist
+
+### Phase 5: Socket-First Startup Validation
+
+#### Pre-deployment
+- [ ] Ensure Plan 85 build errors are fixed
+- [ ] Backup existing database if needed
+
+#### Deployment
+- [ ] Deploy with new YAML: `container-compose up -d`
+- [ ] Verify honcho-db container starts
+
+#### Post-deployment (Host side)
+```bash
+# Check socket appears in Virtio-FS volume
+ls -la ~/.containers/Volumes/apple-honcho/honcho-db-sockets/
+
+# Should show: .s.PGSQL.5432
+```
+
+#### Post-deployment (Container side)
+```bash
+# Verify PostgreSQL created socket in correct location
+container exec apple-honcho-honcho-db ls -la /var/run/postgresql/sockets/
+
+# Verify PostgreSQL is listening
+container exec apple-honcho-honcho-db pg_isready
+```
+
+#### Database Connectivity Test
+```bash
+# From host, test connection via relay
+psql -h localhost -p 5432 -U postgres -d honcho -c "SELECT 1;"
+
+# Should return: ?column? = 1
+```
+
+#### Startup Time Measurement
+```bash
+# Time the deployment
+time container-compose up -d
+
+# Target: < 5 seconds (vs 30s timeout with socat)
+```
+
+### Phase 6: Remove socat Workaround
+
+#### Prerequisites
+- [ ] Phase 5 validation passes
+- [ ] Plan 85 security gating integrated (optional)
+
+#### Execution
+- [ ] Remove socat from base image Dockerfile
+- [ ] Update documentation
+- [ ] Archive socat workaround notes
