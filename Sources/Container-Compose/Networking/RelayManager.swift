@@ -175,7 +175,7 @@ enum RelayError: Error, CustomStringConvertible {
 
 /// Enables container-to-container communication via host-mediated socket relay
 actor RelayManager {
-    private var relays: [String: SocketRelay] = [:]
+    private var relays: [String: any RelayProtocol] = [:]
     private let eventLog: RelayEventLog
     private let logger = Logger(subsystem: "com.container-compose.relay", category: "RelayManager")
 
@@ -226,19 +226,39 @@ actor RelayManager {
             throw RelayError.alreadyRunning(config.id)
         }
 
-        logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → UNIX:\(config.unixSocketPath)")
-
-        let relay = try await SocketRelay(
-            tcpPort: config.tcpPort,
-            unixPath: config.unixSocketPath,
-            eventLog: eventLog
-        )
-
-        relays[config.id] = relay
-        try await relay.start()
-
-        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: config.unixSocketPath))
-        logger.info("Relay \(config.id) started successfully")
+        // Route to appropriate relay implementation based on transport type
+        switch config.transport {
+        case .vsock(let cid, let port):
+            logger.info("Starting VSOCK relay \(config.id): TCP:\(config.tcpPort) → vsock:\(cid):\(port)")
+            
+            let relay = try VsockRelay(
+                cid: cid,
+                port: port,
+                unixSocketPath: config.unixSocketPath,
+                eventLog: eventLog
+            )
+            
+            relays[config.id] = relay
+            try await relay.start()
+            
+            await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock:\(cid):\(port)"))
+            logger.info("VSOCK relay \(config.id) started successfully")
+            
+        case .unixSocket, .tcp:
+            logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → UNIX:\(config.unixSocketPath)")
+            
+            let relay = try await SocketRelay(
+                tcpPort: config.tcpPort,
+                unixPath: config.unixSocketPath,
+                eventLog: eventLog
+            )
+            
+            relays[config.id] = relay
+            try await relay.start()
+            
+            await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: config.unixSocketPath))
+            logger.info("Relay \(config.id) started successfully")
+        }
     }
 
     /// Stop a specific relay by ID
