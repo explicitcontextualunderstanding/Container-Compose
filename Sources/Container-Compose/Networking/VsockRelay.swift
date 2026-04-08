@@ -47,17 +47,18 @@ private let SUNPATH_MAX = 104
 /// - Host (macOS) creates an AF_VSOCK socket
 /// - Guest VMs connect to the host using vsock protocol
 /// - This relay bridges vsock connections to Unix sockets for container communication
-final actor VsockRelay: RelayProtocol {
-    let transportType: RelayTransport
-    var isRunning: Bool { isRunningValue }
-    var activeConnectionCount: Int { activeConnectionCountValue }
+public final actor VsockRelay: RelayProtocol {
+    public let transportType: RelayTransport
+    public var isRunning: Bool { isRunningValue }
+    public var activeConnectionCount: Int { activeConnectionCountValue }
+    public var unixSocketPath: String { unixSocketPathValue }
 
     private var isRunningValue = false
     private var activeConnectionCountValue = 0
 
     private let cid: UInt32
     private let port: UInt32
-    private let unixSocketPath: String
+    private let unixSocketPathValue: String
     private let eventLog: RelayEventLog
     private let cidVerifier: CIDVerifier
     private let logger: Logger
@@ -86,7 +87,7 @@ final actor VsockRelay: RelayProtocol {
 
         self.cid = cid == VMADDR_CID_ANY ? VMADDR_CID_ANY : cid
         self.port = port
-        self.unixSocketPath = unixSocketPath
+        self.unixSocketPathValue = unixSocketPath
         self.eventLog = eventLog
         self.cidVerifier = CIDVerifier(allowedCIDs: allowedCIDs.isEmpty ? [VMADDR_CID_ANY] : allowedCIDs)
         self.transportType = .vsock(cid: cid, port: port)
@@ -96,7 +97,7 @@ final actor VsockRelay: RelayProtocol {
     }
 
 /// Start listening for vsock connections
-func start() async throws {
+    public func start() async throws {
     guard !isRunningValue else {
         throw RelayError.alreadyRunning("vsock-\(port)")
     }
@@ -151,7 +152,7 @@ self.isRunningValue = true
     }
 
 /// Stop the relay and clean up resources
-func stop() async {
+    public func stop() async {
     guard isRunningValue else { return }
 
         logger.info("Stopping vsock relay on port \(self.port)")
