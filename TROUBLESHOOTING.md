@@ -214,3 +214,133 @@ container-compose logs honcho-db | grep -E "(socket|relay|started)"
 ### Current Limitation
 
 The 60s timeout was chosen conservatively. If PostgreSQL takes longer to initialize (cold start, large database), the relay will wait up to 60 seconds before failing.
+
+---
+
+## Phase 3.5: Production Volume Runtime Testing
+
+### Overview
+Production volumes at `~/.containers/Volumes/` can be leveraged for runtime validation tests instead of temporary CCT_* test volumes. This provides more realistic testing against actual container runtime behavior.
+
+### Production Volumes Available
+- `~/.containers/Volumes/apple-honcho/honcho-db-data/` - Existing production database volume
+- `~/.containers/Volumes/apple/` - General production volumes
+- `~/.containers/Volumes/_devcontainer/` - Development container volumes
+
+### Test Implementation
+**Test File**: `Tests/Container-Compose-DynamicTests/ProductionVolumeDynamicTests.swift`
+
+**Test Coverage**:
+1. `testSocketCreationInProductionVolume()` - VsockRelay socket creation in real volumes
+2. `testVirtioFsSocketForwarding()` - Bidirectional communication validation
+3. `testVolumeSocketPathDetection()` - isVolumeSocket detection with production paths
+4. `testSocketPersistenceAcrossRelayRestart()` - Socket survival across restarts
+5. `testProductionVolumeStructure()` - Volume structure verification
+6. `testSocketPathPermissions()` - Permission validation in production volumes
+
+### Execution
+```bash
+# Run production volume tests
+swift test --filter ProductionVolumeDynamicTests
+```
+
+### Benefits
+- Tests run against real production volumes, not temporary CCT_* test volumes
+- Validates actual Virtio-FS behavior with container runtime
+- No need to wait for YAML deployment to test socket forwarding
+- Uses existing test infrastructure (ComposeUpDynamicTests pattern)
+
+---
+
+## Phase 5: Deployment Validation
+
+### Overview
+Automated deployment validation script that tests prerequisites, YAML configuration, startup time, and socket creation.
+
+### Test File
+`Tests/test_deployment_validation.sh`
+
+### Test Coverage
+1. **Prerequisites** - container-compose binary, production volumes
+2. **YAML Configuration** - x-apple-relays, socket_path validation
+3. **Startup Time** - Target < 5 seconds measurement
+4. **Socket Creation** - Virtio-FS volume socket creation
+5. **Virtio-FS Detection** - Path detection validation
+6. **Relay Configuration** - VsockRelay and RelayManager verification
+7. **Production Volumes** - Volume existence checks
+
+### Execution
+```bash
+# Run deployment validation
+cd Tests && ./test_deployment_validation.sh
+
+# Output includes:
+# - Colored logging with timestamps
+# - Detailed pass/fail results
+# - Log file: logs/deployment_validation_YYYYMMDD_HHMMSS.log
+```
+
+### Success Criteria
+- Startup time < 5 seconds (vs 30s with socat)
+- Socket visible in Virtio-FS mount
+- All prerequisite checks pass
+- YAML configuration validates
+
+---
+
+## Phase 5.5: Database Connectivity Integration Tests
+
+### Overview
+Integration tests for actual database connectivity through vsock relay, including query execution, connection pooling, and transaction handling.
+
+### Test File
+`Tests/Container-Compose-DynamicTests/DatabaseConnectivityIntegrationTests.swift`
+
+### Test Coverage
+1. `testPostgresConnectionViaVsockRelay()` - Direct connection test
+2. `testQueryExecution()` - SELECT, INSERT, UPDATE, DROP operations
+3. `testConnectionPooling()` - Multiple concurrent connections (5)
+4. `testTransactionHandling()` - BEGIN, COMMIT, ROLLBACK
+5. `testLargeResultSet()` - Performance with 100 rows
+6. `testConnectionResilience()` - Connection through relay restarts
+
+### Mock Implementation
+Tests use `MockDatabaseConnection` actor that simulates PostgreSQL client behavior without requiring actual database.
+
+### Execution
+```bash
+# Run database connectivity tests
+swift test --filter DatabaseConnectivityIntegrationTests
+```
+
+### Key Features
+- Async/await patterns throughout
+- Connection timeout handling (10s)
+- Concurrent query testing with TaskGroup
+- Transaction rollback verification
+- Performance measurement for large result sets
+
+---
+
+## Test Execution Summary
+
+### Running All Tests
+```bash
+# Full test suite with cleanup
+./run-tests.sh --auto-clean
+
+# Static tests only (no container runtime)
+./run-tests.sh --static
+
+# Dynamic tests only (requires container runtime)
+./run-tests.sh --dynamic
+
+# Specific test class
+swift test --filter ProductionVolumeDynamicTests
+swift test --filter DatabaseConnectivityIntegrationTests
+```
+
+### Test Artifacts
+- Logs: `logs/test_run_YYYYMMDD_HHMMSS.log`
+- Reports: `Tests/TestReports/`
+- Deployment validation logs: `logs/deployment_validation_*.log`

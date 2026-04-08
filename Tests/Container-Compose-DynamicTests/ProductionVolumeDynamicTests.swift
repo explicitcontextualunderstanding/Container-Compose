@@ -9,7 +9,6 @@
 import XCTest
 import Foundation
 @testable import ContainerComposeCore
-import ContainerClient
 
 /// Dynamic tests for production volume validation (Plan 84 Phase 3.5)
 /// Task Owner: @mac-kilo-kim
