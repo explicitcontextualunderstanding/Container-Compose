@@ -242,7 +242,7 @@ public actor TCCRelayIntegration: Sendable {
 
     private func withTimeout<T: Sendable>(
         seconds: TimeInterval,
-        operation: @escaping () async -> T
+        operation: @Sendable @escaping () async -> T
     ) async throws -> T {
         try await withThrowingTaskGroup(of: T.self) { group in
             // Add the actual operation

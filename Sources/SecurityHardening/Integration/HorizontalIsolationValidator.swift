@@ -203,12 +203,12 @@ public actor HorizontalIsolationValidator: Sendable {
     /// - Returns: true if configuration is isolated, false if violation
     public func validateRelayConfiguration(_ config: RelayConfiguration) async -> Bool {
         // Check if relay type is allowed
-        guard configuration.allowedRelayTypes.contains(config.type) else {
+        guard configuration.allowedRelayTypes.contains(config.typeString) else {
             return false
         }
 
         // For vsock relays, validate CID isolation
-        if config.type == "vsock-db" || config.type.hasPrefix("vsock-") {
+        if config.type == .vsockDb || config.typeString.hasPrefix("vsock") {
             // CID 2 is host, should be the only target
             // Guests cannot be targets
             if let cid = extractCID(from: config) {
