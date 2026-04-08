@@ -227,8 +227,8 @@ actor RelayManager {
         }
 
 // Route to appropriate relay implementation based on transport type
-  switch config.transport {
-  case .vsock(let cid, let port):
+    switch config.transport {
+    case .vsock(let cid, let port, _):
     logger.info("Starting VSOCK relay \(config.id): TCP:\(config.tcpPort) → vsock:\(cid):\(port)")
 
     // Detect if socket path is in Virtio-FS volume (vsock-db type)
