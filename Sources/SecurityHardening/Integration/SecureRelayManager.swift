@@ -250,7 +250,7 @@ public actor SecureRelayManager: Sendable {
             details: "Gate: \(result.blockedBy?.description ?? "All"), Type: \(config.type), Passed: \(result.passed)"
         )
 
-        _ = try? await esf.log(
+        _ = try? await esf.logSecurityEvent(
             eventType: event.eventType,
             cid: event.cid,
             process: event.process,
