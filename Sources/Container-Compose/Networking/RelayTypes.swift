@@ -8,6 +8,7 @@ import Virtualization
 public enum RelayTransport: Hashable, Sendable, Codable {
     case unixSocket(path: String)
     case vsock(cid: UInt32, port: UInt32, unixSocketPath: String = "")
+    case vsockDb(socketPath: String)
     case tcp(host: String, port: UInt16)
     
     /// Human-readable description
@@ -19,6 +20,7 @@ public enum RelayTransport: Hashable, Sendable, Codable {
                 return "vsock:\(cid):\(port)"
             }
             return "vsock:\(cid):\(port):\(unixSocketPath)"
+        case .vsockDb(let socketPath): return "vsock-db:\(socketPath)"
         case .tcp(let host, let port): return "tcp:\(host):\(port)"
         }
     }
@@ -26,6 +28,7 @@ public enum RelayTransport: Hashable, Sendable, Codable {
     /// Simple transport type for YAML configuration (no associated values)
     public enum TransportType: String, Codable, Hashable {
         case vsock
+        case vsockDb
         case unix
         case tcp
     }
@@ -35,6 +38,7 @@ public enum RelayTransport: Hashable, Sendable, Codable {
         switch self {
         case .unixSocket: return .unix
         case .vsock: return .vsock
+        case .vsockDb: return .vsockDb
         case .tcp: return .tcp
         }
     }
@@ -47,6 +51,7 @@ public enum RelayTransport: Hashable, Sendable, Codable {
         case port
         case host
         case unixSocketPath
+        case socketPath
     }
     
     public init(from decoder: Decoder) throws {
@@ -62,6 +67,9 @@ public enum RelayTransport: Hashable, Sendable, Codable {
             let port = try container.decode(UInt32.self, forKey: .port)
             let unixSocketPath = try container.decodeIfPresent(String.self, forKey: .unixSocketPath) ?? ""
             self = .vsock(cid: cid, port: port, unixSocketPath: unixSocketPath)
+        case .vsockDb:
+            let socketPath = try container.decode(String.self, forKey: .socketPath)
+            self = .vsockDb(socketPath: socketPath)
         case .tcp:
             let host = try container.decode(String.self, forKey: .host)
             let port = try container.decode(UInt16.self, forKey: .port)
@@ -82,6 +90,8 @@ public enum RelayTransport: Hashable, Sendable, Codable {
             if !unixSocketPath.isEmpty {
                 try container.encode(unixSocketPath, forKey: .unixSocketPath)
             }
+        case .vsockDb(let socketPath):
+            try container.encode(socketPath, forKey: .socketPath)
         case .tcp(let host, let port):
             try container.encode(host, forKey: .host)
             try container.encode(port, forKey: .port)
