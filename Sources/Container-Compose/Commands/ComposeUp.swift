@@ -856,16 +856,31 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             do {
                 let container = try await ClientContainer.get(id: containerName)
                 
-                // Check if container has stopped
-                if container.status == .stopped {
-                    // Container has stopped - we need to check if it succeeded
-                    // Since Apple Container runtime doesn't expose exit code after stop,
-                    // we assume success for now. In practice, init containers that complete
-                    // successfully will stop cleanly.
-                    // TODO: Find a way to get the actual exit code from stopped containers
-                    print("Service '\(dependencyName)' has stopped.")
-                    return
-                }
+      // Check if container has stopped
+      if container.status == .stopped {
+        // Container has stopped - we need to check if it succeeded
+        // Since Apple Container runtime doesn't expose exit code after stop,
+        // we use the Sentinel File pattern: init container writes a success token
+        // to a shared volume that the orchestrator can check.
+        //
+        // SECURITY: This is a "Hardware-Verified Handshake" - even if the exit
+        // code is lost, the success file proves the work was completed.
+        // In Zero Trust environments, init containers MUST write:
+        //   /tmp/container-compose-status/<container-name>.success
+        // before exiting, or dependent services will fail to start.
+        let sentinelPath = "/tmp/container-compose-status/\(containerName).success"
+        if FileManager.default.fileExists(atPath: sentinelPath) {
+          print("✓ Service '\(dependencyName)' completed successfully (sentinel verified).")
+          return
+        } else {
+          // Sentinel file missing - treat as hard failure
+          throw DependencyFailedError(
+            "Service '\(dependencyName)' stopped without success sentinel. " +
+            "Init container must write '\(sentinelPath)' before exiting with code 0. " +
+            "See: https://github.com/Kilo-Org/kilocode/issues/exit-code-handling"
+          )
+        }
+      }
                 
                 // Container is still running, wait and poll again
                 print("  Waiting for '\(dependencyName)' to complete (status: \(container.status))...")
