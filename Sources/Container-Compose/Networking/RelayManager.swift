@@ -155,6 +155,8 @@ enum RelayError: Error, CustomStringConvertible {
     case timeout(String)
     case portInUse(UInt16)
     case networkError(Error)
+    // MARK: - Plan 85 Security Errors
+    case securityValidationFailed(gate: String, message: String)
 
     var description: String {
         switch self {
@@ -168,6 +170,8 @@ enum RelayError: Error, CustomStringConvertible {
             return "Port \(port) is already in use"
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
+        case .securityValidationFailed(let gate, let message):
+            return "Security gate '\(gate)' blocked relay: \(message)"
         }
     }
 }
@@ -180,8 +184,17 @@ actor RelayManager {
     private let eventLog: RelayEventLog
     private let logger = Logger(subsystem: "com.container-compose.relay", category: "RelayManager")
 
-    init(eventLog: RelayEventLog = RelayEventLog()) {
+    // MARK: - Security Integration (Plan 85)
+    /// Secure relay manager for TCC/AMFI/Isolation gating
+    private let secureManager: SecureRelayManager?
+
+    /// Initialize with optional security integration
+    /// - Parameters:
+    ///   - eventLog: Event logging for relay operations
+    ///   - enableSecurity: Enable Plan 85 security gates (default: true)
+    init(eventLog: RelayEventLog = RelayEventLog(), enableSecurity: Bool = true) {
         self.eventLog = eventLog
+        self.secureManager = enableSecurity ? SecureRelayManager(configuration: .production) : nil
     }
 
     /// Configuration for a socket relay
@@ -227,7 +240,20 @@ actor RelayManager {
             throw RelayError.alreadyRunning(config.id)
         }
 
-// Route to appropriate relay implementation based on transport type
+        // MARK: - Plan 85 Security Gates
+        // Validate TCC, AMFI, and Isolation before starting relay
+        if let secure = secureManager {
+            let securityResult = await secure.validateRelayStartup(config)
+            guard securityResult.passed else {
+                let gate = securityResult.blockedBy?.description ?? "Unknown"
+                let message = securityResult.errorMessage ?? "Security validation failed"
+                logger.error("Security gate '\(gate)' blocked relay \(config.id): \(message)")
+                throw RelayError.securityValidationFailed(gate: gate, message: message)
+            }
+            logger.info("Security gates passed for relay \(config.id)")
+        }
+
+        // Route to appropriate relay implementation based on transport type
     switch config.transport {
     case .vsock(let cid, let port, _):
     logger.info("Starting VSOCK relay \(config.id): TCP:\(config.tcpPort) → vsock:\(cid):\(port)")
