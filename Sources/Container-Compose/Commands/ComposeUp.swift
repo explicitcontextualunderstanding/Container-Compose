@@ -551,7 +551,14 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       // Determine the socket path based on transport type
       let hostSocketPath: String
       switch relay.transport {
-      case .vsock, .tcp:
+      case .vsock:
+          // Use specified socket path if provided (for vsock-db type), otherwise generate based on service name
+          if let socketPath = relay.socket {
+              hostSocketPath = socketPath
+          } else {
+              hostSocketPath = RelayConstants.socketPath(for: serviceName, project: projectName).path
+          }
+      case .tcp:
           // Generate socket path based on service name
           hostSocketPath = RelayConstants.socketPath(for: serviceName, project: projectName).path
       case .unix:
@@ -630,7 +637,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             cid: nil,  // CID will be resolved from target or use default
             target: relayConfig.target,
             port: relayConfig.port,
-            socket: nil
+            socket: relayConfig.socket_path  // Use socket_path for vsock-db type
         )
 
         // Delegate to existing declarative relay logic

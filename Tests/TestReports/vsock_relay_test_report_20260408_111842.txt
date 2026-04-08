@@ -1,0 +1,27 @@
+Vsock Native Relay Finalization - Test Report
+Generated: Wed Apr  8 11:18:42 PDT 2026
+Plan: 84-vsock-native-relay-finalization
+Version: 1.3.0
+
+
+Test Suite: Vsock Native Relay Finalization
+Plan ID: 84
+Workspace: /Users/kieranlal/workspace/Container-Compose
+
+
+## Virtio-FS UDS Forwarding Test
+Script: /Users/kieranlal/workspace/Container-Compose/Tests/test_virtio_fs_uds_forwarding.sh
+Started: Wed Apr  8 11:18:43 PDT 2026
+
+[0;32m[INFO][0m === Virtio-FS UDS Forwarding Test Suite ===
+[0;32m[INFO][0m Test socket: /tmp/virtio_fs_test.sock
+[0;32m[INFO][0m Test container: virtio-fs-test
+
+[0;32m[INFO][0m Test 1: Creating test container with Virtio-FS mount...
+[1;33m[WARN][0m Skipping container-based tests - container runtime not available
+[1;33m[SKIP][0m Container creation
+[1;33m[WARN][0m Virtio-FS UDS forwarding requires running container environment
+[0;32m[INFO][0m Cleaning up test artifacts...
+
+Result: PASS
+

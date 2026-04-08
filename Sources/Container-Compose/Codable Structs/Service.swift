@@ -116,11 +116,16 @@ public struct AppleRelayConfig: Codable, Hashable {
     /// Priority level (optional)
     public let priority: String?
     
-    public init(type: String, port: UInt32, target: String? = nil, priority: String? = nil) {
+    /// Socket path for Unix domain socket (optional, for vsock-db type)
+    /// Used to specify where PostgreSQL creates its socket in shared volume
+    public let socket_path: String?
+    
+    public init(type: String, port: UInt32, target: String? = nil, priority: String? = nil, socket_path: String? = nil) {
         self.type = type
         self.port = port
         self.target = target
         self.priority = priority
+        self.socket_path = socket_path
     }
 }
 
