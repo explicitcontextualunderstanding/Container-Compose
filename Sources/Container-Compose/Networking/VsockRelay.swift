@@ -95,7 +95,7 @@ self.cid = cid == VMADDR_CID_ANY ? VMADDR_CID_ANY : cid
   self.eventLog = eventLog
   self.cidVerifier = CIDVerifier(allowedCIDs: allowedCIDs.isEmpty ? [VMADDR_CID_ANY] : allowedCIDs)
   self.createSignalSocket = createSignalSocket
-  self.transportType = .vsock(cid: cid, port: port)
+  self.transportType = .vsock(cid: cid, port: port, unixSocketPath: "")
   self.logger = Logger(subsystem: "com.container-compose.relay", category: "VsockRelay-\(port)")
 
         logger.info("Initialized vsock relay: CID \(cid), Port \(port) → UNIX:\(unixSocketPath)")

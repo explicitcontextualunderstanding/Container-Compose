@@ -585,10 +585,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
   let relayId = "\(projectName ?? "")-\(serviceName)"
   let transport: RelayTransport
   switch relay.transport {
-  case .vsock:
-    // For vsock relay, use the target CID or default (CID 2 for Apple Containers)
-    let cid = targetCID ?? 2
-    transport = .vsock(cid: cid, port: UInt32(tcpPort))
+    case .vsock:
+      // For vsock relay, use the target CID or default (CID 2 for Apple Containers)
+      let cid = targetCID ?? 2
+      transport = .vsock(cid: cid, port: UInt32(tcpPort), unixSocketPath: hostSocketPath)
   case .tcp:
     transport = .tcp(host: "0.0.0.0", port: tcpPort)
   case .unix:

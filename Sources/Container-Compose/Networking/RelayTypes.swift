@@ -7,14 +7,18 @@ import Virtualization
 /// Used by both relay implementations and YAML configuration
 public enum RelayTransport: Hashable, Sendable, Codable {
     case unixSocket(path: String)
-    case vsock(cid: UInt32, port: UInt32)
+    case vsock(cid: UInt32, port: UInt32, unixSocketPath: String = "")
     case tcp(host: String, port: UInt16)
     
     /// Human-readable description
     public var description: String {
         switch self {
         case .unixSocket(let path): return "unix:\(path)"
-        case .vsock(let cid, let port): return "vsock:\(cid):\(port)"
+        case .vsock(let cid, let port, let unixSocketPath):
+            if unixSocketPath.isEmpty {
+                return "vsock:\(cid):\(port)"
+            }
+            return "vsock:\(cid):\(port):\(unixSocketPath)"
         case .tcp(let host, let port): return "tcp:\(host):\(port)"
         }
     }
@@ -42,6 +46,7 @@ public enum RelayTransport: Hashable, Sendable, Codable {
         case cid
         case port
         case host
+        case unixSocketPath
     }
     
     public init(from decoder: Decoder) throws {
@@ -55,7 +60,8 @@ public enum RelayTransport: Hashable, Sendable, Codable {
         case .vsock:
             let cid = try container.decode(UInt32.self, forKey: .cid)
             let port = try container.decode(UInt32.self, forKey: .port)
-            self = .vsock(cid: cid, port: port)
+            let unixSocketPath = try container.decodeIfPresent(String.self, forKey: .unixSocketPath) ?? ""
+            self = .vsock(cid: cid, port: port, unixSocketPath: unixSocketPath)
         case .tcp:
             let host = try container.decode(String.self, forKey: .host)
             let port = try container.decode(UInt16.self, forKey: .port)
@@ -70,9 +76,12 @@ public enum RelayTransport: Hashable, Sendable, Codable {
         switch self {
         case .unixSocket(let path):
             try container.encode(path, forKey: .path)
-        case .vsock(let cid, let port):
+        case .vsock(let cid, let port, let unixSocketPath):
             try container.encode(cid, forKey: .cid)
             try container.encode(port, forKey: .port)
+            if !unixSocketPath.isEmpty {
+                try container.encode(unixSocketPath, forKey: .unixSocketPath)
+            }
         case .tcp(let host, let port):
             try container.encode(host, forKey: .host)
             try container.encode(port, forKey: .port)
