@@ -201,24 +201,23 @@ public actor HorizontalIsolationValidator: Sendable {
     /// Called by RelayManager when creating relays
     /// - Parameter config: Relay configuration
     /// - Returns: true if configuration is isolated, false if violation
-    public func validateRelayConfiguration(_ config: RelayConfiguration) async -> Bool {
-        // Check if relay type is allowed
-        guard configuration.allowedRelayTypes.contains(String(describing: config.type)) else {
-            return false
-        }
-
-        // For vsock relays, validate CID isolation
-        let typeString = String(describing: config.type)
-        if typeString == "vsock-db" || typeString.hasPrefix("vsock-") {
-            // CID 2 is host, should be the only target
-            // Guests cannot be targets
-            if let cid = extractCID(from: config) {
-                return cid == 2 // Only host CID allowed as target
-            }
-        }
-
-        return true
+  public func validateRelayConfiguration(_ config: RelayConfigProviding) async -> Bool {
+    // Check if relay type is allowed
+    guard configuration.allowedRelayTypes.contains(config.relayType) else {
+      return false
     }
+
+    // For vsock relays, validate CID isolation
+    if config.relayType == "vsock-db" || config.relayType.hasPrefix("vsock-") {
+      // CID 2 is host, should be the only target
+      // Guests cannot be targets
+      if let cid = config.cid {
+        return cid == 2 // Only host CID allowed as target
+      }
+    }
+
+    return true
+  }
 
     /// Validates socket path for isolation
     /// Ensures socket paths don't bridge containers
