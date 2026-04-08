@@ -110,12 +110,27 @@ self.cid = cid == VMADDR_CID_ANY ? VMADDR_CID_ANY : cid
     // Phase 82 Fix: Create Unix socket file BEFORE vsock socket
     // The orchestrator waits for this socket file via waitForSocket()
     // This transforms VsockRelay from Passive Bridge to Active Infrastructure Provider
-    // Skip for vsock-db type where PostgreSQL creates the socket in Virtio-FS volume
-    if createSignalSocket {
-      try createUnixSocketListener()
+// Skip for vsock-db type where PostgreSQL creates the socket in Virtio-FS volume
+  if createSignalSocket {
+    try createUnixSocketListener()
+  } else {
+    // Wait for PostgreSQL socket in Virtio-FS volume
+    logger.info("Waiting for PostgreSQL socket at \(self.unixSocketPath)")
+    let startTime = Date()
+    while Date().timeIntervalSince(startTime) < 60 {
+      var isDir: ObjCBool = false
+      if FileManager.default.fileExists(atPath: unixSocketPath, isDirectory: &isDir) {
+        var statBuf = stat()
+        if stat(unixSocketPath, &statBuf) == 0 && (statBuf.st_mode & S_IFMT) == S_IFSOCK {
+          logger.info("PostgreSQL socket found at \(self.unixSocketPath)")
+          break
+        }
+      }
+      try await Task.sleep(nanoseconds: 500_000_000)
     }
+  }
 
-    // Create vsock socket
+  // Create vsock socket
     let sock = socket(AF_VSOCK, SOCK_STREAM, 0)
     guard sock >= 0 else {
       throw VsockError.deviceUnavailable("Failed to create vsock socket: \(errno)")
