@@ -236,14 +236,29 @@ actor RelayManager {
             self.targetPID = targetPID
         }
 
-        /// Convenience accessor for Unix socket path (backward compatibility)
-        var unixSocketPath: String {
-            if case .unixSocket(let path) = transport {
-                return path
-            }
-            return ""
-        }
+  /// Convenience accessor for Unix socket path (backward compatibility)
+  var unixSocketPath: String {
+    if case .unixSocket(let path) = transport {
+      return path
     }
+    return ""
+  }
+
+  /// CID from vsock transport (for RelayConfigProviding)
+  var cid: UInt32? {
+    if case .vsock(let cid, _, _) = transport {
+      return cid
+    }
+    return nil
+  }
+}
+
+// MARK: - SecurityHardening Protocol Conformance
+
+extension RelayConfiguration: RelayConfigProviding {
+  public var relayId: String { id }
+  public var relayType: String { transport.transportType.rawValue }
+}
 
     /// Start a new relay with the given configuration
     /// - Throws: RelayError if the relay cannot be started
