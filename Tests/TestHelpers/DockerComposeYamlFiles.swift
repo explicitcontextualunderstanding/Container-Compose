@@ -422,7 +422,55 @@ public struct DockerComposeYamlFiles {
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         let projectName = tempBase.lastPathComponent
 
-        return TemporaryProject(url: tempLocation, base: tempBase, name: projectName)
-    }
+return TemporaryProject(url: tempLocation, base: tempBase, name: projectName)
+  }
 
+  // MARK: - Vsock Relay Test Fixtures (Plan 84)
+
+  /// Test fixture for vsock-db relay with socket_path configuration
+  public static let vsockDbRelayYaml = """
+    name: vsock-relay-test
+    services:
+      db:
+        image: postgres:15-alpine
+        environment:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        volumes:
+          - test-db-data:/var/lib/postgresql/data
+          - test-db-sockets:/var/run/postgresql/sockets
+        x-apple-relays:
+          - type: vsock-db
+            port: 5432
+            socket_path: /tmp/.container-compose-test/sockets/.s.PGSQL.5432
+        command:
+          - postgres
+          - -c
+          - unix_socket_directories=/var/run/postgresql/sockets
+          - -c
+          - listen_addresses=*
+    volumes:
+      test-db-data:
+      test-db-sockets:
+    """
+
+  /// Test fixture for vsock-db relay WITHOUT socket_path (backward compatibility)
+  public static let vsockDbRelayNoSocketPathYaml = """
+    name: vsock-relay-test-nopath
+    services:
+      db:
+        image: postgres:15-alpine
+        environment:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        x-apple-relays:
+          - type: vsock-db
+            port: 5432
+        command:
+          - postgres
+          - -c
+          - listen_addresses=*
+    """
 }
