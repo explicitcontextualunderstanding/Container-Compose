@@ -1,3 +1,0 @@
-{"details":"ESF client initialized, log path: Optional(\"\/var\/folders\/1s\/1zg1gfbn3j79qw5g2fqsf9q00000gn\/T\/ESFClientTests-E21EE3EF-316D-486F-A2DB-CD86435180C3\")\/test-security.log","eventType":"ESF_CLIENT_INIT","process":"xctest","timestamp":"2026-04-08T23:03:54Z"}
-{"cid":3,"details":"VM started","eventType":"ES_EVENT_TYPE_NOTIFY_VM_START","process":"container-compose","timestamp":"2026-04-08T23:03:54Z"}
-{"details":"ESF client shutting down","eventType":"ESF_CLIENT_SHUTDOWN","process":"xctest","timestamp":"2026-04-08T23:03:54Z"}
