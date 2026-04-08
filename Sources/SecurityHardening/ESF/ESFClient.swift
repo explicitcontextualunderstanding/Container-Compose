@@ -102,19 +102,25 @@ public actor ESFClient: Sendable {
     public func initialize() async throws {
         // Create log directory if needed
         let logDir = (configuration.logPath as NSString).deletingLastPathComponent
-        try FileManager.default.createDirectory(
-            atPath: logDir,
-            withIntermediateDirectories: true,
-            attributes: [.posixPermissions: 0o700] // Owner rwx only
-        )
+
+        if !FileManager.default.fileExists(atPath: logDir) {
+            try FileManager.default.createDirectory(
+                atPath: logDir,
+                withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700] // Owner rwx only
+            )
+        }
 
         // Create or open log file
         if !FileManager.default.fileExists(atPath: configuration.logPath) {
-            FileManager.default.createFile(
+            let created = FileManager.default.createFile(
                 atPath: configuration.logPath,
                 contents: nil,
                 attributes: [.posixPermissions: 0o600] // Owner rw only
             )
+            guard created else {
+                throw ESFError.logFileCreationFailed
+            }
         }
 
         guard let handle = FileHandle(forWritingAtPath: configuration.logPath) else {
@@ -180,6 +186,7 @@ public actor ESFClient: Sendable {
         }
 
         handle.write(data)
+        handle.synchronizeFile() // Ensure data is written before reading
 
         // Check rotation
         try await checkRotation()
