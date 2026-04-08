@@ -164,3 +164,53 @@ time container-compose up -d
 - [ ] Remove socat from base image Dockerfile
 - [ ] Update documentation
 - [ ] Archive socat workaround notes
+
+## Startup Time Analysis
+
+### Current Implementation
+
+**VsockRelay.swift lines 117-131:**
+```swift
+// Wait for PostgreSQL socket in Virtio-FS volume
+let startTime = Date()
+while Date().timeIntervalSince(startTime) < 60 {  // 60s timeout
+  // Poll every 500ms for socket file
+  try await Task.sleep(nanoseconds: 500_000_000)
+}
+```
+
+### Expected Timing
+
+| Phase | Estimated Time |
+|-------|---------------|
+| Container start | 2-5 seconds |
+| PostgreSQL init | 3-10 seconds |
+| Socket creation | < 1 second |
+| Relay start | < 1 second |
+| **Total** | **~10-15 seconds** |
+
+### Target vs Actual
+
+- **Target**: < 5 seconds (Plan 84 objective)
+- **With socat**: ~30 seconds (previous timeout)
+- **Expected with native relay**: ~10-15 seconds
+
+### Measuring Startup Time
+
+```bash
+# Time the full deployment
+time container-compose up -d
+
+# Check relay logs for timing
+container-compose logs honcho-db | grep -E "(socket|relay|started)"
+```
+
+### Optimization Opportunities
+
+1. **Reduce timeout**: Currently 60s, could be 30s if PostgreSQL starts faster
+2. **Faster polling**: 500ms could be reduced to 100ms for faster failure detection
+3. **Health check integration**: Use PostgreSQL healthcheck instead of socket polling
+
+### Current Limitation
+
+The 60s timeout was chosen conservatively. If PostgreSQL takes longer to initialize (cold start, large database), the relay will wait up to 60 seconds before failing.
