@@ -288,21 +288,39 @@ actor RelayManager {
     await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock:\(cid):\(port)"))
     logger.info("VSOCK relay \(config.id) started successfully")
             
-        case .unixSocket, .tcp:
-            logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → UNIX:\(config.unixSocketPath)")
-            
-            let relay = try await SocketRelay(
-                tcpPort: config.tcpPort,
-                unixPath: config.unixSocketPath,
-                eventLog: eventLog
-            )
-            
-            relays[config.id] = relay
-            try await relay.start()
-            
-            await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: config.unixSocketPath))
-            logger.info("Relay \(config.id) started successfully")
-        }
+  case .unixSocket, .tcp:
+    logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → UNIX:\(config.unixSocketPath)")
+
+    let relay = try await SocketRelay(
+      tcpPort: config.tcpPort,
+      unixPath: config.unixSocketPath,
+      eventLog: eventLog
+    )
+
+    relays[config.id] = relay
+    try await relay.start()
+
+    await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: config.unixSocketPath))
+    logger.info("Relay \(config.id) started successfully")
+
+  case .vsockDb(let socketPath):
+    // vsockDb is a special case - PostgreSQL creates socket in Virtio-FS
+    logger.info("Starting VSOCK-DB relay \(config.id): TCP:\(config.tcpPort) → vsock-db:\(socketPath)")
+
+    let relay = try VsockRelay(
+      cid: 2, // Host CID
+      port: UInt32(config.tcpPort),
+      unixSocketPath: socketPath,
+      createSignalSocket: false, // PostgreSQL creates the socket
+      eventLog: eventLog
+    )
+
+    relays[config.id] = relay
+    try await relay.start()
+
+    await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock-db:\(socketPath)"))
+    logger.info("VSOCK-DB relay \(config.id) started successfully")
+  }
     }
 
     /// Stop a specific relay by ID
