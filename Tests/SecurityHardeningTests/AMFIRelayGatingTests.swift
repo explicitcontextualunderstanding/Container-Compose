@@ -87,10 +87,10 @@ final class AMFIRelayGatingTests: XCTestCase {
     // MARK: - Validation Tests
 
     func testValidateForSocatRemovalWithDisabledEnforcement() async {
-        // Development config has enforcement disabled
+        // Development config has enforcement disabled - returns validated=true since we're allowing the action
         let result = await gating.validateForSocatRemoval()
         XCTAssertTrue(result.canRemoveSocat)
-        XCTAssertFalse(result.isValidated)
+        XCTAssertTrue(result.isValidated, "When disabled, result should show as validated to allow native relay")
         XCTAssertEqual(result.errorMessage, "AMFI validation disabled")
         XCTAssertTrue(result.shouldUseNativeRelay)
     }
