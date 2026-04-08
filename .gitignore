@@ -14,3 +14,11 @@ ops.env
 # Test logs
 logs/
 Container-Compose.entitlements.plist
+
+# ESFClient temp test files
+"Optional("
+*.log
+*.log.1
+*.log.2
+*.log.3
+
