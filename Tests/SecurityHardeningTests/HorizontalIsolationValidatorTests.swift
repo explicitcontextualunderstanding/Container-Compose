@@ -209,16 +209,17 @@ final class HorizontalIsolationValidatorTests: XCTestCase {
         XCTAssertTrue(isIsolated)
     }
 
-    func testValidatorIsSendable() async {
-        let testValidator = HorizontalIsolationValidator(configuration: .development)
+func testValidatorIsSendable() async {
+    let testValidator = HorizontalIsolationValidator(configuration: .development)
+    _ = await testValidator.validateContainerCommunication(sourceCID: 3, targetCID: 2, port: 5432)
 
-        let task = Task {
-            return await testValidator.isolationPassed()
-        }
-
-        let passed = await task.value
-        XCTAssertTrue(passed)
+    let task = Task {
+        return await testValidator.isolationPassed()
     }
+
+    let passed = await task.value
+    XCTAssertTrue(passed)
+}
 
     // MARK: - Security Container Compliance Tests
 

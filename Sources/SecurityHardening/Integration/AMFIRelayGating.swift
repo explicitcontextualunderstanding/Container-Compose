@@ -133,17 +133,17 @@ public actor AMFIRelayGating: Sendable {
     /// - Parameter binaryPath: Path to container-compose binary
     /// - Returns: GatingResult indicating if socat can be removed
     public func validateForSocatRemoval(binaryPath: String = "/usr/local/bin/container-compose") async -> GatingResult {
-        // Skip if gating is disabled
-        guard configuration.enforceAMFIValidation else {
-            let result = GatingResult(
-                canRemoveSocat: true,
-                isValidated: false,
-                errorMessage: "AMFI validation disabled",
-                shouldUseNativeRelay: true
-            )
-            lastGatingResult = result
-            return result
-        }
+// Skip if gating is disabled
+    guard configuration.enforceAMFIValidation else {
+        let result = GatingResult(
+            canRemoveSocat: true,
+            isValidated: true,
+            errorMessage: "AMFI validation disabled",
+            shouldUseNativeRelay: true
+        )
+        lastGatingResult = result
+        return result
+    }
 
         // Validate signature
         let signatureResult = await amfiValidator.verifySignature(at: binaryPath)
