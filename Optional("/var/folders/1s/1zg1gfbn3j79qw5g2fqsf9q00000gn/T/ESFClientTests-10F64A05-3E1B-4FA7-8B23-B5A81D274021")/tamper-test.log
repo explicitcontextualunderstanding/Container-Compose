@@ -1,2 +1,0 @@
-{"details":"ESF client initialized, log path: Optional(\"\/var\/folders\/1s\/1zg1gfbn3j79qw5g2fqsf9q00000gn\/T\/ESFClientTests-10F64A05-3E1B-4FA7-8B23-B5A81D274021\")\/tamper-test.log","eventType":"ESF_CLIENT_INIT","process":"xctest","timestamp":"2026-04-08T23:21:37Z"}
-{"details":"ESF client shutting down","eventType":"ESF_CLIENT_SHUTDOWN","process":"xctest","timestamp":"2026-04-08T23:21:37Z"}
