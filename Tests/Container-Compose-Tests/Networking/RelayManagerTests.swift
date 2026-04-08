@@ -964,11 +964,10 @@ final class CIDVerifierTests: XCTestCase {
         }
     }
 
-    func testSingletonAllowedCIDs() {
-        let verifier = CIDVerifier(allowedCIDs: [5])
-        XCTAssertTrue(verifier.verify(cid: 5), "Should accept CID 5")
-        XCTAssertFalse(verifier.verify(cid: 3), "Should reject CID 3")
-        XCTAssertFalse(verifier.verify(cid: 4), "Should reject CID 4")
-    }
-}
+func testSingletonAllowedCIDs() {
+    let verifier = CIDVerifier(allowedCIDs: [5])
+    XCTAssertTrue(verifier.verify(cid: 5), "Should accept CID 5")
+    XCTAssertFalse(verifier.verify(cid: 3), "Should reject CID 3")
+    XCTAssertFalse(verifier.verify(cid: 4), "Should reject CID 4")
+  }
 }
