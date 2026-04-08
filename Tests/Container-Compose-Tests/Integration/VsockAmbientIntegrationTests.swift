@@ -256,32 +256,38 @@ final class VsockAmbientIntegrationTests: XCTestCase {
         XCTAssertEqual(loadedRelays.count, 0, "Should load 0 relays for plain service")
     }
 
-    /// Tests that multiple x-apple-relays on same service are all loaded
-    func testServiceWithMultipleRelays() throws {
-        let yamlString = """
-        services:
-          hermes:
-            image: hermes:v26
-            x-apple-relays:
-              - type: "vsock-log-stream"
-                port: 5001
-              - type: "vsock-mcp-bridge"
-                port: 5002
-              - type: "vsock-ane-embedding"
-                port: 6000
-        """
+  /// Tests that multiple x-apple-relays on same service are all loaded
+  func testServiceWithMultipleRelays() throws {
+    let yamlString = """
+      services:
+        hermes:
+          image: hermes:v26
+          x-apple-relays:
+          - type: "vsock-log-stream"
+            port: 5001
+            target: "code-graph"
+          - type: "vsock-mcp-bridge"
+            port: 5002
+            target: "honcho-hub"
+          - type: "vsock-ane-embedding"
+            port: 6000
+        code-graph:
+          image: codegraph:latest
+        honcho-hub:
+          image: honcho:latest
+      """
 
-        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
-        let loader = RelayConfigurationLoader()
+    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+    let loader = RelayConfigurationLoader()
 
-        let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { name, service in
-            guard let service = service else { return nil }
-            return (name, service)
-        }
-
-        let loadedRelays = try loader.loadRelays(from: services)
-
-        XCTAssertEqual(loadedRelays.count, 3, "Should load 3 relays")
-        XCTAssertEqual(Set(loadedRelays.map { $0.port }), Set([5001, 5002, 6000]))
+    let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { name, service in
+      guard let service = service else { return nil }
+      return (name, service)
     }
+
+    let loadedRelays = try loader.loadRelays(from: services)
+
+    XCTAssertEqual(loadedRelays.count, 3, "Should load 3 relays")
+    XCTAssertEqual(Set(loadedRelays.map { $0.port }), Set([5001, 5002, 6000]))
+  }
 }
