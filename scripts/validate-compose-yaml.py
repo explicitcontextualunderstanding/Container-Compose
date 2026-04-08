@@ -7,21 +7,30 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from io import StringIO
 
+
 def check_hardcoded_ips(content: str, file_path: Path, allow_patterns: list[str] | None = None) -> list[str]:
     """Check for hardcoded IP addresses in YAML content (Plan 82 Phase 3).
     
-    Note: Some hardcoded IPs are intentional and allowed:
-    - 192.168.1.118 (Mac host LAN IP for K3s/1Password bridges)
-    - HOST_LAN_IP environment variable defaults
+    Categorizes IPs by severity:
+    - BLOCK: Container-internal service communication (must use localhost)
+    - WARN: Host-side bridge configuration (intentional external connectivity)
     
-    These should be reviewed manually, not auto-fixed.
+    Container-internal (BLOCK):
+    - DATABASE_URL, DB_CONNECTION_URI (should use localhost:5432)
+    - Service-to-service communication
+    
+    Host-side (WARN - intentional):
+    - HOST_LAN_IP environment variable
+    - OP_CONNECT_HOST (1Password Connect)
+    - K3s API ports (6444, 6445)
+    - Port 31307 (1Password Connect)
     
     Args:
         content: YAML file content as string
         file_path: Path for error reporting
         
     Returns:
-        List of error messages for hardcoded IPs found
+        List of error messages for hardcoded IPs found (categorized by severity)
     """
     errors = []
     lines = content.split('\n')
@@ -34,6 +43,26 @@ def check_hardcoded_ips(content: str, file_path: Path, allow_patterns: list[str]
         (r'10\.\d+\.\d+\.\d+', '10.x.x.x (private network)'),
         # 172.16-31.x.x (private network)
         (r'172\.(1[6-9]|2\d|3[01])\.\d+\.\d+', '172.16-31.x.x (private network)'),
+    ]
+    
+    # Context patterns that indicate host-side (intentional) usage
+    host_side_patterns = [
+        r'HOST_LAN_IP',
+        r'OP_CONNECT_HOST',
+        r':6444',  # K3s API nano1
+        r':6445',  # K3s API nano2
+        r':31307', # 1Password Connect
+        r'kubeconfig',
+        r'kubectl',
+    ]
+    
+    # Context patterns that indicate container-internal (should be localhost)
+    container_internal_patterns = [
+        r'DATABASE_URL',
+        r'DB_CONNECTION_URI',
+        r'POSTGRES',
+        r':5432',  # PostgreSQL
+        r':8000',  # Honcho Hub (if not using vsock)
     ]
     
     for line_num, line in enumerate(lines, start=1):
@@ -49,14 +78,34 @@ def check_hardcoded_ips(content: str, file_path: Path, allow_patterns: list[str]
                 ip = match.group()
                 if ip == '127.0.0.1' or ip.startswith('127.'):
                     continue
-                    
-                # Check context - is it in a DATABASE_URL or similar?
-                context = line[max(0, match.start() - 30):min(len(line), match.end() + 30)]
                 
-                errors.append(
-                    f"Line {line_num}: Hardcoded {ip_desc} IP '{ip}' "
-                    f"found in: {context!r}"
-                )
+                # Get wider context for classification
+                context_start = max(0, match.start() - 50)
+                context_end = min(len(line), match.end() + 50)
+                context = line[context_start:context_end]
+                
+                # Classify based on context
+                is_host_side = any(re.search(p, context, re.IGNORECASE) for p in host_side_patterns)
+                is_container_internal = any(re.search(p, context, re.IGNORECASE) for p in container_internal_patterns)
+                
+                if is_container_internal:
+                    # BLOCK: Container-internal should use localhost
+                    errors.append(
+                        f"[BLOCK] Line {line_num}: Container-internal {ip_desc} IP '{ip}' "
+                        f"should use localhost (Plan 82). Context: ...{context!r}..."
+                    )
+                elif is_host_side:
+                    # WARN: Host-side is intentional but should be reviewed
+                    errors.append(
+                        f"[WARN] Line {line_num}: Host-side {ip_desc} IP '{ip}' "
+                        f"(intentional: K3s/1P bridge). Context: ...{context!r}..."
+                    )
+                else:
+                    # Unknown context - flag for review
+                    errors.append(
+                        f"[REVIEW] Line {line_num}: Hardcoded {ip_desc} IP '{ip}' "
+                        f"(context unclear). Context: ...{context!r}..."
+                    )
     
     return errors
 
@@ -129,7 +178,7 @@ def validate_compose_yaml(file_path: Path, fix: bool = False, check_hardcoded_ip
                             # Validate relay type
                             relay_type = relay.get('type')
                             valid_types = [
-                                'vsock-db', 'vsock-mcp-bridge', 
+                                'vsock-db', 'vsock-mcp-bridge',
                                 'vsock-log-stream', 'vsock-ane-embedding',
                                 'vsock-generic'
                             ]
@@ -149,13 +198,13 @@ def validate_compose_yaml(file_path: Path, fix: bool = False, check_hardcoded_ip
                             f"(indentation error?)"
                         )
         
+        # Initialize indent_errors counter
+        indent_errors = 0
+        
         # 7. Re-serialize to check indentation
         stream = StringIO()
         yaml.dump(data, stream)
         fixed_content = stream.getvalue()
-        
-        # Initialize indent_errors counter
-        indent_errors = 0
         
         # 8. Compare: if content differs, indentation was wrong
         if content != fixed_content:
@@ -164,7 +213,6 @@ def validate_compose_yaml(file_path: Path, fix: bool = False, check_hardcoded_ip
             fixed_lines = fixed_content.split('\n')
             
             # Count indentation errors
-            indent_errors = 0
             for i, (orig, fixed) in enumerate(zip(original_lines, fixed_lines)):
                 if orig != fixed:
                     orig_stripped = orig.lstrip()
@@ -174,15 +222,15 @@ def validate_compose_yaml(file_path: Path, fix: bool = False, check_hardcoded_ip
                     if orig_stripped == fixed_stripped:
                         indent_errors += 1
             
-        if indent_errors > 0:
-            errors.append(
-                f"YAML has {indent_errors} indentation error(s) "
-                f"(run with --fix to auto-correct)"
-            )
-
+            if indent_errors > 0:
+                errors.append(
+                    f"YAML has {indent_errors} indentation error(s) "
+                    f"(run with --fix to auto-correct)"
+                )
+        
         if fix:
             file_path.write_text(fixed_content)
-
+        
         # Determine validity based on whether any errors exist (including IP errors)
         is_valid = len(errors) == 0
         return (is_valid, errors, fixed_content if fix else content)
@@ -191,6 +239,7 @@ def validate_compose_yaml(file_path: Path, fix: bool = False, check_hardcoded_ip
         errors.append(f"Parse error: {e}")
         return (False, errors, content)
 
+
 def print_validation_report(file_path: Path, is_valid: bool, errors: list[str]):
     """Print formatted validation report."""
     if is_valid:
@@ -198,7 +247,8 @@ def print_validation_report(file_path: Path, is_valid: bool, errors: list[str]):
     else:
         print(f"❌ {file_path.name}: Validation failed")
         for error in errors:
-            print(f"  • {error}")
+            print(f" • {error}")
+
 
 def main():
     import argparse
@@ -226,7 +276,7 @@ def main():
         action='store_true',
         help='Check for hardcoded IP addresses (Plan 82 Phase 3)'
     )
-
+    
     args = parser.parse_args()
     
     all_valid = True
@@ -240,8 +290,8 @@ def main():
             continue
         
         is_valid, errors, _ = validate_compose_yaml(
-            file_path, 
-            fix=args.fix, 
+            file_path,
+            fix=args.fix,
             check_hardcoded_ips_flag=args.check_hardcoded_ips
         )
         
@@ -259,6 +309,7 @@ def main():
         if not args.quiet:
             print("\n❌ Some files have errors")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())
