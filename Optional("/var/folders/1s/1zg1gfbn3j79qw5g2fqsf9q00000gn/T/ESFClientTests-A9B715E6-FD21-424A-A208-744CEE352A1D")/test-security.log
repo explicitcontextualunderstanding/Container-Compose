@@ -1,0 +1,3 @@
+{"details":"ESF client initialized, log path: Optional(\"\/var\/folders\/1s\/1zg1gfbn3j79qw5g2fqsf9q00000gn\/T\/ESFClientTests-A9B715E6-FD21-424A-A208-744CEE352A1D\")\/test-security.log","eventType":"ESF_CLIENT_INIT","process":"xctest","timestamp":"2026-04-08T23:21:36Z"}
+{"details":"Relay started: port=5432, transport=vsock","eventType":"RELAY_STARTED","process":"xctest","timestamp":"2026-04-08T23:21:36Z"}
+{"details":"ESF client shutting down","eventType":"ESF_CLIENT_SHUTDOWN","process":"xctest","timestamp":"2026-04-08T23:21:36Z"}
