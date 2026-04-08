@@ -126,8 +126,8 @@ public actor TCCRelayIntegration: Sendable {
         // Perform TCC check with timeout
         let status: TCCChecker.AuthorizationStatus
         do {
-            status = try await withTimeout(seconds: configuration.preflightTimeout) {
-                await tccChecker.checkHypervisorAuthorization()
+            status = try await withTimeout(seconds: configuration.preflightTimeout) { [self] in
+                await self.tccChecker.checkHypervisorAuthorization()
             }
         } catch {
             let result = PreflightResult(
@@ -240,7 +240,7 @@ public actor TCCRelayIntegration: Sendable {
         print("[SECURITY] Relay startup blocked: type=\(relayType), reason=\(reason)")
     }
 
-    private func withTimeout<T>(
+    private func withTimeout<T: Sendable>(
         seconds: TimeInterval,
         operation: @escaping () async -> T
     ) async throws -> T {
