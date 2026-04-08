@@ -1,0 +1,2 @@
+{"details":"ESF client initialized, log path: Optional(\"\/var\/folders\/1s\/1zg1gfbn3j79qw5g2fqsf9q00000gn\/T\/ESFClientTests-419B289F-E0C8-403D-B2FD-6E0F8948F0E6\")\/permissions-test.log","eventType":"ESF_CLIENT_INIT","process":"xctest","timestamp":"2026-04-08T22:58:37Z"}
+{"details":"ESF client shutting down","eventType":"ESF_CLIENT_SHUTDOWN","process":"xctest","timestamp":"2026-04-08T22:58:37Z"}
