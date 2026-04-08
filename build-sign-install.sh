@@ -153,12 +153,28 @@ mkdir -p "$(dirname "$TARGET")"
 cp "$BINARY_PATH" "$TARGET"
 chmod 755 "$TARGET"
 
-# Apply ad-hoc code signature (requires real Xcode codesign, not conda's shim)
+# Generate entitlements plist if missing
+ENTITLEMENTS_PLIST="$SCRIPT_DIR/Container-Compose.entitlements"
+if [ ! -f "$ENTITLEMENTS_PLIST" ]; then
+  echo "Creating entitlements plist with com.apple.security.hypervisor..."
+  cat > "$ENTITLEMENTS_PLIST" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.hypervisor</key>
+    <true/>
+</dict>
+</plist>
+EOF
+fi
+
+# Apply ad-hoc code signature with entitlements (requires real Xcode codesign, not conda's shim)
 # env-setup.sh above ensures conda's codesign shim is not in PATH
 echo ""
-echo "Signing binary..."
+echo "Signing binary (with hypervisor entitlement)..."
 if command -v codesign &> /dev/null; then
-  codesign --force --sign - "$TARGET" 2>/dev/null || {
+  codesign --force --sign - --entitlements "$ENTITLEMENTS_PLIST" "$TARGET" || {
     echo "Warning: codesign failed - container runtime may reject unsigned binary"
   }
 else

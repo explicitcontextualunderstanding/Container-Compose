@@ -13,3 +13,4 @@ ops.env
 
 # Test logs
 logs/
+Container-Compose.entitlements.plist
