@@ -1,4 +1,0 @@
-{"details":"ESF client initialized, log path: Optional(\"\/var\/folders\/1s\/1zg1gfbn3j79qw5g2fqsf9q00000gn\/T\/ESFClientTests-5EC04E96-F1BA-47DB-8F44-DB22BA6FCCFC\")\/test-security.log","eventType":"ESF_CLIENT_INIT","process":"xctest","timestamp":"2026-04-08T22:59:37Z"}
-{"cid":1,"details":"before-entry","eventType":"ES_EVENT_TYPE_NOTIFY_VM_START","process":"test-process","timestamp":"2026-04-08T22:59:37Z"}
-{"cid":2,"details":"after-entry","eventType":"ES_EVENT_TYPE_NOTIFY_VM_START","process":"test-process","timestamp":"2026-04-08T22:59:37Z"}
-{"details":"ESF client shutting down","eventType":"ESF_CLIENT_SHUTDOWN","process":"xctest","timestamp":"2026-04-08T22:59:37Z"}
