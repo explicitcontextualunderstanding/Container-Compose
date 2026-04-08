@@ -118,12 +118,12 @@ final class VsockAmbientIntegrationTests: XCTestCase {
         let eventLog = RelayEventLog()
         let relayManager = RelayManager(eventLog: eventLog)
 
-        let config = RelayManager.RelayConfiguration(
-            id: "test-vsock-relay",
-            tcpPort: 15432,
-            transport: .vsock(cid: 2, port: 5432),
-            description: "Test vsock relay"
-        )
+    let config = RelayManager.RelayConfiguration(
+      id: "test-vsock-relay",
+      tcpPort: 15432,
+      transport: .vsock(cid: 2, port: 5432, unixSocketPath: ""),
+      description: "Test vsock relay"
+    )
 
         do {
             try await relayManager.startRelay(config)
@@ -145,12 +145,12 @@ final class VsockAmbientIntegrationTests: XCTestCase {
         let eventLog = RelayEventLog()
         let relayManager = RelayManager(eventLog: eventLog)
 
-        let config = RelayManager.RelayConfiguration(
-            id: "db-relay",
-            tcpPort: 15433,
-            transport: .vsock(cid: 2, port: 5432),
-            description: "DB relay"
-        )
+    let config = RelayManager.RelayConfiguration(
+      id: "db-relay",
+      tcpPort: 15433,
+      transport: .vsock(cid: 2, port: 5432, unixSocketPath: ""),
+      description: "DB relay"
+    )
 
         do {
             try await relayManager.startRelay(config)
@@ -205,15 +205,15 @@ final class VsockAmbientIntegrationTests: XCTestCase {
         let eventLog = RelayEventLog()
         let relayManager = RelayManager(eventLog: eventLog)
 
-        let config = RelayManager.RelayConfiguration(
-            id: "integration-test-db",
-            tcpPort: UInt16(loadedRelays[0].port),
-            transport: .vsock(cid: 2, port: loadedRelays[0].port),
-            description: "Integration test relay"
-        )
+    let config = RelayManager.RelayConfiguration(
+      id: "integration-test-db",
+      tcpPort: UInt16(loadedRelays[0].port),
+      transport: .vsock(cid: 2, port: loadedRelays[0].port, unixSocketPath: ""),
+      description: "Integration test relay"
+    )
 
-        XCTAssertEqual(config.tcpPort, 15434)
-        if case .vsock(let cid, let port) = config.transport {
+    XCTAssertEqual(config.tcpPort, 15434)
+    if case .vsock(let cid, let port, _) = config.transport {
             XCTAssertEqual(cid, 2)
             XCTAssertEqual(port, 15434)
         } else {

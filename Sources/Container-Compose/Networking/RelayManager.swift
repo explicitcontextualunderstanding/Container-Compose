@@ -2,6 +2,7 @@ import Darwin // For pid_t, getsockopt
 import Foundation
 import Network
 import os.log
+import SecurityHardening
 
 // MARK: - Sandbox-Resilient Configuration
 
