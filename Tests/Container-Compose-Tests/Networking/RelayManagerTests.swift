@@ -738,6 +738,39 @@ final class CreateSignalSocketTests: XCTestCase {
             XCTFail("Transport type should be vsock")
         }
     }
+
+    func testCreateSignalSocketWithInvalidPortThrowsError() async throws {
+        let eventLog = RelayEventLog()
+        let unixSocketPath = "/tmp/test.sock"
+
+        do {
+            _ = try VsockRelay(
+                cid: 2,
+                port: 0,
+                unixSocketPath: unixSocketPath,
+                createSignalSocket: true,
+                eventLog: eventLog
+            )
+            XCTFail("Should throw error for invalid port 0")
+        } catch VsockError.invalidPort {
+            XCTAssertTrue(true, "Should throw invalidPort error for port 0")
+        }
+    }
+
+    func testCreateSignalSocketWithVeryLongPath() async throws {
+        let eventLog = RelayEventLog()
+        let longPath = String(repeating: "/tmp/", count: 20) + "test.sock"
+
+        let relay = try VsockRelay(
+            cid: 2,
+            port: 5432,
+            unixSocketPath: longPath,
+            createSignalSocket: true,
+            eventLog: eventLog
+        )
+
+        XCTAssertNotNil(relay, "Relay should be created even with long path")
+    }
 }
 
 // MARK: - Virtio-FS Detection Tests (Plan 84)
