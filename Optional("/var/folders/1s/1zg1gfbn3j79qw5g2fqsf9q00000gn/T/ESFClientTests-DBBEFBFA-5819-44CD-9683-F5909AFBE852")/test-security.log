@@ -1,0 +1,7 @@
+{"details":"Relay started: port=1494, transport=vsock","eventType":"RELAY_STARTED","process":"xctest","timestamp":"2026-04-08T23:21:37Z"}
+{"details":"Relay started: port=1495, transport=vsock","eventType":"RELAY_STARTED","process":"xctest","timestamp":"2026-04-08T23:21:37Z"}
+{"details":"Relay started: port=1496, transport=vsock","eventType":"RELAY_STARTED","process":"xctest","timestamp":"2026-04-08T23:21:37Z"}
+{"details":"Relay started: port=1497, transport=vsock","eventType":"RELAY_STARTED","process":"xctest","timestamp":"2026-04-08T23:21:37Z"}
+{"details":"Relay started: port=1498, transport=vsock","eventType":"RELAY_STARTED","process":"xctest","timestamp":"2026-04-08T23:21:37Z"}
+{"details":"Relay started: port=1499, transport=vsock","eventType":"RELAY_STARTED","process":"xctest","timestamp":"2026-04-08T23:21:37Z"}
+{"details":"ESF client shutting down","eventType":"ESF_CLIENT_SHUTDOWN","process":"xctest","timestamp":"2026-04-08T23:21:37Z"}
