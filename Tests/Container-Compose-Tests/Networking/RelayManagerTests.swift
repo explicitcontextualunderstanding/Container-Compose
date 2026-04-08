@@ -860,6 +860,38 @@ final class VirtioFSDetectionTests: XCTestCase {
                 XCTAssertTrue(isVolumeSocket, "\(path) directory pattern should match")
             } else {
                 XCTAssertFalse(isVolumeSocket, "\(path) should NOT match volume socket pattern")
+            }
+        }
+    }
+
+    func testSymlinkPathWithVolumes() {
+        // Test that paths with symlinks containing .containers/Volumes are handled correctly
+        // Note: This test verifies the string pattern matching, not actual symlink resolution
+        let symlinkPath = "/tmp/symlink-to-volumes/.containers/Volumes/db/socket"
+        let isVolumeSocket = symlinkPath.contains(".containers/Volumes")
+        
+        XCTAssertTrue(isVolumeSocket, "Path with symlink containing Volumes should be detected")
+    }
+
+    func testVeryLongVolumePath() {
+        // Test handling of very long volume paths
+        let longPath = "/path/to/.containers/Volumes/" + String(repeating: "very/long/directory/", count: 10) + "db.sock"
+        let isVolumeSocket = longPath.contains(".containers/Volumes")
+        
+        XCTAssertTrue(isVolumeSocket, "Long volume path should be detected")
+    }
+
+    func testVolumePathWithSpecialCharacters() {
+        // Test paths with special characters that might be used in volume names
+        let specialPaths = [
+            "/.containers/Volumes/db-with-dash/data.sock",
+            "/.containers/Volumes/db_with_underscore/data.sock",
+            "/.containers/Volumes/db.with.period/data.sock"
+        ]
+        
+        for path in specialPaths {
+            let isVolumeSocket = path.contains(".containers/Volumes")
+            XCTAssertTrue(isVolumeSocket, "Path with special chars should be detected: \(path)")
         }
     }
 }
