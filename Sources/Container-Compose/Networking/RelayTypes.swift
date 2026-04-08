@@ -151,10 +151,17 @@ struct CIDVerifier: Sendable {
         self.allowedCIDs = Set(allowedCIDs)
     }
 
-    /// Verify if a CID is authorized
-    func verify(cid: UInt32) -> Bool {
-        allowedCIDs.contains(cid)
-    }
+  /// Verify if a CID is authorized
+  /// - Empty allowedCIDs allows all CIDs (permissive mode)
+  /// - If anyCID (0xFFFFFFFF) is in allowedCIDs, allows all CIDs
+  func verify(cid: UInt32) -> Bool {
+    // Empty set means allow all (permissive mode)
+    if allowedCIDs.isEmpty { return true }
+    // If anyCID is in the set, allow all CIDs
+    if allowedCIDs.contains(CIDVerifier.anyCID) { return true }
+    // Otherwise, check if cid is in allowed set
+    return allowedCIDs.contains(cid)
+  }
 
     /// Special CID values per Linux vsock spec
     static let anyCID: UInt32 = 0xFFFFFFFF  // VMADDR_CID_ANY
