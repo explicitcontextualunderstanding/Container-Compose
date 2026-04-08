@@ -164,8 +164,6 @@ public actor ESFClient: Sendable {
     }
 
     // MARK: - Private Implementation
-
-    /// Generic log method
     private func log(eventType: String, cid: UInt32?, process: String, details: String) async throws {
         guard configuration.logLevel <= .info else { return }
 
