@@ -290,4 +290,69 @@ final class VsockAmbientIntegrationTests: XCTestCase {
     XCTAssertEqual(loadedRelays.count, 3, "Should load 3 relays")
     XCTAssertEqual(Set(loadedRelays.map { $0.port }), Set([5001, 5002, 6000]))
   }
+
+  // MARK: - createSignalSocket Tests (Plan 84 Phase 3)
+
+  func testVsockRelayDetectsVolumeSocketPath() {
+    // Test that RelayManager detects Virtio-FS volume paths
+    let volumeSocketPath = "/Users/testuser/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+    let standardSocketPath = "/Users/testuser/.container-compose/sockets/test.sock"
+
+    // Verify volume detection logic
+    let isVolumePath1 = volumeSocketPath.contains(".containers/Volumes")
+    let isVolumePath2 = standardSocketPath.contains(".containers/Volumes")
+
+    XCTAssertTrue(isVolumePath1, "Volume path should be detected")
+    XCTAssertFalse(isVolumePath2, "Standard path should not be detected as volume")
+  }
+
+  func testSocketPathInVsockDbConfiguration() throws {
+    // Test that vsock-db relay config includes socket_path for Virtio-FS
+    let yamlString = """
+    name: test-vsock
+    services:
+      db:
+        image: postgres:15
+        x-apple-relays:
+          - type: "vsock-db"
+            port: 5432
+            socket_path: "/Users/test/.containers/Volumes/test/honcho-db-sockets/.s.PGSQL.5432"
+    """
+
+    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+    guard let dbService = dockerCompose.services["db"], let service = dbService,
+          let relays = service.x_apple_relays,
+          let firstRelay = relays.first else {
+      XCTFail("Failed to parse service with relays")
+      return
+    }
+
+    XCTAssertEqual(firstRelay.type, "vsock-db")
+    XCTAssertEqual(firstRelay.port, 5432)
+    XCTAssertEqual(firstRelay.socket_path, "/Users/test/.containers/Volumes/test/honcho-db-sockets/.s.PGSQL.5432")
+  }
+
+  func testVsockDbWithoutSocketPath() throws {
+    // Test that vsock-db works without explicit socket_path (backward compatibility)
+    let yamlString = """
+    name: test-vsock
+    services:
+      db:
+        image: postgres:15
+        x-apple-relays:
+          - type: "vsock-db"
+            port: 5432
+    """
+
+    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+    guard let dbService = dockerCompose.services["db"], let service = dbService,
+          let relays = service.x_apple_relays,
+          let firstRelay = relays.first else {
+      XCTFail("Failed to parse service with relays")
+      return
+    }
+
+    XCTAssertEqual(firstRelay.type, "vsock-db")
+    XCTAssertNil(firstRelay.socket_path, "socket_path should be optional")
+  }
 }

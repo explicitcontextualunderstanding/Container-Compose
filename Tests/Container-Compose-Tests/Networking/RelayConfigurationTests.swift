@@ -333,12 +333,66 @@ func testRelayTransportCodable() throws {
         XCTAssertEqual(hasher1.finalize(), hasher2.finalize())
     }
 
-    func testServiceEqualityWithDifferentRelays() {
-        let service1 = Service(image: "postgres:latest", relay: ServiceRelay(transport: .vsock, cid: 3))
-        let service2 = Service(image: "postgres:latest", relay: ServiceRelay(transport: .vsock, cid: 4))
-        let service3 = Service(image: "postgres:latest", relay: nil)
+func testServiceEqualityWithDifferentRelays() {
+    let service1 = Service(image: "postgres:latest", relay: ServiceRelay(transport: .vsock, cid: 3))
+    let service2 = Service(image: "postgres:latest", relay: ServiceRelay(transport: .vsock, cid: 4))
+    let service3 = Service(image: "postgres:latest", relay: nil)
 
-        XCTAssertNotEqual(service1, service2)
-        XCTAssertNotEqual(service1, service3)
+    XCTAssertNotEqual(service1, service2)
+    XCTAssertNotEqual(service1, service3)
+  }
+
+  // MARK: - Transport Type Preservation Tests (Plan 84 Phase 3)
+
+  func testRelayConfigurationPreservesVsockTransport() {
+    // Test that RelayConfiguration preserves .vsock transport type
+    let transport = RelayTransport.vsock(cid: 2, port: 5432)
+    let config = RelayManager.RelayConfiguration(
+      id: "test-vsock-relay",
+      tcpPort: 5432,
+      transport: transport,
+      description: "Test vsock relay"
+    )
+
+    // Verify transport type is preserved (not converted to unixSocket)
+    if case .vsock(let cid, let port) = config.transport {
+      XCTAssertEqual(cid, 2)
+      XCTAssertEqual(port, 5432)
+    } else {
+      XCTFail("Transport should be .vsock, got \(config.transport)")
     }
+  }
+
+  func testRelayConfigurationPreservesTcpTransport() {
+    let transport = RelayTransport.tcp(host: "0.0.0.0", port: 5432)
+    let config = RelayManager.RelayConfiguration(
+      id: "test-tcp-relay",
+      tcpPort: 5432,
+      transport: transport,
+      description: "Test TCP relay"
+    )
+
+    if case .tcp(let host, let port) = config.transport {
+      XCTAssertEqual(host, "0.0.0.0")
+      XCTAssertEqual(port, 5432)
+    } else {
+      XCTFail("Transport should be .tcp, got \(config.transport)")
+    }
+  }
+
+  func testRelayConfigurationPreservesUnixSocketTransport() {
+    let transport = RelayTransport.unixSocket(path: "/tmp/test.sock")
+    let config = RelayManager.RelayConfiguration(
+      id: "test-unix-relay",
+      tcpPort: 5432,
+      transport: transport,
+      description: "Test Unix relay"
+    )
+
+    if case .unixSocket(let path) = config.transport {
+      XCTAssertEqual(path, "/tmp/test.sock")
+    } else {
+      XCTFail("Transport should be .unixSocket, got \(config.transport)")
+    }
+  }
 }

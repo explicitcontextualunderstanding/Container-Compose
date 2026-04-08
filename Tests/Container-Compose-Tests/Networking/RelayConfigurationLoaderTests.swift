@@ -301,9 +301,42 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         XCTAssertTrue(RelayConfigurationLoader.SupportedRelayType.vsockMcpBridge.requiresTarget)
         XCTAssertTrue(RelayConfigurationLoader.SupportedRelayType.vsockLogStream.requiresTarget)
         
-        // Types that don't require target
-        XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockAneEmbedding.requiresTarget)
-        XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockDb.requiresTarget)
-        XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockGeneric.requiresTarget)
-    }
+// Types that don't require target
+  XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockAneEmbedding.requiresTarget)
+  XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockDb.requiresTarget)
+  XCTAssertFalse(RelayConfigurationLoader.SupportedRelayType.vsockGeneric.requiresTarget)
+  }
+
+  // MARK: - Socket Path Tests (Plan 84 Phase 3)
+
+  func testSocketPathFieldInAppleRelayConfig() throws {
+    // Test that AppleRelayConfig accepts socket_path parameter
+    let relay = AppleRelayConfig(
+      type: "vsock-db",
+      port: 5432,
+      socket_path: "/Users/test/.containers/Volumes/test/sockets/.s.PGSQL.5432"
+    )
+
+    XCTAssertEqual(relay.socket_path, "/Users/test/.containers/Volumes/test/sockets/.s.PGSQL.5432")
+  }
+
+  func testSocketPathOptionalForVsockDb() throws {
+    // socket_path should be optional - vsock-db can work without explicit path
+    let relayWithPath = AppleRelayConfig(type: "vsock-db", port: 5432, socket_path: "/path/to/socket")
+    let relayWithoutPath = AppleRelayConfig(type: "vsock-db", port: 5432)
+
+    XCTAssertNotNil(relayWithPath.socket_path)
+    XCTAssertNil(relayWithoutPath.socket_path)
+  }
+
+  func testSocketPathInVolumeFormat() throws {
+    // Test that socket_path follows Virtio-FS volume format
+    let volumePath = "/Users/testuser/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+    let relay = AppleRelayConfig(type: "vsock-db", port: 5432, socket_path: volumePath)
+
+    // Verify the path contains expected Virtio-FS volume structure
+    XCTAssertTrue(relay.socket_path?.contains(".containers/Volumes") ?? false)
+    XCTAssertTrue(relay.socket_path?.contains("honcho-db-sockets") ?? false)
+    XCTAssertTrue(relay.socket_path?.contains(".s.PGSQL.5432") ?? false)
+  }
 }
