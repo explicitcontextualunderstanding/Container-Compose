@@ -150,8 +150,6 @@ fi
 echo ""
 echo "Installing to $TARGET..."
 mkdir -p "$(dirname "$TARGET")"
-cp "$BINARY_PATH" "$TARGET"
-chmod 755 "$TARGET"
 
 # Generate entitlements plist if missing
 ENTITLEMENTS_PLIST="$SCRIPT_DIR/Container-Compose.entitlements"
@@ -174,9 +172,11 @@ fi
 echo ""
 echo "Signing binary (with hypervisor entitlement)..."
 if command -v codesign &> /dev/null; then
-  codesign --force --sign - --entitlements "$ENTITLEMENTS_PLIST" "$TARGET" || {
+  codesign --force --sign - --entitlements "$ENTITLEMENTS_PLIST" "$BINARY_PATH" || {
     echo "Warning: codesign failed - container runtime may reject unsigned binary"
   }
+  cp "$BINARY_PATH" "$TARGET"
+  chmod 755 "$TARGET"
 else
   echo "Warning: codesign not found - container runtime may reject unsigned binary"
 fi
