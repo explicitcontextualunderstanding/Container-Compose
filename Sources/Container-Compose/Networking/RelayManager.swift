@@ -184,17 +184,29 @@ actor RelayManager {
     private let eventLog: RelayEventLog
     private let logger = Logger(subsystem: "com.container-compose.relay", category: "RelayManager")
 
-    // MARK: - Security Integration (Plan 85)
-    /// Secure relay manager for TCC/AMFI/Isolation gating
-    private let secureManager: SecureRelayManager?
+    // MARK: - Security Integration (Plan 85) - Option 2: Direct Component Usage
+    /// TCC permission checker for hypervisor authorization
+    private let tccIntegration: TCCRelayIntegration
 
-    /// Initialize with optional security integration
+    /// AMFI gating for socat removal validation (Phase 6)
+    private let amfiGating: AMFIRelayGating
+
+    /// Horizontal isolation validator for CID-based security
+    private let isolationValidator: HorizontalIsolationValidator
+
+    /// Initialize with security components
     /// - Parameters:
     ///   - eventLog: Event logging for relay operations
-    ///   - enableSecurity: Enable Plan 85 security gates (default: true)
-    init(eventLog: RelayEventLog = RelayEventLog(), enableSecurity: Bool = true) {
+    init(
+        eventLog: RelayEventLog = RelayEventLog(),
+        tccIntegration: TCCRelayIntegration = TCCRelayIntegration(configuration: .production),
+        amfiGating: AMFIRelayGating = AMFIRelayGating(configuration: .production),
+        isolationValidator: HorizontalIsolationValidator = HorizontalIsolationValidator(configuration: .production)
+    ) {
         self.eventLog = eventLog
-        self.secureManager = enableSecurity ? SecureRelayManager(configuration: .production) : nil
+        self.tccIntegration = tccIntegration
+        self.amfiGating = amfiGating
+        self.isolationValidator = isolationValidator
     }
 
     /// Configuration for a socket relay
@@ -240,41 +252,61 @@ actor RelayManager {
             throw RelayError.alreadyRunning(config.id)
         }
 
-        // MARK: - Plan 85 Security Gates
-        // Validate TCC, AMFI, and Isolation before starting relay
-        if let secure = secureManager {
-            let securityResult = await secure.validateRelayStartup(config)
-            guard securityResult.passed else {
-                let gate = securityResult.blockedBy?.description ?? "Unknown"
-                let message = securityResult.errorMessage ?? "Security validation failed"
-                logger.error("Security gate '\(gate)' blocked relay \(config.id): \(message)")
-                throw RelayError.securityValidationFailed(gate: gate, message: message)
-            }
-            logger.info("Security gates passed for relay \(config.id)")
+        // MARK: - Plan 85 Security Gates (Option 2: Direct Component Integration)
+
+        // Gate 1: TCC preflight - before any relay operations
+        let tccResult = await tccIntegration.preflightCheck()
+        guard tccResult.canProceed && !tccResult.shouldBlockStartup else {
+            let message = tccResult.errorMessage ?? "TCC authorization required"
+            logger.error("TCC gate blocked relay \(config.id): \(message)")
+            throw RelayError.securityValidationFailed(gate: "TCC", message: message)
         }
+        logger.info("TCC authorization passed for relay \(config.id)")
 
         // Route to appropriate relay implementation based on transport type
-    switch config.transport {
-    case .vsock(let cid, let port, _):
-    logger.info("Starting VSOCK relay \(config.id): TCP:\(config.tcpPort) → vsock:\(cid):\(port)")
+        switch config.transport {
+        case .vsock(let cid, let port, _):
+            logger.info("Starting VSOCK relay \(config.id): TCP:\(config.tcpPort) → vsock:\(cid):\(port)")
 
-    // Detect if socket path is in Virtio-FS volume (vsock-db type)
-    // In this case, PostgreSQL creates the socket, so we should not create/remove signal socket
-    let isVolumeSocket = config.unixSocketPath.contains(".containers/Volumes")
+            // Gate 2: AMFI validation (Phase 6 socat removal gate) - for vsock only
+            let amfiResult = await amfiGating.validateForSocatRemoval()
+            guard amfiResult.canRemoveSocat else {
+                let message = amfiResult.errorMessage ?? "AMFI validation required for Phase 6"
+                logger.error("AMFI gate blocked relay \(config.id): \(message)")
+                throw RelayError.securityValidationFailed(gate: "AMFI", message: message)
+            }
+            logger.info("AMFI validation passed for relay \(config.id)")
 
-    let relay = try VsockRelay(
-      cid: cid,
-      port: port,
-      unixSocketPath: config.unixSocketPath,
-      createSignalSocket: !isVolumeSocket,
-      eventLog: eventLog
-    )
+            // Gate 3: Horizontal isolation validation - CID-based security
+            let isolationResult = await isolationValidator.validateContainerCommunication(
+                sourceCID: 3, // Guest container
+                targetCID: cid,
+                port: port
+            )
+            guard isolationResult.isIsolated else {
+                let message = isolationResult.errorMessage ?? "Horizontal isolation violated"
+                logger.error("Isolation gate blocked relay \(config.id): \(message)")
+                throw RelayError.securityValidationFailed(gate: "Isolation", message: message)
+            }
+            logger.info("Horizontal isolation validated for relay \(config.id)")
 
-    relays[config.id] = relay
-    try await relay.start()
+            // Detect if socket path is in Virtio-FS volume (vsock-db type)
+            // In this case, PostgreSQL creates the socket, so we should not create/remove signal socket
+            let isVolumeSocket = config.unixSocketPath.contains(".containers/Volumes")
 
-    await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock:\(cid):\(port)"))
-    logger.info("VSOCK relay \(config.id) started successfully")
+            let relay = try VsockRelay(
+                cid: cid,
+                port: port,
+                unixSocketPath: config.unixSocketPath,
+                createSignalSocket: !isVolumeSocket,
+                eventLog: eventLog
+            )
+
+            relays[config.id] = relay
+            try await relay.start()
+
+            await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock:\(cid):\(port)"))
+            logger.info("VSOCK relay \(config.id) started successfully")
             
         case .unixSocket, .tcp:
             logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → UNIX:\(config.unixSocketPath)")
