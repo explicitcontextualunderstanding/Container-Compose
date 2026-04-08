@@ -415,25 +415,28 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       return nil
   }
 
-  /// Start socket relays for services with publish_socket or relay configuration
-  private func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
-    // Validate relay configurations first
-    do {
-      try validateRelayConfigurations(services)
-      } catch {
-          print("⚠️ Relay validation failed: \(error)")
-          // Continue with partial functionality - don't fail entire compose
-      }
+/// Start socket relays for services with publish_socket, relay, or x-apple-relays configuration
+    private func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
+        // Validate relay configurations first
+        do {
+            try validateRelayConfigurations(services)
+        } catch {
+            print("⚠️ Relay validation failed: \(error)")
+            // Continue with partial functionality - don't fail entire compose
+        }
 
-      // Check for both publish_socket and relay configurations
-      let servicesWithRelays = services.filter {
-          $0.service.publish_socket != nil || $0.service.relay != nil
-      }
+        // Check for publish_socket, relay, and x-apple-relays configurations
+        // (Phase 82: x-apple-relays support for vsock ambient relays)
+        let servicesWithRelays = services.filter { service in
+            let hasLegacyRelay = service.service.publish_socket != nil || service.service.relay != nil
+            let hasAppleExtension = !(service.service.x_apple_relays?.isEmpty ?? true)
+            return hasLegacyRelay || hasAppleExtension
+        }
 
-      guard !servicesWithRelays.isEmpty else {
-          print("Info: No socket relays configured")
-          return []
-      }
+        guard !servicesWithRelays.isEmpty else {
+            print("Info: No socket relays configured")
+            return []
+        }
 
       // Ensure sandbox-resilient relay root directory exists
       do {
@@ -447,25 +450,42 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       let relayManager = RelayManager(eventLog: eventLog)
       var socketRelays: [ComposeDown.SocketRelayState] = []
 
-      // Start relays for each service
-      for (serviceName, service) in servicesWithRelays {
-          // Check for declarative relay configuration first (Phase 5)
-          if let relay = service.relay {
-              let relayState = await startDeclarativeRelay(
-                  serviceName: serviceName,
-                  service: service,
-                  relay: relay,
-                  services: services,
-                  relayManager: relayManager
-              )
-              if let state = relayState {
-                  socketRelays.append(state)
-              }
-              continue
-          }
+    // Start relays for each service
+        for (serviceName, service) in servicesWithRelays {
+            // Check for declarative relay configuration first (Phase 5)
+            if let relay = service.relay {
+                let relayState = await startDeclarativeRelay(
+                    serviceName: serviceName,
+                    service: service,
+                    relay: relay,
+                    services: services,
+                    relayManager: relayManager
+                )
+                if let state = relayState {
+                    socketRelays.append(state)
+                }
+                continue
+            }
 
-          // Legacy publish_socket configuration
-          guard let socketConfig = service.publish_socket else { continue }
+            // Handle x-apple-relays configuration (Phase 82: vsock ambient shim)
+            if let appleRelays = service.x_apple_relays, !appleRelays.isEmpty {
+                for relayConfig in appleRelays {
+                    let relayState = await startAppleRelay(
+                        serviceName: serviceName,
+                        service: service,
+                        relayConfig: relayConfig,
+                        services: services,
+                        relayManager: relayManager
+                    )
+                    if let state = relayState {
+                        socketRelays.append(state)
+                    }
+                }
+                continue
+            }
+
+            // Legacy publish_socket configuration
+            guard let socketConfig = service.publish_socket else { continue }
 
           // Parse publish_socket config: "containerPath:hostPath" or just "containerPath"
           let parts = socketConfig.split(separator: ":", omittingEmptySubsequences: false)
@@ -575,12 +595,55 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         unixSocketPath: hostSocketPath
       )
     } catch {
-          print("⚠️ Failed to start \(relay.transport.rawValue) relay for \(serviceName): \(error)")
-          return nil
-      }
-  }
+            print("⚠️ Failed to start \(relay.transport.rawValue) relay for \(serviceName): \(error)")
+            return nil
+        }
+    }
 
-  /// Find an available TCP port (ephemeral)
+    /// Start a relay from x-apple-relays configuration (Phase 82: vsock ambient shim)
+    private func startAppleRelay(
+        serviceName: String,
+        service: Service,
+        relayConfig: AppleRelayConfig,
+        services: [(serviceName: String, service: Service)],
+        relayManager: RelayManager
+    ) async -> ComposeDown.SocketRelayState? {
+        // Map x-apple-relays type to RelayTransport.TransportType
+        // vsock-* types map to .vsock, tcp-* to .tcp, unix-* to .unix
+        let transportType: RelayTransport.TransportType
+        let typePrefix = relayConfig.type.split(separator: "-").first.map(String.init) ?? relayConfig.type
+        
+        switch typePrefix {
+        case "vsock":
+            transportType = .vsock
+        case "tcp":
+            transportType = .tcp
+        case "unix":
+            transportType = .unix
+        default:
+            print("⚠️ Unsupported relay type '\(relayConfig.type)' for service \(serviceName)")
+            return nil
+        }
+
+        let relay = ServiceRelay(
+            transport: transportType,
+            cid: nil,  // CID will be resolved from target or use default
+            target: relayConfig.target,
+            port: relayConfig.port,
+            socket: nil
+        )
+
+        // Delegate to existing declarative relay logic
+        return await startDeclarativeRelay(
+            serviceName: serviceName,
+            service: service,
+            relay: relay,
+            services: services,
+            relayManager: relayManager
+        )
+    }
+
+    /// Find an available TCP port (ephemeral)
   private func findAvailablePort() async -> UInt16 {
     // Create a temporary socket to find an available port
     let socket = socket(AF_INET, SOCK_STREAM, 0)
