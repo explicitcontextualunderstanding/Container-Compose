@@ -392,14 +392,17 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
                       "UNIX relay in service '\(serviceName)' requires 'socket' path"
                   )
               }
-          case .tcp:
-              guard relay.port != nil || relay.target != nil else {
-                  throw ValidationError(
-                      "TCP relay in service '\(serviceName)' requires either 'port' or 'target'"
-                  )
-              }
-          }
+      case .tcp:
+        guard relay.port != nil || relay.target != nil else {
+          throw ValidationError(
+            "TCP relay in service '\(serviceName)' requires either 'port' or 'target'"
+          )
+        }
+      case .vsockDb:
+        // vsockDb validated via socket path check
+        break
       }
+    }
   }
 
   /// Resolves target CID from service name (for relay configuration)
@@ -561,10 +564,13 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       case .tcp:
           // Generate socket path based on service name
           hostSocketPath = RelayConstants.socketPath(for: serviceName, project: projectName).path
-      case .unix:
-          // Use specified socket path
-          hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
-      }
+  case .unix:
+    // Use specified socket path
+    hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
+  case .vsockDb:
+    // Use specified socket path for vsock-db type
+    hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
+  }
 
     // Determine TCP port
     let tcpPort: UInt16
@@ -589,10 +595,13 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       // For vsock relay, use the target CID or default (CID 2 for Apple Containers)
       let cid = targetCID ?? 2
       transport = .vsock(cid: cid, port: UInt32(tcpPort), unixSocketPath: hostSocketPath)
-  case .tcp:
-    transport = .tcp(host: "0.0.0.0", port: tcpPort)
-  case .unix:
-    transport = .unixSocket(path: hostSocketPath)
+    case .vsockDb:
+      // vsockDb uses CID 2 (host) with socket path from volume
+      transport = .vsockDb(socketPath: hostSocketPath)
+    case .tcp:
+      transport = .tcp(host: "0.0.0.0", port: tcpPort)
+    case .unix:
+      transport = .unixSocket(path: hostSocketPath)
   }
   let config = RelayManager.RelayConfiguration(
     id: relayId,
