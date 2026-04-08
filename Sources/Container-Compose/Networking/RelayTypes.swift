@@ -83,12 +83,15 @@ public enum RelayTransport: Hashable, Sendable, Codable {
 /// Protocol for all relay implementations
 public protocol RelayProtocol: Actor {
     var transportType: RelayTransport { get }
+    
+    /// TCP port the relay listens on
+    var tcpPort: UInt16 { get }
+    
+    /// Unix socket path (empty for vsock relays)
+    var unixSocketPath: String { get }
 
     var isRunning: Bool { get }
     var activeConnectionCount: Int { get }
-    
-    /// Socket path for cleanup (used by unix socket relays, empty for vsock)
-    var unixSocketPath: String { get }
 
     func start() async throws
     func stop() async

@@ -360,102 +360,141 @@ final class SocketRelayIntegrationTests: XCTestCase {
         }
     }
 
-    func testWaitForSocketSuccess() async throws {
-        guard FileManager.default.fileExists(atPath: "/usr/bin/nc") else {
-            throw XCTSkip("nc not available")
-        }
+  func testWaitForSocketSuccess() async throws {
+    // Use native BSD sockets instead of external nc process
+    let tempDir = FileManager.default.temporaryDirectory
+    let socketPath = tempDir.appendingPathComponent("test-\(UUID().uuidString).sock").path
 
-        let tempDir = FileManager.default.temporaryDirectory
-        let socketPath = tempDir.appendingPathComponent("test-\(UUID().uuidString).sock").path
+    // Remove any existing socket file
+    try? FileManager.default.removeItem(atPath: socketPath)
 
-        defer {
-            try? FileManager.default.removeItem(atPath: socketPath)
-        }
-
-        let serverProcess = Process()
-        serverProcess.executableURL = URL(fileURLWithPath: "/usr/bin/nc")
-        serverProcess.arguments = ["-l", "-U", socketPath]
-        try serverProcess.run()
-
-        defer { serverProcess.terminate() }
-
-        try await manager.waitForSocket(at: socketPath, timeout: 2.0, interval: 0.05)
-
-        XCTAssertTrue(FileManager.default.fileExists(atPath: socketPath))
+    // Create a real Unix domain socket using BSD sockets
+    let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+    guard fd >= 0 else {
+      throw XCTSkip("Unable to create test socket")
     }
 
-    func testPortCollisionHandling() async throws {
-        guard FileManager.default.fileExists(atPath: "/usr/bin/nc") else {
-            throw XCTSkip("nc not available")
-        }
-
-        let tempDir = FileManager.default.temporaryDirectory
-        let socketPath = tempDir.appendingPathComponent("collision-test-\(UUID().uuidString).sock").path
-
-        defer {
-            try? FileManager.default.removeItem(atPath: socketPath)
-        }
-
-        let serverProcess = Process()
-        serverProcess.executableURL = URL(fileURLWithPath: "/usr/bin/nc")
-        serverProcess.arguments = ["-l", "-U", socketPath]
-        try serverProcess.run()
-        defer { serverProcess.terminate() }
-
-        try await Task.sleep(nanoseconds: 100_000_000)
-
-        let testPort: UInt16 = 15432
-
-        let listener1 = try? NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: testPort)!)
-        XCTAssertNotNil(listener1, "First listener should succeed")
-        listener1?.cancel()
-
-        let listener2 = try? NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: testPort)!)
-        XCTAssertNotNil(listener2, "Second listener should succeed (different address)")
-        listener2?.cancel()
+    // Copy path to a C string first
+    let pathLength = socketPath.utf8.count
+    guard pathLength < 104 else { // sun_path is typically 104 bytes
+      Darwin.close(fd)
+      throw XCTSkip("Socket path too long")
     }
+
+    // Create address structure with copied path
+    var addr = sockaddr_un()
+    addr.sun_family = sa_family_t(AF_UNIX)
+
+    // Copy path to sun_path using memcpy
+    socketPath.withCString { cString in
+      memcpy(&addr.sun_path, cString, pathLength + 1) // +1 for null terminator
+    }
+
+    defer {
+      Darwin.close(fd)
+      try? FileManager.default.removeItem(atPath: socketPath)
+    }
+
+    // Bind the socket
+    let bindResult = withUnsafePointer(to: &addr) { addrPtr in
+      addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+        Darwin.bind(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+      }
+    }
+
+    guard bindResult == 0 else {
+      throw XCTSkip("Unable to bind test socket")
+    }
+
+    // Now test the waitForSocket method - it should detect this is a real socket
+    try await manager.waitForSocket(at: socketPath, timeout: 2.0, interval: 0.05)
+
+    // Verify file exists and is a socket
+    XCTAssertTrue(FileManager.default.fileExists(atPath: socketPath))
+  }
+
+  func testPortCollisionHandling() async throws {
+    // Use native NWListener instead of external nc process
+    let testPort: UInt16 = 15432
+
+    let listener1 = try? NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: testPort)!)
+    XCTAssertNotNil(listener1, "First listener should succeed")
+    listener1?.start(queue: .global())
+
+    // Give first listener time to start
+    try await Task.sleep(nanoseconds: 100_000_000)
+
+    // Second listener on same port should also succeed (different address)
+    let listener2 = try? NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: testPort)!)
+    XCTAssertNotNil(listener2, "Second listener should succeed (different address)")
+    listener2?.start(queue: .global())
+
+    // Cleanup
+    listener1?.cancel()
+    listener2?.cancel()
+  }
 
     func testMultipleConcurrentConnections() async throws {
-        guard FileManager.default.fileExists(atPath: "/usr/bin/nc") else {
-            throw XCTSkip("nc not available")
-        }
-
-        let tempDir = FileManager.default.temporaryDirectory
-        let socketPath = tempDir.appendingPathComponent("multi-conn-\(UUID().uuidString).sock").path
-
-        defer {
-            try? FileManager.default.removeItem(atPath: socketPath)
-        }
-
-        let serverProcess = Process()
-        serverProcess.executableURL = URL(fileURLWithPath: "/usr/bin/nc")
-        serverProcess.arguments = ["-l", "-U", socketPath, "-k"]
-        try serverProcess.run()
-        defer { serverProcess.terminate() }
-
-        try await Task.sleep(nanoseconds: 200_000_000)
-
-        var connections: [NWConnection] = []
+        // Use native NWListener instead of external nc process
         let testPort: UInt16 = 15433
 
-        for i in 0..<5 {
-            let connection = NWConnection(
-                host: "127.0.0.1",
-                port: NWEndpoint.Port(rawValue: testPort)!,
-                using: .tcp
-            )
-            connections.append(connection)
+        // Create a listener that accepts multiple connections
+        let listener = try NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: testPort)!)
+        actor ConnectionStore {
+            var connections: [NWConnection] = []
+            func append(_ connection: NWConnection) {
+                connections.append(connection)
+            }
+            func cleanup() {
+                for connection in connections {
+                    connection.cancel()
+                }
+                connections.removeAll()
+            }
+        }
+        let acceptedConnections = ConnectionStore()
+
+        listener.newConnectionHandler = { connection in
+            Task {
+                await acceptedConnections.append(connection)
+            }
             connection.start(queue: .global())
         }
+        listener.start(queue: .global())
 
-        try await Task.sleep(nanoseconds: 500_000_000)
-
-        for connection in connections {
-            connection.cancel()
+        defer {
+            listener.cancel()
+            // Cleanup accepted connections
+            Task {
+                await acceptedConnections.cleanup()
+            }
         }
 
-        XCTAssertEqual(connections.count, 5)
+    // Give listener time to start
+    try await Task.sleep(nanoseconds: 100_000_000)
+
+    // Create multiple client connections
+    var connections: [NWConnection] = []
+    for _ in 0..<5 {
+      let connection = NWConnection(
+        host: .ipv4(.loopback),
+        port: .init(rawValue: testPort)!,
+        using: .tcp
+      )
+      connections.append(connection)
+      connection.start(queue: .global())
     }
+
+    // Wait for connections to establish
+    try await Task.sleep(nanoseconds: 500_000_000)
+
+    // Cleanup client connections
+    for connection in connections {
+      connection.cancel()
+    }
+
+    XCTAssertEqual(connections.count, 5, "Should have created 5 connections")
+  }
 }
 
 // MARK: - Tier 3: E2E Tests (Full Integration)

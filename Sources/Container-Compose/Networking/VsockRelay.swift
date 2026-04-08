@@ -52,6 +52,7 @@ public final actor VsockRelay: RelayProtocol {
     public var isRunning: Bool { isRunningValue }
     public var activeConnectionCount: Int { activeConnectionCountValue }
     public var unixSocketPath: String { unixSocketPathValue }
+    public var tcpPort: UInt16 { 0 }
 
     private var isRunningValue = false
     private var activeConnectionCountValue = 0
