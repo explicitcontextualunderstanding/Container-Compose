@@ -16,23 +16,31 @@ let package = Package(
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         
-        // Library target containing core logic
-        .target(
-            name: "ContainerComposeCore",
-            dependencies: [
-                .product(
-                    name: "ContainerCommands",
-                    package: "container"
-                ),
-                .product(
-                    name: "ArgumentParser",
-                    package: "swift-argument-parser"
-                ),
-                "Yams",
-                "Rainbow",
-            ],
-            path: "Sources/Container-Compose"
+// Security Hardening module (Plan 85)
+    .target(
+      name: "SecurityHardening",
+      dependencies: [],
+      path: "Sources/SecurityHardening"
+    ),
+
+    // Library target containing core logic
+    .target(
+      name: "ContainerComposeCore",
+      dependencies: [
+        .product(
+          name: "ContainerCommands",
+          package: "container"
         ),
+        .product(
+          name: "ArgumentParser",
+          package: "swift-argument-parser"
+        ),
+        "Yams",
+        "Rainbow",
+        "SecurityHardening",
+      ],
+      path: "Sources/Container-Compose"
+    ),
         
         // Executable target
         .executableTarget(
@@ -69,7 +77,7 @@ let package = Package(
     ]
   ),
 
-    .testTarget(
+.testTarget(
       name: "Container-Compose-Tests",
       dependencies: [
         "ContainerComposeCore",
@@ -77,5 +85,13 @@ let package = Package(
         "Yams"
       ]
     ),
-]
+
+    // Security Hardening Tests (Plan 85)
+    .testTarget(
+      name: "SecurityHardeningTests",
+      dependencies: [
+        "SecurityHardening"
+      ]
+    ),
+  ]
 )
