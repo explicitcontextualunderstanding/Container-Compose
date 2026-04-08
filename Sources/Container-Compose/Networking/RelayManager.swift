@@ -269,13 +269,17 @@ actor RelayManager {
         }
 
         logger.info("Stopping relay \(id)")
+        
+        // Get socket path before stopping
+        let socketPath = await relay.unixSocketPath
+        
         await relay.stop()
         relays.removeValue(forKey: id)
         await eventLog.record(.relayStopped(id: id))
 
         // Clean up socket file
-        if let relay = relays[id] {
-            try? FileManager.default.removeItem(atPath: relay.unixSocketPath)
+        if !socketPath.isEmpty {
+            try? FileManager.default.removeItem(atPath: socketPath)
         }
     }
 
@@ -290,20 +294,22 @@ actor RelayManager {
         }
 
         relays.removeAll()
-        cleanupSocketFiles()
+        await cleanupSocketFiles()
     }
 
     /// Get status of all relays
-    func status() -> [RelayStatus] {
-        relays.map { (id, relay) in
-            RelayStatus(
+    func status() async -> [RelayStatus] {
+        var statuses: [RelayStatus] = []
+        for (id, relay) in relays {
+            statuses.append(await RelayStatus(
                 id: id,
                 isRunning: relay.isRunning,
                 tcpPort: relay.tcpPort,
                 unixSocketPath: relay.unixSocketPath,
                 activeConnections: relay.activeConnectionCount
-            )
+            ))
         }
+        return statuses
     }
 
     /// Wait for a Unix socket file to be created (e.g., by container --publish-socket)
@@ -336,14 +342,16 @@ actor RelayManager {
     }
 
     /// Clean up orphaned socket files
-    private func cleanupSocketFiles() {
-        let socketPaths = relays.values.map { $0.unixSocketPath }
-        for path in socketPaths {
-            do {
-                try FileManager.default.removeItem(atPath: path)
-                logger.debug("Cleaned up socket file: \(path)")
-            } catch {
-                logger.warning("Failed to clean up socket file \(path): \(error.localizedDescription)")
+    private func cleanupSocketFiles() async {
+        for (_, relay) in relays {
+            let path = await relay.unixSocketPath
+            if !path.isEmpty {
+                do {
+                    try FileManager.default.removeItem(atPath: path)
+                    logger.debug("Cleaned up socket file: \(path)")
+                } catch {
+                    logger.warning("Failed to clean up socket file \(path): \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -352,7 +360,11 @@ actor RelayManager {
 // MARK: - SocketRelay
 
 /// Individual socket relay managing a single TCP↔UDS bridge
-actor SocketRelay {
+actor SocketRelay: RelayProtocol {
+    var transportType: RelayTransport { .unixSocket(path: unixSocketPath) }
+    var isRunning: Bool { isRunningValue }
+    var activeConnectionCount: Int { activeConnectionCountValue }
+    
     private var listener: NWListener?
     private var activeConnections: Set<BridgeConnection> = []
     private let eventLog: RelayEventLog
@@ -361,8 +373,9 @@ actor SocketRelay {
 
     let tcpPort: UInt16
     let unixSocketPath: String
-    let isRunning: Bool
-    let activeConnectionCount: Int
+    
+    private var isRunningValue = false
+    private var activeConnectionCountValue = 0
 
     init(tcpPort: UInt16, unixPath: String, eventLog: RelayEventLog, targetPID: pid_t? = nil) async throws {
         self.tcpPort = tcpPort
@@ -387,8 +400,8 @@ actor SocketRelay {
 
         testConnection.cancel()
 
-        self.isRunning = false
-        self.activeConnectionCount = 0
+        self.isRunningValue = false
+        self.activeConnectionCountValue = 0
     }
 
     func start() async throws {
