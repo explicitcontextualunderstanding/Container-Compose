@@ -63,7 +63,7 @@ final class NetworkTraceTests: XCTestCase {
     let event = TraceEvent.connectionEstablished(
       relayId: testRelayId,
       connectionId: testConnectionId,
-      transport: .vsock(cid: 3, port: 5001)
+      transport: .vsock(cid: 3, port: 5001, unixSocketPath: "")
     )
     await trace.record(event)
 
@@ -93,7 +93,7 @@ final class NetworkTraceTests: XCTestCase {
     await trace.record(.connectionEstablished(
       relayId: relay1,
       connectionId: UUID(),
-      transport: .vsock(cid: 3, port: 5001)
+      transport: .vsock(cid: 3, port: 5001, unixSocketPath: "")
     ))
     await trace.record(.dataTransfer(
       relayId: relay2,
@@ -116,7 +116,7 @@ final class NetworkTraceTests: XCTestCase {
     await trace.record(.connectionEstablished(
       relayId: testRelayId,
       connectionId: testConnectionId,
-      transport: .vsock(cid: 3, port: 5001)
+      transport: .vsock(cid: 3, port: 5001, unixSocketPath: "")
     ))
 
     let securityEvents = await trace.securityEvents()

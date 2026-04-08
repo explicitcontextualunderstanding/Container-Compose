@@ -346,7 +346,7 @@ func testServiceEqualityWithDifferentRelays() {
 
   func testRelayConfigurationPreservesVsockTransport() {
     // Test that RelayConfiguration preserves .vsock transport type
-    let transport = RelayTransport.vsock(cid: 2, port: 5432)
+    let transport = RelayTransport.vsock(cid: 2, port: 5432, unixSocketPath: "")
     let config = RelayManager.RelayConfiguration(
       id: "test-vsock-relay",
       tcpPort: 5432,
@@ -355,7 +355,7 @@ func testServiceEqualityWithDifferentRelays() {
     )
 
     // Verify transport type is preserved (not converted to unixSocket)
-    if case .vsock(let cid, let port) = config.transport {
+    if case .vsock(let cid, let port, _) = config.transport {
       XCTAssertEqual(cid, 2)
       XCTAssertEqual(port, 5432)
     } else {
