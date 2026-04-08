@@ -638,3 +638,80 @@ final class PeerVerificationTests: XCTestCase {
         XCTAssertTrue(result, "Should allow connection when fd unavailable (graceful degradation)")
     }
 }
+
+// MARK: - CIDVerifier Tests (Plan 84 Phase 4)
+
+/// Tests for CIDVerifier allowing dynamic Guest CIDs (≥ 3)
+@available(macOS 12.0, *)
+final class CIDVerifierTests: XCTestCase {
+
+    func testVerifyAcceptsAnyCIDWhenConfigured() {
+        let verifier = CIDVerifier(allowedCIDs: [CIDVerifier.anyCID])
+        XCTAssertTrue(verifier.verify(cid: 0), "Should accept HYPERVISOR CID")
+        XCTAssertTrue(verifier.verify(cid: 1), "Should accept LOCAL CID")
+        XCTAssertTrue(verifier.verify(cid: 2), "Should accept HOST CID")
+        XCTAssertTrue(verifier.verify(cid: 3), "Should accept GUEST CID 3")
+        XCTAssertTrue(verifier.verify(cid: 4), "Should accept GUEST CID 4")
+        XCTAssertTrue(verifier.verify(cid: 5), "Should accept GUEST CID 5")
+        XCTAssertTrue(verifier.verify(cid: 100), "Should accept high CID values")
+    }
+
+    func testVerifyAcceptsSpecificGuestCIDs() {
+        let verifier = CIDVerifier(allowedCIDs: [3, 4, 5])
+        XCTAssertTrue(verifier.verify(cid: 3), "Should accept CID 3")
+        XCTAssertTrue(verifier.verify(cid: 4), "Should accept CID 4")
+        XCTAssertTrue(verifier.verify(cid: 5), "Should accept CID 5")
+    }
+
+    func testVerifyRejectsUnauthorizedCIDs() {
+        let verifier = CIDVerifier(allowedCIDs: [3, 4, 5])
+        XCTAssertFalse(verifier.verify(cid: 0), "Should reject HYPERVISOR CID")
+        XCTAssertFalse(verifier.verify(cid: 1), "Should reject LOCAL CID")
+        XCTAssertFalse(verifier.verify(cid: 2), "Should reject HOST CID")
+        XCTAssertFalse(verifier.verify(cid: 6), "Should reject CID 6")
+        XCTAssertFalse(verifier.verify(cid: 100), "Should reject unauthorized CID")
+    }
+
+    func testVerifyAcceptsHostCID() {
+        let verifier = CIDVerifier(allowedCIDs: [CIDVerifier.hostCID])
+        XCTAssertTrue(verifier.verify(cid: 2), "Should accept HOST CID (2)")
+    }
+
+    func testVerifyAcceptsMultipleGuestCIDs() {
+        let guestCIDs: [UInt32] = Array(3...20)
+        let verifier = CIDVerifier(allowedCIDs: guestCIDs)
+        
+        for cid in guestCIDs {
+            XCTAssertTrue(verifier.verify(cid: cid), "Should accept CID \(cid)")
+        }
+    }
+
+    func testDefaultAllowsAnyCID() {
+        let verifier = CIDVerifier(allowedCIDs: [])
+        XCTAssertTrue(verifier.verify(cid: CIDVerifier.anyCID), "Should accept ANY CID")
+        XCTAssertTrue(verifier.verify(cid: CIDVerifier.hostCID), "Should accept HOST CID")
+        XCTAssertTrue(verifier.verify(cid: 3), "Should accept GUEST CID")
+        XCTAssertTrue(verifier.verify(cid: 4), "Should accept GUEST CID")
+    }
+
+    func testStaticCIDConstants() {
+        XCTAssertEqual(CIDVerifier.anyCID, 0xFFFFFFFF, "ANY_CID should be 0xFFFFFFFF")
+        XCTAssertEqual(CIDVerifier.hypervisorCID, 0, "HYPERVISOR_CID should be 0")
+        XCTAssertEqual(CIDVerifier.hostCID, 0x2, "HOST_CID should be 0x2")
+        XCTAssertEqual(CIDVerifier.localCID, 0x1, "LOCAL_CID should be 0x1")
+    }
+
+    func testEmptyAllowedCIDsAllowsAll() {
+        let verifier = CIDVerifier(allowedCIDs: [])
+        for cid: UInt32 in [0, 1, 2, 3, 4, 5, 10, 100, 1000] {
+            XCTAssertTrue(verifier.verify(cid: cid), "Empty allowedCIDs should allow all CIDs, but rejected CID \(cid)")
+        }
+    }
+
+    func testSingletonAllowedCIDs() {
+        let verifier = CIDVerifier(allowedCIDs: [5])
+        XCTAssertTrue(verifier.verify(cid: 5), "Should accept CID 5")
+        XCTAssertFalse(verifier.verify(cid: 3), "Should reject CID 3")
+        XCTAssertFalse(verifier.verify(cid: 4), "Should reject CID 4")
+    }
+}
