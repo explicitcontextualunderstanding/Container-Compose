@@ -229,25 +229,31 @@ public actor HorizontalIsolationValidator: Sendable {
             return IsolationResult.isolated
         }
 
-        // Check for shared volume paths that might bridge containers
-        // Valid paths should be in container-specific directories
-        if socketPath.contains("/.containers/Volumes/") {
-            // This is expected for Virtio-FS shared volumes
-            // The host mediates access, so it's isolated
-            return IsolationResult.isolated
-        }
-
-        // Check for suspicious patterns
-        if socketPath.contains("/tmp/container-") {
-            // Shared temp directory - potential bridge
-            return IsolationResult.failed(
-                [.sharedNamespace(namespace: "tmp")],
-                message: "Socket path in shared namespace: \(socketPath)"
-            )
-        }
-
-        return IsolationResult.isolated
+// Check for shared volume paths that might bridge containers
+    // Valid paths should be in container-specific directories
+    if socketPath.contains("/.containers/Volumes/") {
+      // This is expected for Virtio-FS shared volumes
+      // The host mediates access, so it's isolated
+      let result = IsolationResult.isolated
+      lastResult = result
+      return result
     }
+
+// Check for suspicious patterns
+    if socketPath.contains("/tmp/container-") {
+        // Shared temp directory - potential bridge
+        let result = IsolationResult.failed(
+            [.sharedNamespace(namespace: "tmp")],
+            message: "Socket path in shared namespace: \(socketPath)"
+        )
+        lastResult = result
+        return result
+    }
+
+    let result = IsolationResult.isolated
+    lastResult = result
+    return result
+}
 
     /// Returns the last validation result
     public func lastValidation() async -> IsolationResult? {
