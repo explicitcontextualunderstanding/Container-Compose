@@ -61,38 +61,42 @@ public final actor VsockRelay: RelayProtocol {
     private let port: UInt32
     private let unixSocketPathValue: String
     private let eventLog: RelayEventLog
-    private let cidVerifier: CIDVerifier
-    private let logger: Logger
+private let cidVerifier: CIDVerifier
+private let logger: Logger
+private let createSignalSocket: Bool
 
-    private var listenSocket: Int32 = -1
+private var listenSocket: Int32 = -1
     private var activeConnections: Set<VsockConnection> = []
     private var acceptTask: Task<Void, Error>?
 
-    /// Creates a new vsock relay
-    /// - Parameters:
-    ///   - cid: The context ID to listen on (use VMADDR_CID_ANY for any)
-    ///   - port: The vsock port to listen on
-    ///   - unixSocketPath: Path to bridge vsock connections to
-    ///   - allowedCIDs: List of authorized CIDs (empty = accept any)
-    ///   - eventLog: Event logging actor
-    init(
-        cid: UInt32,
-        port: UInt32,
-        unixSocketPath: String,
-        allowedCIDs: [UInt32] = [],
-        eventLog: RelayEventLog
-    ) throws {
+/// Creates a new vsock relay
+  /// - Parameters:
+  /// - cid: The context ID to listen on (use VMADDR_CID_ANY for any)
+  /// - port: The vsock port to listen on
+  /// - unixSocketPath: Path to bridge vsock connections to
+  /// - allowedCIDs: List of authorized CIDs (empty = accept any)
+  /// - createSignalSocket: If true, creates a signal socket file (default). Set to false for vsock-db type where PostgreSQL creates the socket.
+  /// - eventLog: Event logging actor
+  init(
+    cid: UInt32,
+    port: UInt32,
+    unixSocketPath: String,
+    allowedCIDs: [UInt32] = [],
+    createSignalSocket: Bool = true,
+    eventLog: RelayEventLog
+  ) throws {
         guard port > 0 else {
             throw VsockError.invalidPort(port)
         }
 
-        self.cid = cid == VMADDR_CID_ANY ? VMADDR_CID_ANY : cid
-        self.port = port
-        self.unixSocketPathValue = unixSocketPath
-        self.eventLog = eventLog
-        self.cidVerifier = CIDVerifier(allowedCIDs: allowedCIDs.isEmpty ? [VMADDR_CID_ANY] : allowedCIDs)
-        self.transportType = .vsock(cid: cid, port: port)
-        self.logger = Logger(subsystem: "com.container-compose.relay", category: "VsockRelay-\(port)")
+self.cid = cid == VMADDR_CID_ANY ? VMADDR_CID_ANY : cid
+  self.port = port
+  self.unixSocketPathValue = unixSocketPath
+  self.eventLog = eventLog
+  self.cidVerifier = CIDVerifier(allowedCIDs: allowedCIDs.isEmpty ? [VMADDR_CID_ANY] : allowedCIDs)
+  self.createSignalSocket = createSignalSocket
+  self.transportType = .vsock(cid: cid, port: port)
+  self.logger = Logger(subsystem: "com.container-compose.relay", category: "VsockRelay-\(port)")
 
         logger.info("Initialized vsock relay: CID \(cid), Port \(port) → UNIX:\(unixSocketPath)")
     }
@@ -106,7 +110,10 @@ public final actor VsockRelay: RelayProtocol {
     // Phase 82 Fix: Create Unix socket file BEFORE vsock socket
     // The orchestrator waits for this socket file via waitForSocket()
     // This transforms VsockRelay from Passive Bridge to Active Infrastructure Provider
-    try createUnixSocketListener()
+    // Skip for vsock-db type where PostgreSQL creates the socket in Virtio-FS volume
+    if createSignalSocket {
+      try createUnixSocketListener()
+    }
 
     // Create vsock socket
     let sock = socket(AF_VSOCK, SOCK_STREAM, 0)
