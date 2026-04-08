@@ -226,23 +226,28 @@ actor RelayManager {
             throw RelayError.alreadyRunning(config.id)
         }
 
-        // Route to appropriate relay implementation based on transport type
-        switch config.transport {
-        case .vsock(let cid, let port):
-            logger.info("Starting VSOCK relay \(config.id): TCP:\(config.tcpPort) → vsock:\(cid):\(port)")
-            
-            let relay = try VsockRelay(
-                cid: cid,
-                port: port,
-                unixSocketPath: config.unixSocketPath,
-                eventLog: eventLog
-            )
-            
-            relays[config.id] = relay
-            try await relay.start()
-            
-            await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock:\(cid):\(port)"))
-            logger.info("VSOCK relay \(config.id) started successfully")
+// Route to appropriate relay implementation based on transport type
+  switch config.transport {
+  case .vsock(let cid, let port):
+    logger.info("Starting VSOCK relay \(config.id): TCP:\(config.tcpPort) → vsock:\(cid):\(port)")
+
+    // Detect if socket path is in Virtio-FS volume (vsock-db type)
+    // In this case, PostgreSQL creates the socket, so we should not create/remove signal socket
+    let isVolumeSocket = config.unixSocketPath.contains(".containers/Volumes")
+
+    let relay = try VsockRelay(
+      cid: cid,
+      port: port,
+      unixSocketPath: config.unixSocketPath,
+      createSignalSocket: !isVolumeSocket,
+      eventLog: eventLog
+    )
+
+    relays[config.id] = relay
+    try await relay.start()
+
+    await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock:\(cid):\(port)"))
+    logger.info("VSOCK relay \(config.id) started successfully")
             
         case .unixSocket, .tcp:
             logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → UNIX:\(config.unixSocketPath)")

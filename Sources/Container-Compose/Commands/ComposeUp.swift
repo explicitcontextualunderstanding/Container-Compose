@@ -578,17 +578,28 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       tcpPort = await findAvailablePort()
     }
 
-      // Resolve target CID if specified
-      let targetCID = resolveCID(target: relay.target, services: services)
+// Resolve target CID if specified
+  let targetCID = resolveCID(target: relay.target, services: services)
 
-      // Create relay configuration
-      let relayId = "\(projectName ?? "")-\(serviceName)"
-      let config = RelayManager.RelayConfiguration(
-          id: relayId,
-          tcpPort: tcpPort,
-          unixSocketPath: hostSocketPath,
-          description: "\(relay.transport.rawValue.uppercased()) relay for \(serviceName)"
-      )
+  // Create relay configuration - use new initializer to preserve transport type
+  let relayId = "\(projectName ?? "")-\(serviceName)"
+  let transport: RelayTransport
+  switch relay.transport {
+  case .vsock:
+    // For vsock relay, use the target CID or default (CID 2 for Apple Containers)
+    let cid = targetCID ?? 2
+    transport = .vsock(cid: cid, port: UInt32(tcpPort))
+  case .tcp:
+    transport = .tcp(host: "0.0.0.0", port: tcpPort)
+  case .unix:
+    transport = .unixSocket(path: hostSocketPath)
+  }
+  let config = RelayManager.RelayConfiguration(
+    id: relayId,
+    tcpPort: tcpPort,
+    transport: transport,
+    description: "\(relay.transport.rawValue.uppercased()) relay for \(serviceName)"
+  )
 
     do {
       print("Starting \(relay.transport.rawValue) relay for \(serviceName): TCP:\(tcpPort) → \(hostSocketPath)")
