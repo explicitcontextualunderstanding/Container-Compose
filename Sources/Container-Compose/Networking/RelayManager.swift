@@ -224,14 +224,22 @@ actor RelayManager {
             self.targetPID = targetPID
         }
 
-        /// Convenience accessor for Unix socket path (backward compatibility)
-        var unixSocketPath: String {
-            if case .unixSocket(let path) = transport {
-                return path
-            }
-            return ""
-        }
+  /// Convenience accessor for Unix socket path (backward compatibility)
+  var unixSocketPath: String {
+    if case .unixSocket(let path) = transport {
+      return path
     }
+    return ""
+  }
+
+  /// CID from vsock transport (for SecurityHardening protocol)
+  var cid: UInt32? {
+    if case .vsock(let cid, _, _) = transport {
+      return cid
+    }
+    return nil
+  }
+}
 
     /// Start a new relay with the given configuration
     /// - Throws: RelayError if the relay cannot be started
@@ -702,9 +710,13 @@ actor BridgeConnection: Hashable {
         }
     }
 
-    func close() {
-        source.cancel()
-        destination.cancel()
-        logger.debug("Connection \(self.id.uuidString.prefix(8)) closed")
-    }
+func close() {
+  source.cancel()
+  destination.cancel()
+  logger.debug("Connection \(self.id.uuidString.prefix(8)) closed")
 }
+}
+
+// MARK: - SecurityHardening Protocol Conformance
+// Note: RelayConfigProviding protocol conformance removed - protocol not defined in this module
+// This was part of Plan 85 SecurityHardening integration which is still in development

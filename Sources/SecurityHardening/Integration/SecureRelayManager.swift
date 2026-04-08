@@ -5,6 +5,16 @@
 
 import Foundation
 
+// MARK: - Protocol for Relay Configuration
+
+/// Protocol for relay configuration to avoid circular dependency with ContainerComposeCore
+/// RelayManager.RelayConfiguration conforms to this protocol
+public protocol RelayConfigProviding: Sendable {
+  var relayId: String { get }
+  var relayType: String { get }
+  var cid: UInt32? { get }
+}
+
 /// Security wrapper for RelayManager that enforces TCC, AMFI, and isolation checks
 /// Implements Option B architecture: cleaner, testable, non-invasive
 public actor SecureRelayManager: Sendable {

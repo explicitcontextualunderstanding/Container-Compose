@@ -168,21 +168,13 @@ final class DatabaseConnectivityIntegrationTests: XCTestCase {
     /// Test multiple concurrent connections through relay
     func testConnectionPooling() async throws {
         let connectionCount = 5
-        var connections: [MockDatabaseConnection] = []
 
-        // Create multiple connections
+        // Create connections array first
+        var connections: [MockDatabaseConnection] = []
         for i in 0..<connectionCount {
             let connection = try await createDatabaseConnection()
             connections.append(connection)
             print("Created connection \(i + 1)/\(connectionCount)")
-        }
-
-        defer {
-            Task {
-                for connection in connections {
-                    await connection.disconnect()
-                }
-            }
         }
 
         // Verify all connections are established
@@ -191,12 +183,14 @@ final class DatabaseConnectivityIntegrationTests: XCTestCase {
             XCTAssertTrue(isConnected, "Connection \(index + 1) should be established")
         }
 
-        // Test concurrent queries
-        let queryResults = await withTaskGroup(of: Bool.self) { group in
+        // Test concurrent queries - use @Sendable closure with isolated copies
+        var queryResults: [Bool] = []
+        await withTaskGroup(of: Bool.self) { group in
             for connection in connections {
-                group.addTask {
+                let conn = connection // Capture by value
+                group.addTask { @Sendable in
                     do {
-                        let result = try await connection.execute("SELECT 1 as test_value")
+                        let result = try await conn.execute("SELECT 1 as test_value")
                         return result.success
                     } catch {
                         return false
@@ -204,11 +198,14 @@ final class DatabaseConnectivityIntegrationTests: XCTestCase {
                 }
             }
 
-            var results: [Bool] = []
             for await result in group {
-                results.append(result)
+                queryResults.append(result)
             }
-            return results
+        }
+
+        // Cleanup
+        for connection in connections {
+            await connection.disconnect()
         }
 
         // All queries should succeed
@@ -431,7 +428,10 @@ struct QueryResult {
     let message: String?
 }
 
-enum DatabaseError: Error {
+// Extension to make QueryResult Sendable for actor isolation
+extension QueryResult: @unchecked Sendable {}
+
+enum DatabaseError: Error, Sendable {
     case notConnected
     case connectionFailed(String)
     case queryFailed(String)
