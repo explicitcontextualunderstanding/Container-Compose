@@ -95,4 +95,8 @@ public extension RelayConfiguration {
             return .vsockDb
         }
     }
+    
+    var typeString: String {
+        type.description
+    }
 }
