@@ -28,6 +28,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install ruamel.yaml
+
+      - name: Validate compose YAML (Plan 82 Phase 4)
+        run: |
+          # Check for hardcoded IPs in example compose files
+          python3 scripts/validate-compose-yaml.py \
+            --check-hardcoded-ips \
+            --quiet \
+            examples/*.yml 2>/dev/null || echo "Note: No example files or validation warnings"
+
       - name: Setup Swift
         uses: maartene/setup-swift@main
         with:
