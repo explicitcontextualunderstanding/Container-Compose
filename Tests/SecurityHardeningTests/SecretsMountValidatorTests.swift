@@ -16,8 +16,21 @@
 
 import Testing
 import Foundation
+import OSLog
 @testable import SecurityHardening
 @testable import ContainerComposeCore
+
+// MARK: - Protocol Definitions (for test mocks)
+
+protocol ESFClientProtocol: Sendable {
+  func logSecretsMountAttempt(containerCID: Int, mountPath: String) async
+  func logSecretsMountSuccess(containerCID: Int, secretsCount: Int) async
+}
+
+enum ESFEventType: Sendable {
+  case secretsMountAttempt
+  case secretsMountSuccess
+}
 
 @Suite("SecretsMountValidator Tests")
 struct SecretsMountValidatorTests {
@@ -45,12 +58,8 @@ struct SecretsMountValidatorTests {
 
   @Test("Pass AMFI validation")
   func passAMFIValidation() async {
-    let amfiGating = MockAMFIRelayGating()
-    amfiGating.shouldPassValidation = true
-
-    let isolationValidator = MockHorizontalIsolationValidator()
-    isolationValidator.shouldPassValidation = true
-
+    let amfiGating = await MockAMFIRelayGating(shouldPass: true)
+    let isolationValidator = await MockHorizontalIsolationValidator(shouldPass: true)
     let esfClient = MockESFClient()
     let logger = Logger(subsystem: "test", category: "security")
 
@@ -79,11 +88,8 @@ struct SecretsMountValidatorTests {
 
   @Test("Fail AMFI validation")
   func failAMFIValidation() async {
-    let amfiGating = MockAMFIRelayGating()
-    amfiGating.shouldPassValidation = false
-    amfiGating.errorMessage = "Binary not signed with valid Developer ID"
-
-    let isolationValidator = MockHorizontalIsolationValidator()
+    let amfiGating = await MockAMFIRelayGating(shouldPass: false, errorMessage: "Binary not signed with valid Developer ID")
+    let isolationValidator = await MockHorizontalIsolationValidator(shouldPass: true)
     let esfClient = MockESFClient()
     let logger = Logger(subsystem: "test", category: "security")
 
@@ -476,24 +482,16 @@ actor MockAMFIRelayGating: AMFIRelayGating {
   var errorMessage: String?
   var wasCalled = false
 
-  func validateForSecretsMount() async -> AMFIValidationResult {
+  func validateForSocatRemoval(binaryPath: String) async -> GatingResult {
     wasCalled = true
     if shouldPassValidation {
-      return .passed
+      return .validated
     } else {
-      return .failed(message: errorMessage ?? "AMFI validation failed")
+      return .failed(errorMessage ?? "AMFI validation failed")
     }
   }
 
-  func validateForSocatRemoval() async -> AMFIValidationResult {
-    return .passed
-  }
-
-  func validateBeforeRelayStart() async -> AMFIValidationResult {
-    return .passed
-  }
-
-  func isSecurityValidated() async -> Bool {
+  func validateBeforeRelayStart(binaryPath: String) async -> Bool {
     return shouldPassValidation
   }
 }
@@ -502,27 +500,14 @@ actor MockHorizontalIsolationValidator: HorizontalIsolationValidating {
   var shouldPassValidation = true
   var errorMessage: String?
   var wasCalled = false
-  var validatedCID: Int?
-  var validatedEnclavePath: String?
 
-  func validateEnclaveAccess(sourceCID: Int, enclavePath: String) async -> IsolationValidationResult {
+  func validateSocketPath(_ path: String) async -> IsolationResult {
     wasCalled = true
-    validatedCID = sourceCID
-    validatedEnclavePath = enclavePath
-
     if shouldPassValidation {
-      return .passed
+      return .isolated
     } else {
-      return .failed(message: errorMessage ?? "Isolation validation failed")
+      return IsolationResult(isIsolated: false, errorMessage: errorMessage ?? "Isolation validation failed")
     }
-  }
-
-  func validateContainerCommunication(sourceCID: Int, targetCID: Int) async -> IsolationValidationResult {
-    return shouldPassValidation ? .passed : .failed(message: errorMessage ?? "Communication blocked")
-  }
-
-  func validateSocketPath(_ path: String) async -> IsolationValidationResult {
-    return .passed
   }
 }
 
@@ -553,52 +538,18 @@ actor MockESFClient: ESFClientProtocol {
       secretsCount: secretsCount
     ))
   }
-
-  func logVMStartEvent(containerCID: Int) async {
-    loggedEvents.append(LoggedEvent(
-      type: .vmStart,
-      containerCID: containerCID,
-      mountPath: nil,
-      secretsCount: nil
-    ))
-  }
 }
 
 // MARK: - Supporting Types
 
-enum ESFEventType {
+enum ESFEventType: Sendable {
   case secretsMountAttempt
   case secretsMountSuccess
-  case vmStart
-}
-
-enum AMFIValidationResult {
-  case passed
-  case failed(message: String)
-
-  var passed: Bool {
-    switch self {
-    case .passed: return true
-    case .failed: return false
-    }
-  }
-}
-
-enum IsolationValidationResult {
-  case passed
-  case failed(message: String)
-
-  var passed: Bool {
-    switch self {
-    case .passed: return true
-    case .failed: return false
-    }
-  }
 }
 
 // MARK: - Security Gate Description
 
-enum SecurityGate: CustomStringConvertible {
+enum SecurityGate: CustomStringConvertible, Sendable {
   case amfi
   case horizontalIsolation
   case tcc

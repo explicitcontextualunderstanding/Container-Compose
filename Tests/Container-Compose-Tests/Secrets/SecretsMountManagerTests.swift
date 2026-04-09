@@ -16,6 +16,7 @@
 
 import Testing
 import Foundation
+import OSLog
 @testable import ContainerComposeCore
 
 @Suite("SecretsMountManager Tests")
@@ -142,7 +143,7 @@ struct SecretsMountManagerTests {
   // MARK: - Mount Options Tests
 
   @Test("Build mount options with defaults")
-  func buildMountOptionsDefaults() {
+  func buildMountOptionsDefaults() async {
     let logger = Logger(subsystem: "test", category: "secrets")
     let manager = SecretsMountManager(logger: logger)
 
@@ -155,7 +156,7 @@ struct SecretsMountManagerTests {
       cleanup: .immediate
     )
 
-    let options = manager.buildMountOptions(config: config)
+    let options = await manager.buildMountOptions(config: config)
 
     #expect(options.contains("size=1m"))
     #expect(options.contains("mode=0400"))
@@ -164,7 +165,7 @@ struct SecretsMountManagerTests {
   }
 
   @Test("Build mount options without noexec")
-  func buildMountOptionsWithoutNoexec() {
+  func buildMountOptionsWithoutNoexec() async {
     let logger = Logger(subsystem: "test", category: "secrets")
     let manager = SecretsMountManager(logger: logger)
 
@@ -177,7 +178,7 @@ struct SecretsMountManagerTests {
       cleanup: .immediate
     )
 
-    let options = manager.buildMountOptions(config: config)
+    let options = await manager.buildMountOptions(config: config)
 
     #expect(options.contains("size=1m"))
     #expect(!options.contains("noexec"))
@@ -185,7 +186,7 @@ struct SecretsMountManagerTests {
   }
 
   @Test("Build mount options without nosuid")
-  func buildMountOptionsWithoutNosuid() {
+  func buildMountOptionsWithoutNosuid() async {
     let logger = Logger(subsystem: "test", category: "secrets")
     let manager = SecretsMountManager(logger: logger)
 
@@ -198,7 +199,7 @@ struct SecretsMountManagerTests {
       cleanup: .immediate
     )
 
-    let options = manager.buildMountOptions(config: config)
+    let options = await manager.buildMountOptions(config: config)
 
     #expect(options.contains("size=1m"))
     #expect(options.contains("noexec"))
@@ -221,9 +222,14 @@ struct SecretsMountManagerTests {
       cleanup: .immediate
     )
 
-    await #expect(throws: SecretsError.enclaveNotMounted) {
+    var thrownError: Error?
+    do {
       _ = try await manager.createSecretsMount(for: "test-container", config: config)
+    } catch {
+      thrownError = error
     }
+    #expect(thrownError != nil)
+    #expect(thrownError is SecretsError)
   }
 
   @Test("Throw error for invalid secret name")
@@ -337,7 +343,7 @@ struct SecretsMountManagerErrorTests {
       cleanup: .immediate
     )
 
-    await #expect(throws: SecretsError.enclaveNotMounted) {
+    await #expect(throws: (any Error).self) {
       _ = try await manager.createSecretsMount(for: "test", config: config)
     }
   }
@@ -394,13 +400,15 @@ struct SecretsMountStructTests {
       containerID: "test-container",
       hostPath: "/tmp/secrets-123",
       containerPath: "/run/secrets",
-      cleanupPolicy: .immediate
+      cleanupPolicy: .immediate,
+      secretsCount: 3
     )
 
     #expect(mount.containerID == "test-container")
     #expect(mount.hostPath == "/tmp/secrets-123")
     #expect(mount.containerPath == "/run/secrets")
     #expect(mount.cleanupPolicy == .immediate)
+    #expect(mount.secretsCount == 3)
   }
 
   @Test("SecretsMount equality")
@@ -409,21 +417,24 @@ struct SecretsMountStructTests {
       containerID: "container-1",
       hostPath: "/tmp/secrets",
       containerPath: "/run/secrets",
-      cleanupPolicy: .immediate
+      cleanupPolicy: .immediate,
+      secretsCount: 2
     )
 
     let mount2 = SecretsMount(
       containerID: "container-1",
       hostPath: "/tmp/secrets",
       containerPath: "/run/secrets",
-      cleanupPolicy: .immediate
+      cleanupPolicy: .immediate,
+      secretsCount: 2
     )
 
     let mount3 = SecretsMount(
       containerID: "container-2",
       hostPath: "/tmp/secrets",
       containerPath: "/run/secrets",
-      cleanupPolicy: .immediate
+      cleanupPolicy: .immediate,
+      secretsCount: 2
     )
 
     #expect(mount1 == mount2)

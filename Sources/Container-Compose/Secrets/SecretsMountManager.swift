@@ -19,8 +19,8 @@ import OSLog
 
 /// Manages the creation and lifecycle of tmpfs mounts for secrets
 public actor SecretsMountManager {
-  /// Path to the secrets enclave (source)
-  public let enclavePath: String
+/// Path to the secrets enclave (source)
+	public nonisolated(unsafe) let enclavePath: String
 
   /// Logger for operations
   private let logger: Logger
@@ -115,8 +115,8 @@ public actor SecretsMountManager {
     logger.info("Cleaned up secrets mount for container: \(containerID)")
   }
 
-  /// Build mount options based on configuration
-  public func buildMountOptions(config: XAppleSecretsConfig) -> [String] {
+/// Build mount options based on configuration
+	public nonisolated func buildMountOptions(config: XAppleSecretsConfig) -> [String] {
     var options = ["size=1m", "mode=0400"]
     if config.noexec { options.append("noexec") }
     if config.nosuid { options.append("nosuid") }

@@ -44,8 +44,8 @@ public final class SecretsMountValidator: @unchecked Sendable {
   ) async -> SecurityValidationResult {
     // Gate 1: AMFI validation (binary must be signed)
     logger.debug("Running AMFI validation for secrets mount")
-    let amfiResult = await self.amfiGating.validateForSocatRemoval()
-    guard amfiResult.passed else {
+    let amfiResult = await self.amfiGating.validateForSocatRemoval(binaryPath: "/usr/local/bin/container-compose")
+    guard amfiResult.canRemoveSocat else {
       logger.error("AMFI validation failed: \(amfiResult.errorMessage ?? "Unknown")")
       return .failed(gate: .amfi, message: amfiResult.errorMessage ?? "AMFI validation failed")
     }
@@ -119,36 +119,43 @@ public enum SecurityGate: String, CustomStringConvertible, Sendable {
 
 // MARK: - Protocol Extensions
 
-public protocol AMFIRelayGating {
-  func validateForSecretsMount() async -> AMFIValidationResult
-  func validateForSocatRemoval() async -> AMFIValidationResult
-  func validateBeforeRelayStart() async -> AMFIValidationResult
+/// Protocol for AMFI gating - matches SecurityHardening.AMFIRelayGating
+public protocol AMFIRelayGating: Sendable {
+  func validateForSocatRemoval(binaryPath: String) async -> GatingResult
+  func validateBeforeRelayStart(binaryPath: String) async -> Bool
 }
 
-public struct AMFIValidationResult: Equatable, Sendable {
-  public let passed: Bool
+/// Gating result from SecurityHardening module
+public struct GatingResult: Equatable, Sendable {
+  public let canRemoveSocat: Bool
+  public let isValidated: Bool
   public let errorMessage: String?
 
-  public init(passed: Bool, errorMessage: String? = nil) {
-    self.passed = passed
+  public init(canRemoveSocat: Bool, isValidated: Bool, errorMessage: String? = nil) {
+    self.canRemoveSocat = canRemoveSocat
+    self.isValidated = isValidated
     self.errorMessage = errorMessage
   }
+
+  public static let validated = GatingResult(canRemoveSocat: true, isValidated: true)
 }
 
-public protocol HorizontalIsolationValidating {
-  func validateEnclaveAccess(sourceCID: Int, enclavePath: String) async -> IsolationValidationResult
-  func validateContainerCommunication(sourceCID: Int, targetCID: Int) async -> IsolationValidationResult
-  func validateSocketPath(_ path: String) async -> IsolationValidationResult
+/// Protocol for horizontal isolation validation
+public protocol HorizontalIsolationValidating: Sendable {
+  func validateSocketPath(_ path: String) async -> IsolationResult
 }
 
-public struct IsolationValidationResult: Equatable, Sendable {
-  public let passed: Bool
+/// Isolation result from SecurityHardening module
+public struct IsolationResult: Equatable, Sendable {
+  public let isIsolated: Bool
   public let errorMessage: String?
 
-  public init(passed: Bool, errorMessage: String? = nil) {
-    self.passed = passed
+  public init(isIsolated: Bool, errorMessage: String? = nil) {
+    self.isIsolated = isIsolated
     self.errorMessage = errorMessage
   }
+
+  public static let isolated = IsolationResult(isIsolated: true)
 }
 
 // MARK: - ESF Client Extension

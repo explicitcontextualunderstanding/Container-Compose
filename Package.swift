@@ -51,14 +51,15 @@ let package = Package(
             path: "Sources/ContainerComposeApp"
         ),
         
-// Test Helper
-.target(
-    name: "TestHelpers",
-    dependencies: [
+    // Test Helper
+    .target(
+      name: "TestHelpers",
+      dependencies: [
         .product(name: "ContainerAPIClient", package: "container")
-    ],
-    path: "Tests/TestHelpers"
-),
+      ],
+      path: "Tests/TestHelpers",
+      exclude: ["test_helpers.sh"]
+    ),
         
         // Tests
         .testTarget(
@@ -86,12 +87,14 @@ let package = Package(
       ]
     ),
 
-    // Security Hardening Tests (Plan 85)
-    .testTarget(
-      name: "SecurityHardeningTests",
-      dependencies: [
-        "SecurityHardening"
-      ]
-    ),
-  ]
+// Security Hardening Tests (Plan 85)
+.testTarget(
+  name: "SecurityHardeningTests",
+  dependencies: [
+    "SecurityHardening",
+    "ContainerComposeCore"
+  ],
+  path: "Tests/SecurityHardeningTests"
+),
+]
 )

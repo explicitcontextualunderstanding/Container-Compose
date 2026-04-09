@@ -14,33 +14,31 @@
 // limitations under the License.
 //===----------------------------------------------------------------------===//
 
-import XCTest
 import Foundation
 import Yams
 import Testing
 @testable import ContainerComposeCore
 
 /// Honcho Stack Secrets E2E Tests
-/// Note: Uses Swift Testing macros (#expect, #require)
 @Suite("Honcho Stack Secrets E2E Tests")
-struct HonchoStackSecretsE2ETests {
+final class HonchoStackSecretsE2ETests {
 
 var composeFilePath: String!
 
 init() {
-    composeFilePath = FileManager.default.temporaryDirectory
-    .appendingPathComponent("honcho-test-\(UUID().uuidString).yml")
-    .path
+composeFilePath = FileManager.default.temporaryDirectory
+.appendingPathComponent("honcho-test-\(UUID().uuidString).yml")
+.path
 }
 
 deinit {
-    try? FileManager.default.removeItem(atPath: composeFilePath)
+try? FileManager.default.removeItem(atPath: composeFilePath)
 }
 
-  // MARK: - Compose File Parsing Tests
+// MARK: - Compose File Parsing Tests
 
-  
-  func parseHonchoStackCompose() throws {
+@Test("Parse Honcho Stack Compose file")
+func parseHonchoStackCompose() throws {
     let yaml = """
       version: '3.8'
       name: honcho-stack
@@ -133,6 +131,7 @@ deinit {
   // MARK: - Service Configuration Tests
 
   
+  @Test("All services have secrets")
   func verifyAllServicesHaveSecrets() throws {
     let yaml = """
       version: '3.8'
@@ -197,6 +196,7 @@ deinit {
   }
 
   
+  @Test("Deriver secrets consistency")
   func verifyDeriverSecretsConsistency() throws {
     let yaml = """
       version: '3.8'
@@ -240,6 +240,7 @@ deinit {
   // MARK: - Security Configuration Tests
 
   
+  @Test("Verify secure mounts")
   func verifySecureMounts() throws {
     let yaml = """
       version: '3.8'
@@ -269,6 +270,7 @@ deinit {
   // MARK: - Integration with vsock Tests
 
   
+  @Test("Secrets work with relays")
   func secretsWorkWithRelays() throws {
     let yaml = """
       version: '3.8'
@@ -311,6 +313,7 @@ deinit {
   // MARK: - Cleanup Policy Tests
 
   
+  @Test("Verify immediate cleanup")
   func verifyImmediateCleanup() throws {
     let yaml = """
       version: '3.8'
@@ -343,6 +346,7 @@ deinit {
   // MARK: - Mount Path Tests
 
   
+  @Test("Verify consistent mount paths")
   func verifyConsistentMountPaths() throws {
     let yaml = """
       version: '3.8'
@@ -376,6 +380,7 @@ deinit {
   // MARK: - Validation Tests
 
   
+  @Test("Reject invalid secret names")
   func rejectInvalidSecretNames() {
     let yaml = """
       version: '3.8'
@@ -396,6 +401,7 @@ deinit {
   }
 
   
+  @Test("Reject relative mount paths")
   func rejectRelativeMountPaths() {
     let yaml = """
       version: '3.8'
@@ -416,6 +422,7 @@ deinit {
   // MARK: - Complete Stack Validation
 
   
+  @Test("Full Honcho stack configuration")
   func fullHonchoStackConfiguration() throws {
     let yaml = """
       version: '3.8'

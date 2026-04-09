@@ -271,7 +271,7 @@ if [ -f "$ENTITLEMENTS_PLIST" ]; then
             echo "  - $ENT_KEY"
             
             # Check if we have info about this entitlement
-            if [ -n "${ENTITLEMENTS[$ENT_KEY]}" ]; then
+            if [ -n "${ENTITLEMENTS["$ENT_KEY"]}" ]; then
                 echo "    Info: ${ENTITLEMENTS[$ENT_KEY]}"
                 
                 # Determine validity
