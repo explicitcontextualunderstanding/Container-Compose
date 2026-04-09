@@ -174,6 +174,7 @@ enum RelayError: Error, CustomStringConvertible {
     case timeout(String)
     case portInUse(UInt16)
     case networkError(Error)
+    case socketPathTooLong(path: String, length: Int, limit: Int)
     // MARK: - Plan 85 Security Errors
     case securityValidationFailed(gate: String, message: String)
 
@@ -189,6 +190,8 @@ enum RelayError: Error, CustomStringConvertible {
             return "Port \(port) is already in use"
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
+        case .socketPathTooLong(let path, let length, let limit):
+            return "Socket path too long: \(length) chars (limit: \(limit)). Shorten the project or volume name."
         case .securityValidationFailed(let gate, let message):
             return "Security gate '\(gate)' blocked relay: \(message)"
         }
@@ -296,22 +299,18 @@ actor RelayManager {
     switch config.transport {
     case .uds(let path, _):
         // Plan 88: UDS-over-Virtio-FS transport
-        logger.info("Starting UDS relay \(config.id): TCP:\(config.tcpPort) → UDS:\(path)")
-        
-        // Validate socket path length (104-char AF_UNIX limit)
-        guard path.count < 104 else {
-            throw RelayError.socketPathTooLong(path: path, length: path.count, limit: 104)
-        }
-        
-        let relay = try await SocketRelay(
-            tcpPort: config.tcpPort,
-            unixPath: path,
+        let isVolumeSocket = path.contains(".containers/Volumes")
+        logger.info("Starting UDS relay \(config.id): path:\(path) (volumeSocket: \(isVolumeSocket))")
+
+        let relay = try UDSVirtioFSRelay(
+            socketPath: path,
+            createSignalSocket: !isVolumeSocket,
             eventLog: eventLog
         )
         relays[config.id] = relay
         try await relay.start()
-        
-        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "uds:\(path)"))
+
+        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: path))
         logger.info("UDS relay \(config.id) started successfully")
         
     case .vsock(let cid, let port, _):

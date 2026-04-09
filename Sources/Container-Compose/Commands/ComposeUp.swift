@@ -401,8 +401,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       case .vsockDb:
         // vsockDb validated via socket path check
         break
+      case .uds:
+        // UDS validated via socket path check
+        break
       }
-    }
   }
 
   /// Resolves target CID from service name (for relay configuration)
@@ -570,6 +572,9 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
   case .vsockDb:
     // Use specified socket path for vsock-db type
     hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
+  case .uds:
+    // UDS uses specified socket path
+    hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
   }
 
     // Determine TCP port
@@ -602,6 +607,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       transport = .tcp(host: "0.0.0.0", port: tcpPort)
     case .unix:
       transport = .unixSocket(path: hostSocketPath)
+    case .uds:
+      transport = .uds(path: hostSocketPath)
   }
   let config = RelayManager.RelayConfiguration(
     id: relayId,
