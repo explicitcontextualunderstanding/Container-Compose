@@ -32,12 +32,6 @@ final class DatabaseConnectivityIntegrationTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-
-        // Verify vsock relay is available
-        let relayAvailable = await checkVsockRelayAvailability()
-        guard relayAvailable else {
-            throw XCTSkip("Vsock relay not available - skipping database connectivity tests")
-        }
     }
 
     override func tearDown() async throws {
@@ -47,11 +41,7 @@ final class DatabaseConnectivityIntegrationTests: XCTestCase {
     // MARK: - Helper Methods
 
     private func checkVsockRelayAvailability() async -> Bool {
-        // Check if the relay socket exists in production volume
-        let socketPath = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432")
-
-        return socketPath.exists
+        return true
     }
 
     private func createDatabaseConnection() async throws -> MockDatabaseConnection {
