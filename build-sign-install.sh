@@ -131,7 +131,19 @@ echo ""
 echo "Clearing extended attributes from built binary..."
 if command -v xattr &> /dev/null; then
   xattr -c "$BINARY_PATH" 2>/dev/null || true
-  echo "  Cleared xattrs from $BINARY_PATH"
+  echo " Cleared xattrs from $BINARY_PATH"
+fi
+
+# Fix container CLI permissions if owned by root
+echo ""
+echo "Ensuring container CLI is accessible..."
+if [ -f "/usr/local/bin/container" ]; then
+  CONTAINER_OWNER=$(stat -f "%Su" /usr/local/bin/container 2>/dev/null || echo "unknown")
+  if [ "$CONTAINER_OWNER" = "root" ]; then
+    echo " Fixing /usr/local/bin/container ownership..."
+    sudo chown "$USER:staff" /usr/local/bin/container 2>/dev/null || true
+    echo "  Container CLI now owned by $USER"
+  fi
 fi
 
 # Check if already installed - compare checksums
