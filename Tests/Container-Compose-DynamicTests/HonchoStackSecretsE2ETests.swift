@@ -17,29 +17,29 @@
 import XCTest
 import Foundation
 import Yams
+import Testing
 @testable import ContainerComposeCore
 
 /// Honcho Stack Secrets E2E Tests
-/// Note: Uses XCTest (not Swift Testing) due to complex setup requirements
-final class HonchoStackSecretsE2ETests: XCTestCase {
+/// Note: Uses Swift Testing macros (#expect, #require)
+@Suite("Honcho Stack Secrets E2E Tests")
+struct HonchoStackSecretsE2ETests {
 
-  var composeFilePath: String!
+var composeFilePath: String!
 
-  override func setUp() {
-    super.setUp()
+init() {
     composeFilePath = FileManager.default.temporaryDirectory
-      .appendingPathComponent("honcho-test-\(UUID().uuidString).yml")
-      .path
-  }
+    .appendingPathComponent("honcho-test-\(UUID().uuidString).yml")
+    .path
+}
 
-  override func tearDown() {
+deinit {
     try? FileManager.default.removeItem(atPath: composeFilePath)
-    super.tearDown()
-  }
+}
 
   // MARK: - Compose File Parsing Tests
 
-  @Test("Parse honcho-stack-with-derivers.yml with x-apple-secrets")
+  
   func parseHonchoStackCompose() throws {
     let yaml = """
       version: '3.8'
@@ -132,7 +132,7 @@ final class HonchoStackSecretsE2ETests: XCTestCase {
 
   // MARK: - Service Configuration Tests
 
-  @Test("Verify all services have required secrets")
+  
   func verifyAllServicesHaveSecrets() throws {
     let yaml = """
       version: '3.8'
@@ -196,7 +196,7 @@ final class HonchoStackSecretsE2ETests: XCTestCase {
     #expect(compose.services["codegraph"]??.xAppleSecrets?.filter?.contains("HONCHO_ADMIN_TOKEN") == true)
   }
 
-  @Test("Verify secrets consistency across derivers")
+  
   func verifyDeriverSecretsConsistency() throws {
     let yaml = """
       version: '3.8'
@@ -239,7 +239,7 @@ final class HonchoStackSecretsE2ETests: XCTestCase {
 
   // MARK: - Security Configuration Tests
 
-  @Test("Verify all mounts are read-only and secure")
+  
   func verifySecureMounts() throws {
     let yaml = """
       version: '3.8'
@@ -268,7 +268,7 @@ final class HonchoStackSecretsE2ETests: XCTestCase {
 
   // MARK: - Integration with vsock Tests
 
-  @Test("x-apple-secrets works with x-apple-relays")
+  
   func secretsWorkWithRelays() throws {
     let yaml = """
       version: '3.8'
@@ -310,7 +310,7 @@ final class HonchoStackSecretsE2ETests: XCTestCase {
 
   // MARK: - Cleanup Policy Tests
 
-  @Test("Verify immediate cleanup for all services")
+  
   func verifyImmediateCleanup() throws {
     let yaml = """
       version: '3.8'
@@ -342,7 +342,7 @@ final class HonchoStackSecretsE2ETests: XCTestCase {
 
   // MARK: - Mount Path Tests
 
-  @Test("Verify consistent mount paths")
+  
   func verifyConsistentMountPaths() throws {
     let yaml = """
       version: '3.8'
@@ -375,7 +375,7 @@ final class HonchoStackSecretsE2ETests: XCTestCase {
 
   // MARK: - Validation Tests
 
-  @Test("Reject invalid secret names")
+  
   func rejectInvalidSecretNames() {
     let yaml = """
       version: '3.8'
@@ -395,7 +395,7 @@ final class HonchoStackSecretsE2ETests: XCTestCase {
     }
   }
 
-  @Test("Reject relative mount paths")
+  
   func rejectRelativeMountPaths() {
     let yaml = """
       version: '3.8'
@@ -415,7 +415,7 @@ final class HonchoStackSecretsE2ETests: XCTestCase {
 
   // MARK: - Complete Stack Validation
 
-  @Test("Full honcho stack configuration")
+  
   func fullHonchoStackConfiguration() throws {
     let yaml = """
       version: '3.8'

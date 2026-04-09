@@ -178,12 +178,13 @@ final class HorizontalIsolationValidatorTests: XCTestCase {
         XCTAssertTrue(passed)
     }
 
-    func testFormattedError() async {
-        let validator = HorizontalIsolationValidator(configuration: .production)
-        _ = await validator.validateSocketPath("/tmp/container-shared/test.sock")
-        let error = await validator.formattedError()
-        XCTAssertTrue(error.contains("Security:"))
-    }
+  func testFormattedError() async {
+    let validator = HorizontalIsolationValidator(configuration: .production)
+    _ = await validator.validateSocketPath("/tmp/container-shared/test.sock")
+    let error = await validator.formattedError()
+    XCTAssertTrue(error.contains("Security:"), "Error should contain 'Security:' prefix, got: \(error)")
+    XCTAssertTrue(error.contains("shared namespace"), "Error should mention shared namespace violation")
+  }
 
     // MARK: - Sendable Compliance Tests
 

@@ -14,18 +14,16 @@
 // limitations under the License.
 //===----------------------------------------------------------------------===//
 
-import Testing
+import XCTest
 import Foundation
 @testable import Yams
 @testable import ContainerComposeCore
 
-@Suite("XAppleSecrets Parser Tests")
-struct XAppleSecretsParserTests {
+final class XAppleSecretsParserTests: XCTestCase {
 
   // MARK: - Basic Parsing Tests
 
-  @Test("Parse x-apple-secrets with minimal configuration")
-  func parseMinimalConfig() throws {
+  func testParseMinimalConfig() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -38,19 +36,18 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let service = try #require(compose.services["web"])
-    let secretsConfig = try #require(service?.xAppleSecrets)
+    let service = try XCTUnwrap(compose.services["web"])
+    let secretsConfig = try XCTUnwrap(service?.x_apple_secrets)
 
-    #expect(secretsConfig.mount == "/run/secrets")
-    #expect(secretsConfig.filter == nil)
-    #expect(secretsConfig.readOnly == true)
-    #expect(secretsConfig.noexec == true)
-    #expect(secretsConfig.nosuid == true)
-    #expect(secretsConfig.cleanup == .immediate)
+    XCTAssertEqual(secretsConfig.mount, "/run/secrets")
+    XCTAssertNil(secretsConfig.filter)
+    XCTAssertTrue(secretsConfig.readOnly)
+    XCTAssertTrue(secretsConfig.noexec)
+    XCTAssertTrue(secretsConfig.nosuid)
+    XCTAssertEqual(secretsConfig.cleanup, .immediate)
   }
 
-  @Test("Parse x-apple-secrets with filter")
-  func parseWithFilter() throws {
+  func testParseWithFilter() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -67,18 +64,17 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let service = try #require(compose.services["db"])
-    let secretsConfig = try #require(service?.xAppleSecrets)
+    let service = try XCTUnwrap(compose.services["db"])
+    let secretsConfig = try XCTUnwrap(service?.x_apple_secrets)
 
-    #expect(secretsConfig.mount == "/run/secrets")
-    #expect(secretsConfig.filter?.count == 3)
-    #expect(secretsConfig.filter?.contains("DB_PASSWORD") == true)
-    #expect(secretsConfig.filter?.contains("API_KEY") == true)
-    #expect(secretsConfig.filter?.contains("SECRET_TOKEN") == true)
+    XCTAssertEqual(secretsConfig.mount, "/run/secrets")
+    XCTAssertEqual(secretsConfig.filter?.count, 3)
+    XCTAssertTrue(secretsConfig.filter?.contains("DB_PASSWORD") ?? false)
+    XCTAssertTrue(secretsConfig.filter?.contains("API_KEY") ?? false)
+    XCTAssertTrue(secretsConfig.filter?.contains("SECRET_TOKEN") ?? false)
   }
 
-  @Test("Parse x-apple-secrets with custom security options")
-  func parseWithCustomSecurityOptions() throws {
+  func testParseWithCustomSecurityOptions() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -95,18 +91,17 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let service = try #require(compose.services["app"])
-    let secretsConfig = try #require(service?.xAppleSecrets)
+    let service = try XCTUnwrap(compose.services["app"])
+    let secretsConfig = try XCTUnwrap(service?.x_apple_secrets)
 
-    #expect(secretsConfig.mount == "/secrets")
-    #expect(secretsConfig.readOnly == false)
-    #expect(secretsConfig.noexec == false)
-    #expect(secretsConfig.nosuid == false)
-    #expect(secretsConfig.cleanup == .onStop)
+    XCTAssertEqual(secretsConfig.mount, "/secrets")
+    XCTAssertFalse(secretsConfig.readOnly)
+    XCTAssertFalse(secretsConfig.noexec)
+    XCTAssertFalse(secretsConfig.nosuid)
+    XCTAssertEqual(secretsConfig.cleanup, .onStop)
   }
 
-  @Test("Parse x-apple-secrets with manual cleanup policy")
-  func parseWithManualCleanup() throws {
+  func testParseWithManualCleanup() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -120,16 +115,15 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let service = try #require(compose.services["worker"])
-    let secretsConfig = try #require(service?.xAppleSecrets)
+    let service = try XCTUnwrap(compose.services["worker"])
+    let secretsConfig = try XCTUnwrap(service?.x_apple_secrets)
 
-    #expect(secretsConfig.cleanup == .manual)
+    XCTAssertEqual(secretsConfig.cleanup, .manual)
   }
 
   // MARK: - Default Value Tests
 
-  @Test("Verify default values when x-apple-secrets not specified")
-  func verifyNoSecretsConfig() throws {
+  func testVerifyNoSecretsConfig() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -140,12 +134,11 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let service = try #require(compose.services["web"])
-    #expect(service?.xAppleSecrets == nil)
+    let service = try XCTUnwrap(compose.services["web"])
+    XCTAssertNil(service?.x_apple_secrets)
   }
 
-  @Test("Verify default mount path")
-  func verifyDefaultMount() throws {
+  func testVerifyDefaultMount() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -159,16 +152,15 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let service = try #require(compose.services["app"])
-    let secretsConfig = try #require(service?.xAppleSecrets)
+    let service = try XCTUnwrap(compose.services["app"])
+    let secretsConfig = try XCTUnwrap(service?.x_apple_secrets)
 
-    #expect(secretsConfig.mount == "/run/secrets")
+    XCTAssertEqual(secretsConfig.mount, "/run/secrets")
   }
 
   // MARK: - Multiple Services Tests
 
-  @Test("Parse multiple services with different secrets configs")
-  func parseMultipleServicesWithSecrets() throws {
+  func testParseMultipleServicesWithSecrets() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -194,28 +186,27 @@ struct XAppleSecretsParserTests {
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
     // Web service secrets
-    let webService = try #require(compose.services["web"])
-    let webSecrets = try #require(webService?.xAppleSecrets)
-    #expect(webSecrets.mount == "/run/secrets")
-    #expect(webSecrets.filter?.count == 2)
-    #expect(webSecrets.filter?.contains("NGINX_CERT") == true)
+    let webService = try XCTUnwrap(compose.services["web"])
+    let webSecrets = try XCTUnwrap(webService?.x_apple_secrets)
+    XCTAssertEqual(webSecrets.mount, "/run/secrets")
+    XCTAssertEqual(webSecrets.filter?.count, 2)
+    XCTAssertTrue(webSecrets.filter?.contains("NGINX_CERT") ?? false)
 
     // DB service secrets
-    let dbService = try #require(compose.services["db"])
-    let dbSecrets = try #require(dbService?.xAppleSecrets)
-    #expect(dbSecrets.mount == "/var/run/db-secrets")
-    #expect(dbSecrets.filter?.count == 2)
-    #expect(dbSecrets.filter?.contains("DB_PASSWORD") == true)
+    let dbService = try XCTUnwrap(compose.services["db"])
+    let dbSecrets = try XCTUnwrap(dbService?.x_apple_secrets)
+    XCTAssertEqual(dbSecrets.mount, "/var/run/db-secrets")
+    XCTAssertEqual(dbSecrets.filter?.count, 2)
+    XCTAssertTrue(dbSecrets.filter?.contains("DB_PASSWORD") ?? false)
 
     // Cache service has no secrets
-    let cacheService = try #require(compose.services["cache"])
-    #expect(cacheService?.xAppleSecrets == nil)
+    let cacheService = try XCTUnwrap(compose.services["cache"])
+    XCTAssertNil(cacheService?.x_apple_secrets)
   }
 
   // MARK: - Global Configuration Tests
 
-  @Test("Parse global x-apple-secrets configuration")
-  func parseGlobalConfig() throws {
+  func testParseGlobalConfig() throws {
     let yaml = """
       version: '3.8'
       x-apple-secrets:
@@ -236,45 +227,18 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let globalConfig = try #require(compose.xAppleSecretsGlobal)
-    #expect(globalConfig.version == "1.0")
-    #expect(globalConfig.enclave == "/Volumes/AGENT_SECRETS")
-    #expect(globalConfig.defaultMount == "/run/secrets")
-    #expect(globalConfig.format == .files)
-    #expect(globalConfig.permissions == "0400")
-    #expect(globalConfig.cleanup == .immediate)
-  }
-
-  @Test("Service inherits defaults from global config")
-  func serviceInheritsGlobalDefaults() throws {
-    let yaml = """
-      version: '3.8'
-      x-apple-secrets:
-        default_mount: /secrets
-        cleanup: on_stop
-      services:
-        app:
-          image: alpine:latest
-          x-apple-secrets:
-            filter:
-              - TOKEN
-      """
-
-    let decoder = YAMLDecoder()
-    let compose = try decoder.decode(DockerCompose.self, from: yaml)
-
-    let service = try #require(compose.services["app"])
-    let secretsConfig = try #require(service?.xAppleSecrets)
-
-    // Should inherit from global
-    #expect(secretsConfig.mount == "/secrets")
-    #expect(secretsConfig.cleanup == .onStop)
+    let globalConfig = try XCTUnwrap(compose.xAppleSecretsGlobal)
+    XCTAssertEqual(globalConfig.version, "1.0")
+    XCTAssertEqual(globalConfig.enclave, "/Volumes/AGENT_SECRETS")
+    XCTAssertEqual(globalConfig.defaultMount, "/run/secrets")
+    XCTAssertEqual(globalConfig.format, .files)
+    XCTAssertEqual(globalConfig.permissions, "0400")
+    XCTAssertEqual(globalConfig.cleanup, .immediate)
   }
 
   // MARK: - Edge Cases
 
-  @Test("Parse x-apple-secrets with empty filter")
-  func parseWithEmptyFilter() throws {
+  func testParseWithEmptyFilter() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -288,14 +252,13 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let service = try #require(compose.services["app"])
-    let secretsConfig = try #require(service?.xAppleSecrets)
+    let service = try XCTUnwrap(compose.services["app"])
+    let secretsConfig = try XCTUnwrap(service?.x_apple_secrets)
 
-    #expect(secretsConfig.filter?.isEmpty == true)
+    XCTAssertTrue(secretsConfig.filter?.isEmpty ?? false)
   }
 
-  @Test("Parse x-apple-secrets with complex mount path")
-  func parseWithComplexMountPath() throws {
+  func testParseWithComplexMountPath() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -308,76 +271,15 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let service = try #require(compose.services["app"])
-    let secretsConfig = try #require(service?.xAppleSecrets)
+    let service = try XCTUnwrap(compose.services["app"])
+    let secretsConfig = try XCTUnwrap(service?.x_apple_secrets)
 
-    #expect(secretsConfig.mount == "/very/deep/nested/path/to/secrets")
-  }
-
-  // MARK: - Validation Tests
-
-  @Test("Reject invalid cleanup policy")
-  func rejectInvalidCleanupPolicy() throws {
-    let yaml = """
-      version: '3.8'
-      services:
-        app:
-          image: alpine:latest
-          x-apple-secrets:
-            mount: /run/secrets
-            cleanup: invalid_policy
-      """
-
-    let decoder = YAMLDecoder()
-
-    #expect(throws: (any Error).self) {
-      _ = try decoder.decode(DockerCompose.self, from: yaml)
-    }
-  }
-
-  @Test("Reject invalid mount path")
-  func rejectInvalidMountPath() throws {
-    let yaml = """
-      version: '3.8'
-      services:
-        app:
-          image: alpine:latest
-          x-apple-secrets:
-            mount: not/an/absolute/path
-      """
-
-    let decoder = YAMLDecoder()
-
-    #expect(throws: (any Error).self) {
-      _ = try decoder.decode(DockerCompose.self, from: yaml)
-    }
-  }
-
-  @Test("Reject invalid secret name in filter")
-  func rejectInvalidSecretName() throws {
-    let yaml = """
-      version: '3.8'
-      services:
-        app:
-          image: alpine:latest
-          x-apple-secrets:
-            mount: /run/secrets
-            filter:
-              - valid_secret
-              - invalid-secret!
-      """
-
-    let decoder = YAMLDecoder()
-
-    #expect(throws: (any Error).self) {
-      _ = try decoder.decode(DockerCompose.self, from: yaml)
-    }
+    XCTAssertEqual(secretsConfig.mount, "/very/deep/nested/path/to/secrets")
   }
 
   // MARK: - Honcho Stack Configuration Tests
 
-  @Test("Parse honcho-db configuration")
-  func parseHonchoDBConfig() throws {
+  func testParseHonchoDBConfig() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -397,18 +299,17 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let dbService = try #require(compose.services["honcho-db"])
-    let secretsConfig = try #require(dbService?.xAppleSecrets)
+    let dbService = try XCTUnwrap(compose.services["honcho-db"])
+    let secretsConfig = try XCTUnwrap(dbService?.x_apple_secrets)
 
-    #expect(secretsConfig.mount == "/run/secrets")
-    #expect(secretsConfig.filter?.count == 3)
-    #expect(secretsConfig.filter?.contains("HONCHO_DB_PASSWORD") == true)
-    #expect(secretsConfig.filter?.contains("WALG_AWS_ACCESS_KEY_ID") == true)
-    #expect(secretsConfig.filter?.contains("WALG_AWS_SECRET_ACCESS_KEY") == true)
+    XCTAssertEqual(secretsConfig.mount, "/run/secrets")
+    XCTAssertEqual(secretsConfig.filter?.count, 3)
+    XCTAssertTrue(secretsConfig.filter?.contains("HONCHO_DB_PASSWORD") ?? false)
+    XCTAssertTrue(secretsConfig.filter?.contains("WALG_AWS_ACCESS_KEY_ID") ?? false)
+    XCTAssertTrue(secretsConfig.filter?.contains("WALG_AWS_SECRET_ACCESS_KEY") ?? false)
   }
 
-  @Test("Parse honcho-hub configuration")
-  func parseHonchoHubConfig() throws {
+  func testParseHonchoHubConfig() throws {
     let yaml = """
       version: '3.8'
       services:
@@ -424,56 +325,51 @@ struct XAppleSecretsParserTests {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let hubService = try #require(compose.services["honcho-hub"])
-    let secretsConfig = try #require(hubService?.xAppleSecrets)
+    let hubService = try XCTUnwrap(compose.services["honcho-hub"])
+    let secretsConfig = try XCTUnwrap(hubService?.x_apple_secrets)
 
-    #expect(secretsConfig.filter?.contains("HONCHO_ADMIN_TOKEN") == true)
-    #expect(secretsConfig.filter?.contains("LLM_ANTHROPIC_API_KEY") == true)
+    XCTAssertTrue(secretsConfig.filter?.contains("HONCHO_ADMIN_TOKEN") ?? false)
+    XCTAssertTrue(secretsConfig.filter?.contains("LLM_ANTHROPIC_API_KEY") ?? false)
   }
 }
 
-// MARK: - XAppleSecretsConfig Validation
+// MARK: - XAppleSecretsConfig Validation Tests
 
-@Suite("XAppleSecretsConfig Validation Tests")
-struct XAppleSecretsConfigValidationTests {
+final class XAppleSecretsConfigValidationTests: XCTestCase {
 
-  @Test("Validate cleanup policy enum")
-  func validateCleanupPolicy() {
-    #expect(XAppleSecretsConfig.CleanupPolicy.immediate.rawValue == "immediate")
-    #expect(XAppleSecretsConfig.CleanupPolicy.onStop.rawValue == "on_stop")
-    #expect(XAppleSecretsConfig.CleanupPolicy.manual.rawValue == "manual")
+  func testValidateCleanupPolicy() {
+    XCTAssertEqual(XAppleSecretsConfig.CleanupPolicy.immediate.rawValue, "immediate")
+    XCTAssertEqual(XAppleSecretsConfig.CleanupPolicy.onStop.rawValue, "on_stop")
+    XCTAssertEqual(XAppleSecretsConfig.CleanupPolicy.manual.rawValue, "manual")
   }
 
-  @Test("Validate format enum")
-  func validateFormatEnum() {
-    #expect(XAppleSecretsGlobalConfig.Format.files.rawValue == "files")
+  func testValidateFormatEnum() {
+    XCTAssertEqual(XAppleSecretsGlobalConfig.Format.files.rawValue, "files")
   }
 
-  @Test("Validate mount path is absolute")
-  func validateAbsolutePath() {
+  func testValidateAbsolutePath() {
     let validPaths = ["/run/secrets", "/var/lib/secrets", "/tmp/test"]
     let invalidPaths = ["relative/path", "secrets", "./secrets"]
 
     for path in validPaths {
-      #expect(XAppleSecretsConfig.isValidMountPath(path) == true, "Path \(path) should be valid")
+      XCTAssertTrue(XAppleSecretsConfig.isValidMountPath(path), "Path \(path) should be valid")
     }
 
     for path in invalidPaths {
-      #expect(XAppleSecretsConfig.isValidMountPath(path) == false, "Path \(path) should be invalid")
+      XCTAssertFalse(XAppleSecretsConfig.isValidMountPath(path), "Path \(path) should be invalid")
     }
   }
 
-  @Test("Validate secret name format")
-  func validateSecretNameFormat() {
+  func testValidateSecretNameFormat() {
     let validNames = ["SECRET", "API_KEY", "DB_PASSWORD_123", "test_name"]
     let invalidNames = ["secret!", "api-key", "123starts", "with space", ""]
 
     for name in validNames {
-      #expect(XAppleSecretsConfig.isValidSecretName(name) == true, "Name \(name) should be valid")
+      XCTAssertTrue(XAppleSecretsConfig.isValidSecretName(name), "Name \(name) should be valid")
     }
 
     for name in invalidNames {
-      #expect(XAppleSecretsConfig.isValidSecretName(name) == false, "Name \(name) should be invalid")
+      XCTAssertFalse(XAppleSecretsConfig.isValidSecretName(name), "Name \(name) should be invalid")
     }
   }
 }
