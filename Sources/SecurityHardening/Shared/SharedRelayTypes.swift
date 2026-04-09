@@ -8,7 +8,10 @@ import Foundation
 public enum RelayTransport: Hashable, Sendable, Codable {
     case tcp(host: String, port: UInt16)
     case unixSocket(path: String)
+    case uds(path: String, virtioFSMount: String? = nil)
+    @available(*, deprecated, message: "Use .uds(path:) — vSock blocked by Apple")
     case vsock(cid: UInt32, port: UInt32, unixSocketPath: String)
+    @available(*, deprecated, message: "Use .uds(path:) — vSock blocked by Apple")
     case vsockDb(socketPath: String)
 }
 
@@ -55,11 +58,13 @@ public struct RelayConfiguration: Sendable {
         switch transport {
         case .unixSocket(let path):
             return path
+        case .uds(let path, _):
+            return path
         case .vsock(_, _, let path):
             return path
         case .vsockDb(let socketPath):
             return socketPath
-        case .tcp, .vsock:
+        case .tcp:
             return ""
         }
     }
@@ -69,13 +74,17 @@ public struct RelayConfiguration: Sendable {
 public enum RelayType: Sendable, Codable, Hashable {
     case tcp
     case unixSocket
+    case uds
+    @available(*, deprecated, message: "Use .uds — vSock blocked by Apple")
     case vsock
+    @available(*, deprecated, message: "Use .uds — vSock blocked by Apple")
     case vsockDb
 
     public var description: String {
         switch self {
         case .tcp: return "tcp"
         case .unixSocket: return "unixSocket"
+        case .uds: return "uds"
         case .vsock: return "vsock"
         case .vsockDb: return "vsockDb"
         }
@@ -89,6 +98,8 @@ public extension RelayConfiguration {
             return .tcp
         case .unixSocket:
             return .unixSocket
+        case .uds:
+            return .uds
         case .vsock:
             return .vsock
         case .vsockDb:

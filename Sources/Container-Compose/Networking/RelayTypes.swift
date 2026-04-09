@@ -7,14 +7,16 @@ import Virtualization
 /// Used by both relay implementations and YAML configuration
 public enum RelayTransport: Hashable, Sendable, Codable {
     case unixSocket(path: String)
+    case uds(path: String, virtioFSMount: String? = nil)
     case vsock(cid: UInt32, port: UInt32, unixSocketPath: String = "")
     case vsockDb(socketPath: String)
     case tcp(host: String, port: UInt16)
-    
+
     /// Human-readable description
     public var description: String {
         switch self {
         case .unixSocket(let path): return "unix:\(path)"
+        case .uds(let path, _): return "uds:\(path)"
         case .vsock(let cid, let port, let unixSocketPath):
             if unixSocketPath.isEmpty {
                 return "vsock:\(cid):\(port)"
@@ -24,25 +26,27 @@ public enum RelayTransport: Hashable, Sendable, Codable {
         case .tcp(let host, let port): return "tcp:\(host):\(port)"
         }
     }
-    
+
     /// Simple transport type for YAML configuration (no associated values)
     public enum TransportType: String, Codable, Hashable {
+        case uds
         case vsock
         case vsockDb
         case unix
         case tcp
     }
-    
+
     /// Get the simple transport type
     public var transportType: TransportType {
         switch self {
         case .unixSocket: return .unix
+        case .uds: return .uds
         case .vsock: return .vsock
         case .vsockDb: return .vsockDb
         case .tcp: return .tcp
         }
     }
-    
+
     /// Coding keys for Codable conformance
     enum CodingKeys: String, CodingKey {
         case type
@@ -52,16 +56,21 @@ public enum RelayTransport: Hashable, Sendable, Codable {
         case host
         case unixSocketPath
         case socketPath
+        case virtioFSMount
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(TransportType.self, forKey: .type)
-        
+
         switch type {
         case .unix:
             let path = try container.decode(String.self, forKey: .path)
             self = .unixSocket(path: path)
+        case .uds:
+            let path = try container.decode(String.self, forKey: .path)
+            let mount = try container.decodeIfPresent(String.self, forKey: .virtioFSMount)
+            self = .uds(path: path, virtioFSMount: mount)
         case .vsock:
             let cid = try container.decode(UInt32.self, forKey: .cid)
             let port = try container.decode(UInt32.self, forKey: .port)
@@ -76,14 +85,17 @@ public enum RelayTransport: Hashable, Sendable, Codable {
             self = .tcp(host: host, port: port)
         }
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(transportType, forKey: .type)
-        
+
         switch self {
         case .unixSocket(let path):
             try container.encode(path, forKey: .path)
+        case .uds(let path, let mount):
+            try container.encode(path, forKey: .path)
+            try? container.encodeIfPresent(mount, forKey: .virtioFSMount)
         case .vsock(let cid, let port, let unixSocketPath):
             try container.encode(cid, forKey: .cid)
             try container.encode(port, forKey: .port)
@@ -114,6 +126,29 @@ public protocol RelayProtocol: Actor {
 
     func start() async throws
     func stop() async
+}
+
+// MARK: - UDS Types
+
+/// Errors specific to UDS-over-Virtio-FS operations
+enum UDSError: Error, CustomStringConvertible {
+    case socketPathTooLong(path: String, length: Int, limit: Int)
+    case virtioFSNotAvailable
+    case socketBindingFailed(String)
+    case connectionFailed(String)
+
+    var description: String {
+        switch self {
+        case .socketPathTooLong(let path, let length, let limit):
+            return "Socket path too long: \(length) chars (limit: \(limit)). Path: \(path). Shorten the project or volume name."
+        case .virtioFSNotAvailable:
+            return "Virtio-FS mount not available: ~/.containers/Volumes not found"
+        case .socketBindingFailed(let reason):
+            return "Failed to bind UDS socket: \(reason)"
+        case .connectionFailed(let reason):
+            return "UDS connection failed: \(reason)"
+        }
+    }
 }
 
 // MARK: - Vsock Types

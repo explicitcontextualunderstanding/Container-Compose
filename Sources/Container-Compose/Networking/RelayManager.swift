@@ -245,10 +245,18 @@ actor RelayManager {
 
   /// Convenience accessor for Unix socket path (backward compatibility)
   var unixSocketPath: String {
-    if case .unixSocket(let path) = transport {
+    switch transport {
+    case .unixSocket(let path):
       return path
+    case .uds(let path, _):
+      return path
+    case .vsock(_, _, let path):
+      return path
+    case .vsockDb(let path):
+      return path
+    case .tcp:
+      return ""
     }
-    return ""
   }
 
   /// CID from vsock transport (for SecurityHardening protocol)
@@ -284,9 +292,29 @@ actor RelayManager {
         }
         */
 
-// Route to appropriate relay implementation based on transport type
-switch config.transport {
-case .vsock(let cid, let port, _):
+    // Route to appropriate relay implementation based on transport type
+    switch config.transport {
+    case .uds(let path, _):
+        // Plan 88: UDS-over-Virtio-FS transport
+        logger.info("Starting UDS relay \(config.id): TCP:\(config.tcpPort) → UDS:\(path)")
+        
+        // Validate socket path length (104-char AF_UNIX limit)
+        guard path.count < 104 else {
+            throw RelayError.socketPathTooLong(path: path, length: path.count, limit: 104)
+        }
+        
+        let relay = try await SocketRelay(
+            tcpPort: config.tcpPort,
+            unixPath: path,
+            eventLog: eventLog
+        )
+        relays[config.id] = relay
+        try await relay.start()
+        
+        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "uds:\(path)"))
+        logger.info("UDS relay \(config.id) started successfully")
+        
+    case .vsock(let cid, let port, _):
     logger.info("Starting VSOCK relay \(config.id): TCP:\(config.tcpPort) → vsock:\(cid):\(port)")
 
     // Check vsock availability first
