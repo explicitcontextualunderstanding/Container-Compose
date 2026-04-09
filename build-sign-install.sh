@@ -138,12 +138,55 @@ fi
 echo ""
 echo "Ensuring container CLI is accessible..."
 if [ -f "/usr/local/bin/container" ]; then
-  CONTAINER_OWNER=$(stat -f "%Su" /usr/local/bin/container 2>/dev/null || echo "unknown")
-  if [ "$CONTAINER_OWNER" = "root" ]; then
-    echo " Fixing /usr/local/bin/container ownership..."
-    sudo chown "$USER:staff" /usr/local/bin/container 2>/dev/null || true
-    echo "  Container CLI now owned by $USER"
-  fi
+    CONTAINER_OWNER=$(stat -f "%Su" /usr/local/bin/container 2>/dev/null || echo "unknown")
+    if [ "$CONTAINER_OWNER" = "root" ]; then
+        echo " Fixing /usr/local/bin/container ownership..."
+        sudo chown "$USER:staff" /usr/local/bin/container 2>/dev/null || true
+        echo " Container CLI now owned by $USER"
+    fi
+fi
+
+# Pre-pull test images for E2E tests (pgmicro for fast relay tests)
+echo ""
+echo "=========================================="
+echo "Pre-pulling test images"
+echo "=========================================="
+
+# Load ops.env if it exists (for OCI_REGISTRY_URL)
+if [ -f "$SCRIPT_DIR/ops.env" ]; then
+    set -a
+    source "$SCRIPT_DIR/ops.env"
+    set +a
+fi
+
+# Default to local/Apple registry if not set
+REGISTRY_URL="${OCI_REGISTRY_URL:-REMOVED_REGISTRY_URL}"
+
+# Pre-pull pgmicro (PostgreSQL-compatible for fast E2E relay tests)
+# pgmicro starts in 2-5s vs 30s for postgres - critical for test speed
+PGMICRO_IMAGE="$REGISTRY_URL/pgmicro:latest"
+echo ""
+echo "Ensuring pgmicro image is available..."
+if command -v container &> /dev/null; then
+    # Check if image exists locally first
+    if container image list 2>/dev/null | grep -q "pgmicro"; then
+        echo " ✅ pgmicro already cached"
+    else
+        echo " Pulling pgmicro from $REGISTRY_URL..."
+        if container pull "$PGMICRO_IMAGE" 2>/dev/null; then
+            echo " ✅ pgmicro pulled successfully"
+        else
+            # Fallback: try docker.io if private registry fails
+            echo " ⚠️ Private registry pull failed, trying docker.io..."
+            if container pull docker.io/pgmicro/pgmicro:latest 2>/dev/null; then
+                echo " ✅ pgmicro pulled from docker.io"
+            else
+                echo " ⚠️ Could not pull pgmicro (tests may skip or fail)"
+            fi
+        fi
+    fi
+else
+    echo " ⚠️ container CLI not available - skipping image pre-pull"
 fi
 
 # Check if already installed - compare checksums

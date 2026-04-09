@@ -16,9 +16,11 @@
 
 import XCTest
 import Foundation
+import Yams
 @testable import ContainerComposeCore
 
-@Suite("Honcho Stack Secrets E2E Tests")
+/// Honcho Stack Secrets E2E Tests
+/// Note: Uses XCTest (not Swift Testing) due to complex setup requirements
 final class HonchoStackSecretsE2ETests: XCTestCase {
 
   var composeFilePath: String!

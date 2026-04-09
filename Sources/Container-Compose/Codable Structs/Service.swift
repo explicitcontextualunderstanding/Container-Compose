@@ -246,14 +246,20 @@ public final class Service: Codable, Hashable {
     
     /// Apple Container vsock relay extensions (Plan 77 Phase 6)
     /// Declarative vsock configuration for hardware-isolated IPC
-    public let x_apple_relays: [AppleRelayConfig]?
+public let x_apple_relays: [AppleRelayConfig]?
 
-    /// Apple Container secrets extension (Plan 86)
-    /// Declarative secrets mount configuration for zero-persistence security
-    public let x_apple_secrets: XAppleSecretsConfig?
+  /// CamelCase accessor for x_apple_relays (for test compatibility)
+  public var xAppleRelays: [AppleRelayConfig]? { x_apple_relays }
 
-    /// Other services that depend on this service
-    public var dependedBy: [String] = []
+  /// Apple Container secrets extension (Plan 86)
+  /// Declarative secrets mount configuration for zero-persistence security
+  public let x_apple_secrets: XAppleSecretsConfig?
+
+  /// CamelCase accessor for x_apple_secrets (for test compatibility)
+  public var xAppleSecrets: XAppleSecretsConfig? { x_apple_secrets }
+
+  /// Other services that depend on this service
+  public var dependedBy: [String] = []
 
     /// Flat list of dependency service names (from both short and long form).
     public var dependencyNames: [String] {
