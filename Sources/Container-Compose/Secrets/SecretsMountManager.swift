@@ -117,11 +117,15 @@ public actor SecretsMountManager {
 
 /// Build mount options based on configuration
 	public nonisolated func buildMountOptions(config: XAppleSecretsConfig) -> [String] {
-    var options = ["size=1m", "mode=0400"]
-    if config.noexec { options.append("noexec") }
-    if config.nosuid { options.append("nosuid") }
-    return options
-  }
+		var options: [String] = []
+		#if os(Linux)
+		options.append("size=1m")
+		#endif
+		options.append("mode=0400")
+		if config.noexec { options.append("noexec") }
+		if config.nosuid { options.append("nosuid") }
+		return options
+	}
 
   /// Load secrets from enclave with optional filtering
   public func loadSecrets(filter: [String]?) async throws -> [String: String] {
