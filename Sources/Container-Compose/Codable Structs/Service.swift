@@ -248,6 +248,10 @@ public final class Service: Codable, Hashable {
     /// Declarative vsock configuration for hardware-isolated IPC
     public let x_apple_relays: [AppleRelayConfig]?
 
+    /// Apple Container secrets extension (Plan 86)
+    /// Declarative secrets mount configuration for zero-persistence security
+    public let x_apple_secrets: XAppleSecretsConfig?
+
     /// Other services that depend on this service
     public var dependedBy: [String] = []
 
@@ -272,10 +276,11 @@ public final class Service: Codable, Hashable {
     
 // Defines custom coding keys to map YAML keys to Swift properties
 // Note: 'env' is a shorthand alias for 'environment' in Docker Compose
-enum CodingKeys: String, CodingKey {
-    case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user, container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns, dns_search, publish_socket, relay
-    case x_apple_relays = "x-apple-relays"
-}
+    enum CodingKeys: String, CodingKey {
+        case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user, container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns, dns_search, publish_socket, relay
+        case x_apple_relays = "x-apple-relays"
+        case x_apple_secrets = "x-apple-secrets"
+    }
     
     /// Public memberwise initializer for testing
     public init(
