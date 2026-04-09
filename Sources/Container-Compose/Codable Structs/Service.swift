@@ -316,16 +316,17 @@ public final class Service: Codable, Hashable {
         init_image: String? = nil,
         publish_socket: String? = nil,
         relay: ServiceRelay? = nil,
-        x_apple_relays: [AppleRelayConfig]? = nil,
-        dependedBy: [String] = []
-    ) {
-        self.image = image
-        self.build = build
-        self.deploy = deploy
-        self.restart = restart
-        self.healthcheck = healthcheck
-        self.volumes = volumes
-        self.environment = environment
+  x_apple_relays: [AppleRelayConfig]? = nil,
+    x_apple_secrets: XAppleSecretsConfig? = nil,
+    dependedBy: [String] = []
+  ) {
+    self.image = image
+    self.build = build
+    self.deploy = deploy
+    self.restart = restart
+    self.healthcheck = healthcheck
+    self.volumes = volumes
+    self.environment = environment
         self.env_file = env_file
         self.ports = ports
         self.command = command
@@ -347,13 +348,14 @@ public final class Service: Codable, Hashable {
         self.tty = tty
         self.dns = dns
         self.dns_search = dns_search
-        self.runtime = runtime
-        self.init_image = init_image
-        self.publish_socket = publish_socket
-        self.relay = relay
-        self.x_apple_relays = x_apple_relays
-        self.dependedBy = dependedBy
-    }
+self.runtime = runtime
+    self.init_image = init_image
+    self.publish_socket = publish_socket
+    self.relay = relay
+    self.x_apple_relays = x_apple_relays
+    self.x_apple_secrets = x_apple_secrets
+    self.dependedBy = dependedBy
+  }
 
   /// Custom initializer to handle decoding and basic validation.
     public init(from decoder: Decoder) throws {
@@ -537,6 +539,9 @@ public final class Service: Codable, Hashable {
     
     // Decode Apple relay extensions if present (Plan 77 Phase 6)
     x_apple_relays = try container.decodeIfPresent([AppleRelayConfig].self, forKey: .x_apple_relays)
+
+    // Decode Apple secrets extension if present (Plan 86)
+    x_apple_secrets = try container.decodeIfPresent(XAppleSecretsConfig.self, forKey: .x_apple_secrets)
   }
     
     /// Returns the services in topological order based on `depends_on` relationships.
