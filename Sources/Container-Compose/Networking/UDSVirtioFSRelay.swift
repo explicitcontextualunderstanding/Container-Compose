@@ -235,7 +235,7 @@ public final actor UDSVirtioFSRelay: RelayProtocol {
             }
 
             // A-1: Validate peer via SO_PEERCRED
-            let validation = peerValidator.validatePeer(socket_fd: clientSock)
+            let validation = await peerValidator.validatePeer(socket_fd: clientSock)
             if case .failed(let reason) = validation {
                 logger.warning("Rejected UDS connection: \(reason)")
                 Darwin.close(clientSock)
@@ -305,21 +305,30 @@ public actor PeerValidator {
 
     /// Validate peer credentials on an accepted connection
     func validatePeer(socket_fd: Int32) -> PeerValidationResult {
-        var cred = ucred()
-        var credLen = socklen_t(MemoryLayout<ucred>.size)
-        guard getsockopt(socket_fd, SOL_LOCAL, LOCAL_PEERCRED, &cred, &credLen) == 0 else {
-            return .failed("Cannot read peer credentials: \(errno)")
+        var uid = UInt32(0)
+        var gid = UInt32(0)
+        var pid = Int32(0)
+        var credLen = socklen_t(MemoryLayout<(UInt32, UInt32, Int32)>.size)
+        withUnsafeMutablePointer(to: &uid) { uidPtr in
+            withUnsafeMutablePointer(to: &gid) { gidPtr in
+                withUnsafeMutablePointer(to: &pid) { pidPtr in
+                    let result = getsockopt(socket_fd, SOL_LOCAL, LOCAL_PEERCRED, uidPtr, &credLen)
+                    guard result == 0 else {
+                        return .failed("Cannot read peer credentials: \(errno)")
+                    }
+                }
+            }
         }
-        if let expected = expectedUID, cred.uid != expected {
-            return .failed("UID mismatch: expected \(expected), got \(cred.uid)")
+        if let expected = expectedUID, uid != expected {
+            return .failed("UID mismatch: expected \(expected), got \(uid)")
         }
-        return .passed(peerUID: cred.uid, peerGID: cred.gid, peerPID: cred.pid)
+        return .passed(peerUID: uid, peerGID: gid, peerPID: pid)
     }
 }
 
 /// Result of peer validation
 public enum PeerValidationResult: Sendable {
-    case passed(peerUID: uid_t, peerGID: gid_t, peerPID: pid_t)
+    case passed(peerUID: UInt32, peerGID: UInt32, peerPID: Int32)
     case failed(String)
 }
 
