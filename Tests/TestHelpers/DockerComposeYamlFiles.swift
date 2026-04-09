@@ -425,6 +425,7 @@ public struct DockerComposeYamlFiles {
     // Replace hardcoded values with isolated UUID-based values:
     // 1. Project name for container isolation
     // 2. Socket path so test knows where to find it (matches temp directory)
+    // 3. Environment variables (OCI_REGISTRY_URL, etc.)
     var isolatedYaml = yaml.replacingOccurrences(
       of: "name: vsock-relay-test",
       with: "name: \(projectName)"
@@ -438,6 +439,14 @@ public struct DockerComposeYamlFiles {
       with: "socket_path: \(tempBase.path)/sockets/.s.PGSQL.5432"
     )
     
+    // Replace environment variable placeholders
+    // ${OCI_REGISTRY_URL} -> actual value from environment
+    let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "docker.io"
+    isolatedYaml = isolatedYaml.replacingOccurrences(
+      of: "${OCI_REGISTRY_URL}",
+      with: registryURL
+    )
+    
     try? FileManager.default.createDirectory(at: tempBase, withIntermediateDirectories: true)
     try isolatedYaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -448,32 +457,27 @@ public struct DockerComposeYamlFiles {
 
   /// Test fixture for vsock-db relay with socket_path configuration
   /// Uses pgmicro for faster startup (2-5s vs 30s) while still testing same relay paths
-  /// pgmicro is PostgreSQL-compatible but lighter weight for E2E testing
-  /// Note: Tests using this should check OCI_REGISTRY_URL is available
+  /// pgmicro is PostgreSQL-compatible (same socket behavior) but lighter weight for E2E testing
+  /// Note: Tests using this require OCI_REGISTRY_URL env var (via ops.env, gitignored)
   public static let vsockDbRelayYaml = """
     name: vsock-relay-test
     services:
       db:
-        image: docker.io/library/postgres:15-alpine
+        image: ${OCI_REGISTRY_URL}/pgmicro:latest
         environment:
           POSTGRES_DB: testdb
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
         volumes:
-          - test-db-data:/var/lib/postgresql/data
           - test-db-sockets:/var/run/postgresql/sockets
         x-apple-relays:
           - type: vsock-db
             port: 5432
             socket_path: /tmp/.container-compose-test/sockets/.s.PGSQL.5432
         command:
-          - postgres
-          - -c
-          - unix_socket_directories=/var/run/postgresql/sockets
-          - -c
-          - listen_addresses=*
+          - /pgmicro
+          - --unix-socket-dir=/var/run/postgresql/sockets
     volumes:
-      test-db-data:
       test-db-sockets:
     """
 
