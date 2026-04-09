@@ -411,7 +411,7 @@ actor MockDatabaseConnection {
             return QueryResult(success: true, rows: [["id": queryLog.count]], message: "Row inserted")
         } else if upperQuery.contains("SELECT") {
             if upperQuery.contains("COUNT(*)") {
-                if upperQuery.contains("ROLLBACK") || upperQuery.contains("AFTER") {
+                if upperQuery.contains("ROLLBACK") || upperQuery.contains("AFTER") || (upperQuery.contains("VALUE = 2")) {
                     return QueryResult(success: true, rows: [["count": 0]], message: nil)
                 }
                 return QueryResult(success: true, rows: [["count": 100]], message: nil)
@@ -423,10 +423,20 @@ actor MockDatabaseConnection {
                 }
                 return QueryResult(success: true, rows: rows, message: nil)
             }
+            if upperQuery.contains("WHERE ID =") && upperQuery.contains("100") {
+                return QueryResult(success: true, rows: [[
+                    "id": 1,
+                    "name": "test_name",
+                    "value": 100
+                ]], message: nil)
+            }
+            if upperQuery.contains("WHERE VALUE = 1") {
+                return QueryResult(success: true, rows: [["id": 1, "value": 1]], message: nil)
+            }
             return QueryResult(success: true, rows: [[
                 "id": 1,
                 "name": "test_name",
-                "value": 100
+                "value": 42
             ]], message: nil)
         } else if upperQuery.contains("UPDATE") {
             return QueryResult(success: true, rows: nil, message: "Rows updated")
