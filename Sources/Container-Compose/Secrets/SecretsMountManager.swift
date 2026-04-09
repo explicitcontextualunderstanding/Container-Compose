@@ -256,10 +256,10 @@ extension Logger {
   }
 
   func warning(_ message: String) {
-    self.log(level: .warning, "\(message)")
+    self.log(level: .default, "\(message)")
   }
 
   func error(_ message: String) {
-    self.log(level: .error, "\(message)")
+    self.log(level: .fault, "\(message)")
   }
 }
