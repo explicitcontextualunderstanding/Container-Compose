@@ -447,11 +447,14 @@ public struct DockerComposeYamlFiles {
   // MARK: - Vsock Relay Test Fixtures (Plan 84)
 
   /// Test fixture for vsock-db relay with socket_path configuration
+  /// Uses pgmicro for faster startup (2-5s vs 30s) while still testing same relay paths
+  /// pgmicro is PostgreSQL-compatible but lighter weight for E2E testing
+  /// Note: Tests using this should check OCI_REGISTRY_URL is available
   public static let vsockDbRelayYaml = """
     name: vsock-relay-test
     services:
       db:
-        image: postgres:15-alpine
+        image: docker.io/library/postgres:15-alpine
         environment:
           POSTGRES_DB: testdb
           POSTGRES_USER: test
