@@ -19,7 +19,7 @@ import OSLog
 import SecurityHardening
 
 /// Validates secrets mounts before container start (Plan 85 integration)
-public actor SecretsMountValidator {
+public final class SecretsMountValidator: @unchecked Sendable {
   private let amfiGating: AMFIRelayGating
   private let isolationValidator: HorizontalIsolationValidator
   private let esfClient: ESFClient?
@@ -44,8 +44,8 @@ public actor SecretsMountValidator {
   ) async -> SecurityValidationResult {
     // Gate 1: AMFI validation (binary must be signed)
     logger.debug("Running AMFI validation for secrets mount")
-    let amfiResult = await amfiGating.validateForSocatRemoval()
-    guard amfiResult.isValidated else {
+    let amfiResult = await self.amfiGating.validateForSocatRemoval()
+    guard amfiResult.passed else {
       logger.error("AMFI validation failed: \(amfiResult.errorMessage ?? "Unknown")")
       return .failed(gate: .amfi, message: amfiResult.errorMessage ?? "AMFI validation failed")
     }

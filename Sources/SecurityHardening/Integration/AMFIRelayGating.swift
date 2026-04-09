@@ -7,7 +7,7 @@ import Foundation
 
 /// AMFI gating for Plan 84 Phase 6 - controls socat removal
 /// Validates code signature before allowing native relay activation
-public actor AMFIRelayGating: Sendable {
+public final class AMFIRelayGating: @unchecked Sendable {
 
     /// Gating configuration
     public struct Configuration: Sendable {
@@ -130,9 +130,9 @@ public actor AMFIRelayGating: Sendable {
 
     /// Validates binary for Phase 6 socat removal
     /// Called before allowing native relay to replace socat
-    /// - Parameter binaryPath: Path to container-compose binary
-    /// - Returns: GatingResult indicating if socat can be removed
-    public func validateForSocatRemoval(binaryPath: String = "/usr/local/bin/container-compose") async -> GatingResult {
+/// - Parameter binaryPath: Path to container-compose binary
+/// - Returns: GatingResult indicating if socat can be removed
+public func validateForSocatRemoval(binaryPath: String = "/usr/local/bin/container-compose") async -> GatingResult {
 // Skip if gating is disabled
     guard configuration.enforceAMFIValidation else {
         let result = GatingResult(

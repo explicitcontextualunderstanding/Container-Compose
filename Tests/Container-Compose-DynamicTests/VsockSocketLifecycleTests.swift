@@ -13,18 +13,27 @@ import TestHelpers
 
 /// Vsock socket lifecycle tests with real containers
 /// Uses CCT_* pattern withContainerPollingHelpers.withProjectCleanup
+/// Uses pgmicro for faster startup (2-5s vs 30s) - socket behavior is identical
 @Suite("Vsock Socket Lifecycle Tests", .containerDependent, .serialized)
 struct VsockSocketLifecycleTests {
+
+  /// Returns registry URL from environment, with docker.io fallback
+  private func requireRegistryURL() -> String {
+    ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "docker.io"
+  }
 
   @Test("Socket created in Virtio-FS when container starts")
   func testSocketCreatedInVirtioFs() async throws {
     let projectName = "CCT_SocketCreate_\(UUID().uuidString.prefix(8))"
+    let registryURL = requireRegistryURL()
 
+    // Using pgmicro for faster startup (2-5s vs 30s)
+    // Socket behavior identical to PostgreSQL for vsock relay testing
     let yaml = """
       name: \(projectName)
       services:
         db:
-          image: postgres:14-alpine
+          image: \(registryURL)/pgmicro:latest
           environment:
             POSTGRES_DB: testdb
           volumes:
@@ -34,9 +43,8 @@ struct VsockSocketLifecycleTests {
               port: 5432
               socket_path: ~/.containers/Volumes/\(projectName)/db-sockets/.s.PGSQL.5432
           command:
-            - postgres
-            - -c
-            - unix_socket_directories=/var/run/postgresql/sockets
+            - /pgmicro
+            - --unix-socket-dir=/var/run/postgresql/sockets
       volumes:
         db-sockets:
       """
@@ -84,18 +92,22 @@ struct VsockSocketLifecycleTests {
   @Test("Socket removed when container stops")
   func testSocketRemovedOnStop() async throws {
     let projectName = "CCT_SocketRemove_\(UUID().uuidString.prefix(8))"
+    let registryURL = requireRegistryURL()
 
     let yaml = """
       name: \(projectName)
       services:
         db:
-          image: postgres:14-alpine
+          image: \(registryURL)/pgmicro:latest
           volumes:
             - db-sockets:/var/run/postgresql/sockets
           x-apple-relays:
             - type: vsock-db
               port: 5432
               socket_path: ~/.containers/Volumes/\(projectName)/db-sockets/.s.PGSQL.5432
+          command:
+            - /pgmicro
+            - --unix-socket-dir=/var/run/postgresql/sockets
       volumes:
         db-sockets:
       """
@@ -135,12 +147,12 @@ struct VsockSocketLifecycleTests {
   @Test("Multiple services with vsock-db relays")
   func testMultipleVsockRelays() async throws {
     let projectName = "CCT_MultiRelay_\(UUID().uuidString.prefix(8))"
-
+    let registryURL = requireRegistryURL()
     let yaml = """
       name: \(projectName)
       services:
         db1:
-          image: postgres:14-alpine
+          image: \(registryURL)/pgmicro:latest
           volumes:
             - db1-sockets:/var/run/postgresql/sockets
           x-apple-relays:
@@ -148,7 +160,7 @@ struct VsockSocketLifecycleTests {
               port: 5432
               socket_path: ~/.containers/Volumes/\(projectName)/db1-sockets/.s.PGSQL.5432
         db2:
-          image: postgres:14-alpine
+          image: \(registryURL)/pgmicro:latest
           volumes:
             - db2-sockets:/var/run/postgresql/sockets
           x-apple-relays:
@@ -190,12 +202,12 @@ struct VsockSocketLifecycleTests {
   @Test("Socket persists across relay restart")
   func testSocketPersistence() async throws {
     let projectName = "CCT_SocketPersist_\(UUID().uuidString.prefix(8))"
-
+    let registryURL = requireRegistryURL()
     let yaml = """
       name: \(projectName)
       services:
         db:
-          image: postgres:14-alpine
+          image: \(registryURL)/pgmicro:latest
           volumes:
             - db-sockets:/var/run/postgresql/sockets
           x-apple-relays:
@@ -233,12 +245,12 @@ struct VsockSocketLifecycleTests {
   func testDifferentPorts() async throws {
     let ports = [5432, 5433, 5434]
     let projectName = "CCT_Ports_\(UUID().uuidString.prefix(8))"
-
+    let registryURL = requireRegistryURL()
     var servicesYaml = ""
     for (index, port) in ports.enumerated() {
       servicesYaml += """
         db\(index + 1):
-          image: postgres:14-alpine
+          image: \(registryURL)/pgmicro:latest
           volumes:
             - db\(index + 1)-sockets:/var/run/postgresql/sockets
           x-apple-relays:

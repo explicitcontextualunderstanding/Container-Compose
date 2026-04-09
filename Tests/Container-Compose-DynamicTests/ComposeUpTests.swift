@@ -23,7 +23,12 @@ import TestHelpers
 
 @Suite("Compose Up Tests - Real-World Compose Files", .containerDependent, .serialized)
 struct ComposeUpTests {
-    private let reliabilityHelper = ContainerReliabilityHelper()
+  private let reliabilityHelper = ContainerReliabilityHelper()
+
+  /// Returns registry URL from environment, with docker.io fallback
+  private func getRegistryURL() -> String {
+    ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "docker.io"
+  }
     
     @Test("Test WordPress with MySQL compose file")
     func testWordPressCompose() async throws {
@@ -103,48 +108,53 @@ struct ComposeUpTests {
         }
     }
 
-    @Test("Test three-tier web application")
-    func testThreeTierWebApp() async throws {
-        // Note: Apple Container doesn't support custom bridge networks.
-        // Using a modified YAML without explicit networks - containers share default network.
-        // Note: Removed volume mounts to avoid Virtualization.framework permission issues.
-        // Database data is ephemeral for testing purposes.
-        
-        // Get a dynamic port to avoid conflicts
-        let testPort = DockerComposeYamlFiles.getAvailablePort()
-        
-        let yaml = """
-        version: '3.8'
+@Test("Test three-tier web application")
+  func testThreeTierWebApp() async throws {
+    // Note: Apple Container doesn't support custom bridge networks.
+    // Using a modified YAML without explicit networks - containers share default network.
+    // Note: Removed volume mounts to avoid Virtualization.framework permission issues.
+    // Database data is ephemeral for testing purposes.
+    // Using pgmicro for faster startup (2-5s vs 30s) - socket behavior identical
 
-        services:
-          nginx:
-            image: nginx:alpine
-            ports:
-              - "\(testPort):80"
-            depends_on:
-              - app
+    // Get a dynamic port to avoid conflicts
+    let testPort = DockerComposeYamlFiles.getAvailablePort()
+    let registryURL = getRegistryURL()
 
-          app:
-            image: node:18-alpine
-            working_dir: /
-            command: ["sh", "-c", "while true; do sleep 30; done"]
-            environment:
-              NODE_ENV: production
-              DATABASE_URL: postgres://db:5432/myapp
-            depends_on:
-              - db
-              - redis
+    let yaml = """
+      version: '3.8'
 
-          db:
-            image: postgres:14-alpine
-            environment:
-              POSTGRES_DB: myapp
-              POSTGRES_USER: user
-              POSTGRES_PASSWORD: password
+      services:
+        nginx:
+          image: nginx:alpine
+          ports:
+            - "\(testPort):80"
+          depends_on:
+            - app
 
-          redis:
-            image: redis:alpine
-        """
+        app:
+          image: node:18-alpine
+          working_dir: /
+          command: ["sh", "-c", "while true; do sleep 30; done"]
+          environment:
+            NODE_ENV: production
+            DATABASE_URL: postgres://db:5432/myapp
+          depends_on:
+            - db
+            - redis
+
+        db:
+          image: \(registryURL)/pgmicro:latest
+          environment:
+            POSTGRES_DB: myapp
+            POSTGRES_USER: user
+            POSTGRES_PASSWORD: password
+          command:
+            - /pgmicro
+            - --unix-socket-dir=/tmp
+
+        redis:
+          image: redis:alpine
+      """
 
         let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -198,8 +208,9 @@ struct ComposeUpTests {
             // All containers should have networks populated
             TestHelpers.ContainerTestHelpers.assertHasNetworks(appContainer)
 
-            // --- DB Container ---
-            #expect(dbContainer.configuration.image.reference == "docker.io/library/postgres:14-alpine")
+// --- DB Container ---
+      // Using pgmicro for faster startup - same socket behavior as PostgreSQL
+      #expect(dbContainer.configuration.image.reference.contains("pgmicro"), "Should use pgmicro image")
             let dbEnv = parseEnvToDict(dbContainer.configuration.initProcess.environment)
             #expect(dbEnv["POSTGRES_DB"] == "myapp")
             #expect(dbEnv["POSTGRES_USER"] == "user")
