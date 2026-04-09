@@ -634,23 +634,33 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         relayConfig: AppleRelayConfig,
         services: [(serviceName: String, service: Service)],
         relayManager: RelayManager
-    ) async -> ComposeDown.SocketRelayState? {
-        // Map x-apple-relays type to RelayTransport.TransportType
-        // vsock-* types map to .vsock, tcp-* to .tcp, unix-* to .unix
-        let transportType: RelayTransport.TransportType
-        let typePrefix = relayConfig.type.split(separator: "-").first.map(String.init) ?? relayConfig.type
-        
-        switch typePrefix {
-        case "vsock":
+) async -> ComposeDown.SocketRelayState? {
+    // Map x-apple-relays type to RelayTransport.TransportType
+    // vsock-db is a special case (PostgreSQL socket), vsock-* maps to .vsock
+    let transportType: RelayTransport.TransportType
+
+    switch relayConfig.type {
+    case "vsock-db":
+        transportType = .vsockDb
+    case "vsock":
+        transportType = .vsock
+    case "tcp":
+        transportType = .tcp
+    case "unix":
+        transportType = .unix
+    default:
+        // Handle types like "vsock-xyz" - extract prefix
+        if relayConfig.type.hasPrefix("vsock-") {
             transportType = .vsock
-        case "tcp":
+        } else if relayConfig.type.hasPrefix("tcp-") {
             transportType = .tcp
-        case "unix":
+        } else if relayConfig.type.hasPrefix("unix-") {
             transportType = .unix
-        default:
+        } else {
             print("⚠️ Unsupported relay type '\(relayConfig.type)' for service \(serviceName)")
             return nil
         }
+    }
 
         let relay = ServiceRelay(
             transport: transportType,
