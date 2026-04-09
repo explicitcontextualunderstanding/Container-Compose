@@ -38,6 +38,8 @@ public struct DockerCompose: Codable {
     public let configs: [String: Config?]?
     /// Optional top-level secret definitions (primarily for Swarm)
     public let secrets: [String: Secret?]?
+    /// Optional global x-apple-secrets configuration
+    public let xAppleSecretsGlobal: XAppleSecretsGlobalConfig?
     
     private static let validVersions: Set<String> = {
         var valid = Set<String>()
@@ -50,7 +52,12 @@ public struct DockerCompose: Codable {
     }()
     
     private static let validPrefixes = ["3.", "2."]
-    
+
+    enum CodingKeys: String, CodingKey {
+        case version, name, services, volumes, networks, configs, secrets
+        case xAppleSecretsGlobal = "x-apple-secrets"
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decodeIfPresent(String.self, forKey: .version)
@@ -80,5 +87,6 @@ public struct DockerCompose: Codable {
         networks = try container.decodeIfPresent([String: Network?].self, forKey: .networks)
         configs = try container.decodeIfPresent([String: Config?].self, forKey: .configs)
         secrets = try container.decodeIfPresent([String: Secret?].self, forKey: .secrets)
+        xAppleSecretsGlobal = try container.decodeIfPresent(XAppleSecretsGlobalConfig.self, forKey: .xAppleSecretsGlobal)
     }
 }
