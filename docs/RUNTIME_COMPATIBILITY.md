@@ -55,16 +55,18 @@ container version
 
 ## Test Compatibility
 
-Tests automatically skip 0.11.0 features when running on 0.10.0:
+**UPDATE (2026-04-08)**: All tests now implemented - no skips required.
+
+The previous 2 skipped tests (`testSchemeMappingHttps`, `testSchemeMappingHttp`) are now implemented and pass with Apple Container 0.11.0+:
 
 ```
 Test Suite 'ComposeUpMappingTests' passed
-Executed 44 tests, with 2 tests skipped and 0 failures
+Executed 44 tests, with 0 failures
 ```
 
-The 2 skipped tests are:
-- `testSchemeMappingHttps` — requires `--scheme` flag
-- `testSchemeMappingHttp` — requires `--scheme` flag
+These tests verify the `--scheme` flag works correctly:
+- `testSchemeMappingHttps` — verifies `--scheme https` flag generation
+- `testSchemeMappingHttp` — verifies `--scheme http` flag generation
 
 ## Downgrade Process
 
