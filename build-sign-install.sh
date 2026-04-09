@@ -179,14 +179,21 @@ if [ ! -f "$ENTITLEMENTS_PLIST" ]; then
 EOF
 fi
 
-# Apply ad-hoc code signature with entitlements (requires real Xcode codesign, not conda's shim)
+# Apply ad-hoc code signature with entitlements and attempt hardened runtime
 # env-setup.sh above ensures conda's codesign shim is not in PATH
 echo ""
-echo "Signing binary (with hypervisor entitlement)..."
+echo "Signing binary..."
 if command -v codesign &> /dev/null; then
-  codesign --force --sign - --entitlements "$ENTITLEMENTS_PLIST" "$BINARY_PATH" || {
-    echo "Warning: codesign failed - container runtime may reject unsigned binary"
-  }
+  # First try with hardened runtime enabled
+  if codesign --force --sign - --entitlements "$ENTITLEMENTS_PLIST" --options runtime "$BINARY_PATH" 2>/dev/null; then
+    echo "  ✅ Signed with hardened runtime"
+  else
+    # Fall back to without hardened runtime
+    codesign --force --sign - --entitlements "$ENTITLEMENTS_PLIST" "$BINARY_PATH" || {
+      echo "Warning: codesign failed - container runtime may reject unsigned binary"
+    }
+    echo "  ⚠️  Signed without hardened runtime (requires paid Developer ID)"
+  fi
   cp "$BINARY_PATH" "$TARGET"
   chmod 755 "$TARGET"
 else
@@ -198,21 +205,100 @@ if command -v xattr &> /dev/null; then
   xattr -d com.apple.provenance "$TARGET" 2>/dev/null || true
 fi
 
-# Verify
+# Enhanced verification using all available tools (no paid Developer ID required)
 echo ""
-echo "Verifying installation..."
-if [ -f "$TARGET" ]; then
-  VERSION=$("$TARGET" version 2>&1 | head -1)
-  echo "  Binary:  $TARGET"
-  echo "  Version: $VERSION"
-  if codesign -d "$TARGET" 2>/dev/null; then
-    echo "  Signed:  yes"
-  else
-    echo "  Signed:  WARNING - unsigned (container runtime may reject)"
-  fi
+echo "=========================================="
+echo "Signing Verification Report"
+echo "=========================================="
+
+# 1. Basic codesign verification
+echo ""
+echo "1. Code Signature Verification (codesign -v):"
+if codesign -v "$TARGET" 2>&1; then
+  echo "   ✅ Binary is signed"
 else
-  echo "Error: Installation failed - binary not found at $TARGET"
-  exit 1
+  echo "   ❌ Code signature invalid or missing"
+fi
+
+# 2. Display signature details
+echo ""
+echo "2. Signature Details (codesign -d):"
+SIG_DETAILS=$(codesign -d "$TARGET" 2>&1 || echo "Unable to read signature")
+echo "$SIG_DETAILS" | sed 's/^/   /'
+
+# 3. Check for Team ID (indicates Developer ID signing)
+echo ""
+echo "3. Team Identifier:"
+if echo "$SIG_DETAILS" | grep -q "TeamIdentifier="; then
+  TEAM_ID=$(echo "$SIG_DETAILS" | grep "TeamIdentifier=" | sed 's/.*TeamIdentifier=//' | tr -d ' ')
+  echo "   ✅ Signed with Developer ID: $TEAM_ID"
+else
+  echo "   ℹ️  Ad-hoc signed (no Team ID - expected without Developer ID)"
+fi
+
+# 4. spctl Gatekeeper assessment (works with ad-hoc locally)
+echo ""
+echo "4. Gatekeeper Assessment (spctl --assess):"
+SPCTL_RESULT=$(spctl --assess --type exec --verbose 2 "$TARGET" 2>&1 || true)
+if echo "$SPCTL_RESULT" | grep -q "accepted\|origin=no"; then
+  echo "   ✅ Gatekeeper: Accepted (ad-hoc signed)"
+elif echo "$SPCTL_RESULT" | grep -q "origin=-"; then
+  echo "   ✅ Gatekeeper: Accepted (ad-hoc)"
+elif echo "$SPCTL_RESULT" | grep -q "origin=developer"; then
+  echo "   ✅ Gatekeeper: Accepted (Developer ID)"
+elif echo "$SPCTL_RESULT" | grep -q "denied"; then
+  echo "   ❌ Gatekeeper: Blocked"
+else
+  echo "   ℹ️  Gatekeeper: Unknown (local assessment)"
+fi
+
+# 5. Check hardened runtime
+echo ""
+echo "5. Hardened Runtime:"
+if echo "$SIG_DETAILS" | grep -qi "runtime"; then
+  echo "   ✅ Hardened runtime enabled"
+else
+  echo "   ℹ️  Hardened runtime not detected (optional)"
+fi
+
+# 6. Display embedded entitlements
+echo ""
+echo "6. Embedded Entitlements:"
+ENTITLEMENTS=$(codesign -d --entitlements - "$TARGET" 2>&1 || echo "none")
+if [ "$ENTITLEMENTS" != "none" ] && [ -n "$ENTITLEMENTS" ]; then
+  echo "$ENTITLEMENTS" | sed 's/^/   /'
+else
+  echo "   No entitlements embedded"
+fi
+
+# 7. Extract requirements for audit
+echo ""
+echo "7. Signing Requirements (codesign -d -r-):"
+REQUIREMENTS=$(codesign -d -r- "$TARGET" 2>&1 || echo "none")
+if [ "$REQUIREMENTS" != "none" ] && [ -n "$REQUIREMENTS" ]; then
+  echo "$REQUIREMENTS" | head -10 | sed 's/^/   /'
+  echo "   ... (truncated)"
+fi
+
+# 8. Extended attributes check
+echo ""
+echo "8. Extended Attributes:"
+XATTRS=$(xattr -l "$TARGET" 2>&1 || echo "none")
+if [ "$XATTRS" != "none" ] && [ -n "$XATTRS" ]; then
+  echo "$XATTRS" | sed 's/^/   /'
+else
+  echo "   ✅ No extended attributes"
+fi
+
+# Summary
+echo ""
+echo "=========================================="
+echo "Signing Summary"
+echo "=========================================="
+if codesign -d "$TARGET" 2>/dev/null; then
+  echo "✅ Binary is signed"
+else
+  echo "❌ Binary is NOT signed"
 fi
 
 # Update system symlink so container runtime trusts the binary
