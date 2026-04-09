@@ -16,7 +16,7 @@
 
 import Foundation
 import OSLog
-import ContainerComposeCore
+import SecurityHardening
 
 /// Validates secrets mounts before container start (Plan 85 integration)
 public actor SecretsMountValidator {
@@ -44,19 +44,16 @@ public actor SecretsMountValidator {
   ) async -> SecurityValidationResult {
     // Gate 1: AMFI validation (binary must be signed)
     logger.debug("Running AMFI validation for secrets mount")
-    let amfiResult = await amfiGating.validateForSecretsMount()
-    guard amfiResult.passed else {
+    let amfiResult = await amfiGating.validateForSocatRemoval()
+    guard amfiResult.isValidated else {
       logger.error("AMFI validation failed: \(amfiResult.errorMessage ?? "Unknown")")
       return .failed(gate: .amfi, message: amfiResult.errorMessage ?? "AMFI validation failed")
     }
 
-    // Gate 2: Horizontal isolation (enclave boundaries)
+    // Gate 2: Horizontal isolation (enclave boundaries) - validate socket path
     logger.debug("Running horizontal isolation validation for CID: \(containerCID)")
-    let isolationResult = await isolationValidator.validateEnclaveAccess(
-      sourceCID: containerCID,
-      enclavePath: "/Volumes/AGENT_SECRETS"
-    )
-    guard isolationResult.passed else {
+    let isolationResult = await isolationValidator.validateSocketPath("/Volumes/AGENT_SECRETS")
+    guard isolationResult.isIsolated else {
       logger.error("Horizontal isolation validation failed: \(isolationResult.errorMessage ?? "Unknown")")
       return .failed(gate: .horizontalIsolation, message: isolationResult.errorMessage ?? "Isolation validation failed")
     }
@@ -158,12 +155,12 @@ public struct IsolationValidationResult: Equatable, Sendable {
 
 public extension ESFClient {
   func logSecretsMountAttempt(containerCID: Int, mountPath: String) async {
-    logger.info("ESF: Secrets mount attempt - CID: \(containerCID), Path: \(mountPath)")
     // In production, this would write to ESF audit log
+    print("[ESF] Secrets mount attempt - CID: \(containerCID), Path: \(mountPath)")
   }
 
   func logSecretsMountSuccess(containerCID: Int, secretsCount: Int) async {
-    logger.info("ESF: Secrets mount success - CID: \(containerCID), Count: \(secretsCount)")
     // In production, this would write to ESF audit log
+    print("[ESF] Secrets mount success - CID: \(containerCID), Count: \(secretsCount)")
   }
 }
