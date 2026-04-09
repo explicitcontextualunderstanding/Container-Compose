@@ -18,6 +18,91 @@ private let VMADDR_CID_ANY: UInt32 = 0xFFFFFFFF
 /// VMADDR_PORT_ANY - binds to any available port
 private let VMADDR_PORT_ANY: UInt32 = 0xFFFFFFFF
 
+// MARK: - Vsock Availability Detection
+
+/// Diagnostic information about vsock availability
+public struct VsockAvailability: Sendable {
+    public let isAvailable: Bool
+    public let deviceExists: Bool
+    public let canCreateSocket: Bool
+    public let errorMessage: String?
+    public let suggestions: [String]
+
+    public init(isAvailable: Bool, deviceExists: Bool, canCreateSocket: Bool, errorMessage: String?, suggestions: [String]) {
+        self.isAvailable = isAvailable
+        self.deviceExists = deviceExists
+        self.canCreateSocket = canCreateSocket
+        self.errorMessage = errorMessage
+        self.suggestions = suggestions
+    }
+
+    public static var unavailable: VsockAvailability {
+        VsockAvailability(
+            isAvailable: false,
+            deviceExists: false,
+            canCreateSocket: false,
+            errorMessage: "Vsock is not available on this system",
+            suggestions: [
+                "Ensure Apple Container is running with full virtualization enabled",
+                "Check that /dev/vsock device exists",
+                "Verify the kernel supports vsock (vmware vsock, kata containers, etc.)",
+                "For Apple Container lightweight mode, use TCP relay instead of vsock"
+            ]
+        )
+    }
+}
+
+/// Check if vsock is available on this system
+public func checkVsockAvailability() -> VsockAvailability {
+    // Check 1: Does /dev/vsock exist?
+    let deviceExists = FileManager.default.fileExists(atPath: "/dev/vsock")
+
+    // Check 2: Can we create a vsock socket?
+    var canCreateSocket = false
+    var socketError: String?
+
+    if deviceExists {
+        let sock = Darwin.socket(AF_VSOCK, SOCK_STREAM, 0)
+        if sock >= 0 {
+            canCreateSocket = true
+            Darwin.close(sock)
+        } else {
+            socketError = "errno: \(errno) (\(String(cString: strerror(errno))))"
+        }
+    } else {
+        socketError = "/dev/vsock device not found"
+    }
+
+    let isAvailable = deviceExists && canCreateSocket
+
+    var errorMessage: String? = nil
+    var suggestions: [String] = []
+
+    if !deviceExists {
+        errorMessage = "Vsock device (/dev/vsock) not found"
+        suggestions = [
+            "This system does not have vsock support",
+            "Apple Container may be running in lightweight mode (not full virtualization)",
+            "For TCP/IP based networking, use type: tcp instead of type: vsock in your compose file"
+        ]
+    } else if !canCreateSocket {
+        errorMessage = "Cannot create vsock socket: \(socketError ?? "unknown error")"
+        suggestions = [
+            "Check kernel module is loaded: lsmod | grep vsock",
+            "Verify virtualization framework is properly configured",
+            "Try restarting Apple Container services: container system stop && container system start"
+        ]
+    }
+
+    return VsockAvailability(
+        isAvailable: isAvailable,
+        deviceExists: deviceExists,
+        canCreateSocket: canCreateSocket,
+        errorMessage: errorMessage,
+        suggestions: suggestions
+    )
+}
+
 /// Socket address for vsock
 private struct sockaddr_vm {
     var svm_family: sa_family_t
@@ -77,19 +162,38 @@ private var listenSocket: Int32 = -1
   /// - allowedCIDs: List of authorized CIDs (empty = accept any)
   /// - createSignalSocket: If true, creates a signal socket file (default). Set to false for vsock-db type where PostgreSQL creates the socket.
   /// - eventLog: Event logging actor
-  init(
+init(
     cid: UInt32,
     port: UInt32,
     unixSocketPath: String,
     allowedCIDs: [UInt32] = [],
     createSignalSocket: Bool = true,
     eventLog: RelayEventLog
-  ) throws {
-        guard port > 0 else {
-            throw VsockError.invalidPort(port)
-        }
+) throws {
+    // Check vsock availability first with detailed diagnostics
+    let availability = checkVsockAvailability()
+    guard availability.isAvailable else {
+        let errorMsg = """
+            Vsock is not available on this system.
+            \(availability.errorMessage ?? "Unknown error")
 
-self.cid = cid == VMADDR_CID_ANY ? VMADDR_CID_ANY : cid
+            Suggestions:
+            \(availability.suggestions.map { "  - \($0)" }.joined(separator: "\n"))
+
+            For Apple Container with TCP/IP networking, use type: tcp instead of type: vsock in your compose file.
+            Example:
+              x-apple-relays:
+                - type: tcp
+                  port: 5432
+            """
+        throw VsockError.deviceUnavailable(errorMsg)
+    }
+
+    guard port > 0 else {
+        throw VsockError.invalidPort(port)
+    }
+
+    self.cid = cid == VMADDR_CID_ANY ? VMADDR_CID_ANY : cid
   self.port = port
   self.unixSocketPathValue = unixSocketPath
   self.eventLog = eventLog
@@ -130,11 +234,33 @@ self.cid = cid == VMADDR_CID_ANY ? VMADDR_CID_ANY : cid
     }
   }
 
-  // Create vsock socket
-    let sock = socket(AF_VSOCK, SOCK_STREAM, 0)
-    guard sock >= 0 else {
-      throw VsockError.deviceUnavailable("Failed to create vsock socket: \(errno)")
+// Create vsock socket
+let sock = socket(AF_VSOCK, SOCK_STREAM, 0)
+guard sock >= 0 else {
+    let err = errno
+    let errMsg = String(cString: strerror(err))
+    let availability = checkVsockAvailability()
+
+    var fullError = "Failed to create vsock socket: errno \(err) (\(errMsg))"
+
+    if !availability.deviceExists {
+        fullError += """
+
+            Root cause: /dev/vsock device not found
+            This typically means vsock is not available in this environment.
+
+            For Apple Container with TCP/IP networking (no virtualization framework),
+            use type: tcp instead of type: vsock in your compose file:
+                x-apple-relays:
+                  - type: tcp
+                    port: 5432
+
+            Or consider using the legacy socket relay with publish_socket.
+        """
     }
+
+    throw VsockError.deviceUnavailable(fullError)
+}
 
     // Set socket options
     var opt: Int32 = 1

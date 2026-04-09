@@ -38,9 +38,10 @@ struct VsockRelayE2ETests {
             #expect(dbContainer != nil, "db container should exist in project \(tempProject.name)")
             #expect(dbContainer?.status == .running, "db should be running")
 
-            // Verify socket path configured from YAML fixture
-            let expectedSocketPath = tempProject.base
-                .appendingPathComponent("sockets/.s.PGSQL.5432")
+// Verify socket path configured from YAML fixture
+    // Socket path is now set to tempProject.base/sockets/.s.PGSQL.5432 in the fixture
+    let expectedSocketPath = tempProject.base
+      .appendingPathComponent("sockets/.s.PGSQL.5432")
 
             // Poll for socket creation (up to 30s)
             var socketExists = false

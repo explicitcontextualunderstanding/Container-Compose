@@ -284,28 +284,46 @@ actor RelayManager {
         }
         */
 
-        // Route to appropriate relay implementation based on transport type
-    switch config.transport {
-    case .vsock(let cid, let port, _):
+// Route to appropriate relay implementation based on transport type
+switch config.transport {
+case .vsock(let cid, let port, _):
     logger.info("Starting VSOCK relay \(config.id): TCP:\(config.tcpPort) → vsock:\(cid):\(port)")
 
-    // Detect if socket path is in Virtio-FS volume (vsock-db type)
-    // In this case, PostgreSQL creates the socket, so we should not create/remove signal socket
-    let isVolumeSocket = config.unixSocketPath.contains(".containers/Volumes")
+    // Check vsock availability first
+    let availability = checkVsockAvailability()
+    if !availability.isAvailable {
+        logger.warning("Vsock not available: \(availability.errorMessage ?? "unknown"). Falling back to TCP relay.")
+        logger.info("Hint: Use type: tcp in compose file for environments without vsock support")
 
-    let relay = try VsockRelay(
-      cid: cid,
-      port: port,
-      unixSocketPath: config.unixSocketPath,
-      createSignalSocket: !isVolumeSocket,
-      eventLog: eventLog
-    )
+        // Fall back to TCP relay (SocketRelay)
+        let relay = try await SocketRelay(
+            tcpPort: config.tcpPort,
+            unixPath: config.unixSocketPath,
+            eventLog: eventLog
+        )
+        relays[config.id] = relay
+        try await relay.start()
+        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "tcp-fallback:\(config.unixSocketPath)"))
+        logger.info("TCP fallback relay \(config.id) started successfully")
+    } else {
+        // Detect if socket path is in Virtio-FS volume (vsock-db type)
+        // In this case, PostgreSQL creates the socket, so we should not create/remove signal socket
+        let isVolumeSocket = config.unixSocketPath.contains(".containers/Volumes")
 
-    relays[config.id] = relay
-    try await relay.start()
+        let relay = try VsockRelay(
+            cid: cid,
+            port: port,
+            unixSocketPath: config.unixSocketPath,
+            createSignalSocket: !isVolumeSocket,
+            eventLog: eventLog
+        )
 
-    await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock:\(cid):\(port)"))
-    logger.info("VSOCK relay \(config.id) started successfully")
+        relays[config.id] = relay
+        try await relay.start()
+
+        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock:\(cid):\(port)"))
+        logger.info("VSOCK relay \(config.id) started successfully")
+    }
             
   case .unixSocket, .tcp:
     logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → UNIX:\(config.unixSocketPath)")
@@ -322,24 +340,42 @@ actor RelayManager {
     await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: config.unixSocketPath))
     logger.info("Relay \(config.id) started successfully")
 
-  case .vsockDb(let socketPath):
+case .vsockDb(let socketPath):
     // vsockDb is a special case - PostgreSQL creates socket in Virtio-FS
     logger.info("Starting VSOCK-DB relay \(config.id): TCP:\(config.tcpPort) → vsock-db:\(socketPath)")
 
-    let relay = try VsockRelay(
-      cid: 2, // Host CID
-      port: UInt32(config.tcpPort),
-      unixSocketPath: socketPath,
-      createSignalSocket: false, // PostgreSQL creates the socket
-      eventLog: eventLog
-    )
+    // Check vsock availability first
+    let availability = checkVsockAvailability()
+    if !availability.isAvailable {
+        logger.warning("Vsock not available: \(availability.errorMessage ?? "unknown"). Falling back to TCP relay.")
+        logger.info("Hint: For Apple Container with TCP/IP, use type: tcp in compose file")
 
-    relays[config.id] = relay
-    try await relay.start()
+        // Fall back to TCP relay (SocketRelay)
+        let relay = try await SocketRelay(
+            tcpPort: config.tcpPort,
+            unixPath: socketPath,
+            eventLog: eventLog
+        )
+        relays[config.id] = relay
+        try await relay.start()
+        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "tcp-fallback:\(socketPath)"))
+        logger.info("TCP fallback relay \(config.id) started successfully")
+    } else {
+        let relay = try VsockRelay(
+            cid: 2, // Host CID
+            port: UInt32(config.tcpPort),
+            unixSocketPath: socketPath,
+            createSignalSocket: false, // PostgreSQL creates the socket
+            eventLog: eventLog
+        )
 
-    await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock-db:\(socketPath)"))
-    logger.info("VSOCK-DB relay \(config.id) started successfully")
-  }
+        relays[config.id] = relay
+        try await relay.start()
+
+        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock-db:\(socketPath)"))
+        logger.info("VSOCK-DB relay \(config.id) started successfully")
+    }
+}
     }
 
     /// Stop a specific relay by ID

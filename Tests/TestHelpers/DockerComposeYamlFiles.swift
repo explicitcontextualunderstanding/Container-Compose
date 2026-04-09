@@ -414,7 +414,7 @@ public struct DockerComposeYamlFiles {
     /// TemporaryProject.
 /// - Parameter yaml: The Docker Compose YAML content to copy.
   /// - Returns: A TemporaryProject containing the URL and project name.
-  /// Note: Replaces "name: vsock-relay-test" with UUID-based name for isolation
+  /// Note: Replaces hardcoded names/paths with UUID-based values for isolation
   public static func copyYamlToTemporaryLocation(yaml: String) throws -> TemporaryProject {
     let tempLocation = URL.temporaryDirectory.appending(
       path: "CCT_\(UUID().uuidString)/docker-compose.yaml"
@@ -422,11 +422,20 @@ public struct DockerComposeYamlFiles {
     let tempBase = tempLocation.deletingLastPathComponent()
     let projectName = tempBase.lastPathComponent
     
-    // Replace hardcoded project name with isolated UUID-based name
-    // This ensures container names match the temp directory for proper cleanup
-    let isolatedYaml = yaml.replacingOccurrences(
+    // Replace hardcoded values with isolated UUID-based values:
+    // 1. Project name for container isolation
+    // 2. Socket path so test knows where to find it (matches temp directory)
+    var isolatedYaml = yaml.replacingOccurrences(
       of: "name: vsock-relay-test",
       with: "name: \(projectName)"
+    )
+    
+    // Replace hardcoded socket path with temp directory relative path
+    // Old: /tmp/.container-compose-test/sockets/.s.PGSQL.5432
+    // New: <tempBase>/sockets/.s.PGSQL.5432
+    isolatedYaml = isolatedYaml.replacingOccurrences(
+      of: "socket_path: /tmp/.container-compose-test/sockets/.s.PGSQL.5432",
+      with: "socket_path: \(tempBase.path)/sockets/.s.PGSQL.5432"
     )
     
     try? FileManager.default.createDirectory(at: tempBase, withIntermediateDirectories: true)
