@@ -728,86 +728,62 @@ final class PeerVerificationTests: XCTestCase {
     }
 }
 
-// MARK: - CreateSignalSocket Parameter Tests (Plan 84)
+// MARK: - UDS Relay Parameter Tests (Plan 88)
 
-/// Tests for the `createSignalSocket` parameter behavior in VsockRelay
-/// These are static unit tests that don't require container runtime
+/// Tests for the `createSignalSocket` parameter behavior in UDSVirtioFSRelay
+/// Migrated from CreateSignalSocketTests (VsockRelay) — vSock unavailable on macOS 26
 @available(macOS 12.0, *)
 final class CreateSignalSocketTests: XCTestCase {
 
-  /// Skip if vsock is not available on this system
-  private func skipIfVsockUnavailable() throws {
-    let availability = checkVsockAvailability()
-    if !availability.isAvailable {
-      throw XCTSkip("Vsock not available on this system: \(availability.errorMessage ?? "unknown reason")")
-    }
-  }
-
   func testCreateSignalSocketTruePreservesBehavior() async throws {
-    try skipIfVsockUnavailable()
         // When createSignalSocket is true (default for non-volume sockets),
         // the relay should create the signal socket directory structure
         let eventLog = RelayEventLog()
-        let unixSocketPath = "/tmp/test-signal-socket-\(UUID().uuidString).sock"
+        let socketPath = "/tmp/test-signal-socket-\(UUID().uuidString).sock"
 
-        // This tests the initialization pattern - VsockRelay with createSignalSocket: true
-        // The relay is created successfully, which validates the parameter is accepted
-        let relay = try VsockRelay(
-            cid: 2,
-            port: 5432,
-            unixSocketPath: unixSocketPath,
+        let relay = try UDSVirtioFSRelay(
+            socketPath: socketPath,
             createSignalSocket: true,
             eventLog: eventLog
         )
 
         // Verify the relay was created and has the correct transport type
-        // Access actor properties in async context
         let transport = await relay.transportType
-        if case .vsock(let cid, let port, let path) = transport {
-            XCTAssertEqual(cid, 2, "CID should match")
-            XCTAssertEqual(port, 5432, "Port should match")
-            XCTAssertEqual(path, unixSocketPath, "unixSocketPath should match in transport")
+        if case .uds(let path, _) = transport {
+            XCTAssertEqual(path, socketPath, "Socket path should match")
         } else {
-            XCTFail("Transport type should be vsock")
+            XCTFail("Transport type should be uds")
         }
     }
 
-    func testCreateSignalSocketFalseSkipsSocketCreation() async throws {
-        // When createSignalSocket is false (for volume sockets like vsock-db),
+  func testCreateSignalSocketFalseSkipsSocketCreation() async throws {
+    // When createSignalSocket is false (for volume sockets like vsock-db),
         // the relay should not create/remove the signal socket
         let eventLog = RelayEventLog()
         let volumeSocketPath = "/path/to/.containers/Volumes/db/data/.s.PGSQL.5432"
 
-        // The relay is created successfully with createSignalSocket: false
-        let relay = try VsockRelay(
-            cid: 2,
-            port: 5432,
-            unixSocketPath: volumeSocketPath,
+        let relay = try UDSVirtioFSRelay(
+            socketPath: volumeSocketPath,
             createSignalSocket: false,
             eventLog: eventLog
         )
 
         // Verify the relay was created - initialization success is the test
         let transport = await relay.transportType
-        if case .vsock(let cid, let port, let path) = transport {
-            XCTAssertEqual(cid, 2, "CID should match")
-            XCTAssertEqual(port, 5432, "Port should match")
-            XCTAssertEqual(path, volumeSocketPath, "unixSocketPath should match for volume socket")
+        if case .uds(let path, _) = transport {
+            XCTAssertEqual(path, volumeSocketPath, "Socket path should match for volume socket")
         } else {
-            XCTFail("Transport type should be vsock")
+            XCTFail("Transport type should be uds")
         }
     }
 
     func testCreateSignalSocketDefaultsToTrue() async throws {
-        // Test that VsockRelay can be created with explicit createSignalSocket: true
+        // Test that UDSVirtioFSRelay can be created with explicit createSignalSocket: true
         let eventLog = RelayEventLog()
-        let unixSocketPath = "/tmp/test-default-\(UUID().uuidString).sock"
+        let socketPath = "/tmp/test-default-\(UUID().uuidString).sock"
 
-        // Default is tested by creating relay with createSignalSocket: true
-        let relay = try VsockRelay(
-            cid: 2,
-            port: 5432,
-            unixSocketPath: unixSocketPath,
+        let relay = try UDSVirtioFSRelay(
+            socketPath: socketPath,
             createSignalSocket: true,
             eventLog: eventLog
         )
@@ -817,57 +793,54 @@ final class CreateSignalSocketTests: XCTestCase {
     }
 
     func testCreateSignalSocketWithEmptyPath() async throws {
-        // Test behavior with empty unixSocketPath
+        // Test behavior with empty socketPath
         let eventLog = RelayEventLog()
 
-        let relay = try VsockRelay(
-            cid: 2,
-            port: 5432,
-            unixSocketPath: "",
+        let relay = try UDSVirtioFSRelay(
+            socketPath: "",
             createSignalSocket: true,
             eventLog: eventLog
         )
 
         // Verify empty path is preserved in transport
         let transport = await relay.transportType
-        if case .vsock(_, _, let path) = transport {
-            XCTAssertEqual(path, "", "Empty unixSocketPath should be preserved in transport")
+        if case .uds(let path, _) = transport {
+            XCTAssertEqual(path, "", "Empty socketPath should be preserved in transport")
         } else {
-            XCTFail("Transport type should be vsock")
-        }
-    }
-
-    func testCreateSignalSocketWithInvalidPortThrowsError() async throws {
-        let eventLog = RelayEventLog()
-        let unixSocketPath = "/tmp/test.sock"
-
-        do {
-            _ = try VsockRelay(
-                cid: 2,
-                port: 0,
-                unixSocketPath: unixSocketPath,
-                createSignalSocket: true,
-                eventLog: eventLog
-            )
-            XCTFail("Should throw error for invalid port 0")
-        } catch VsockError.invalidPort {
-            XCTAssertTrue(true, "Should throw invalidPort error for port 0")
+            XCTFail("Transport type should be uds")
         }
     }
 
     func testCreateSignalSocketWithVeryLongPath() async throws {
+        // Plan 88 Decision 5: Hard-error on paths >= 104 chars
         let eventLog = RelayEventLog()
-        let longPath = String(repeating: "/tmp/", count: 20) + "test.sock"
+        let longPath = String(repeating: "a", count: 110) + ".sock"
 
-        let relay = try VsockRelay(
-            cid: 2,
-            port: 5432,
-            unixSocketPath: longPath,
+        XCTAssertThrowsError(try UDSVirtioFSRelay(
+            socketPath: longPath,
+            createSignalSocket: true,
+            eventLog: eventLog
+        )) { error in
+            if case UDSError.socketPathTooLong = error {
+                // Expected
+            } else {
+                XCTFail("Expected socketPathTooLong error, got: \(error)")
+            }
+        }
+    }
+
+    func testCreateSignalSocketAtPathLimit() async throws {
+        // Verify paths under 104 chars work fine
+        let eventLog = RelayEventLog()
+        let path = String(repeating: "a", count: 90) + ".sock"
+
+        let relay = try UDSVirtioFSRelay(
+            socketPath: path,
             createSignalSocket: true,
             eventLog: eventLog
         )
 
-        XCTAssertNotNil(relay, "Relay should be created even with long path")
+        XCTAssertNotNil(relay, "Relay should be created for path under 104 chars")
     }
 }
 
