@@ -358,14 +358,7 @@ final class SocketRelayIntegrationTests: XCTestCase {
         return true
     }
 
-    /// Skip test if socket creation is not available
-    func skipIfSandboxed() throws {
-        guard canCreateSockets() else {
-            throw XCTSkip("Socket creation not available in sandboxed environment")
-        }
-    }
-
-    func testWaitForSocketTimeout() async throws {
+func testWaitForSocketTimeout() async throws {
         let tempDir = FileManager.default.temporaryDirectory
         let socketPath = tempDir.appendingPathComponent("test-\(UUID().uuidString).sock").path
 
@@ -381,11 +374,8 @@ final class SocketRelayIntegrationTests: XCTestCase {
         }
     }
 
-    func testWaitForSocketSuccess() async throws {
-        // Skip if running in sandboxed environment (e.g., CI)
-        try skipIfSandboxed()
-
-        // Use a short socket path to avoid sun_path length limit (104 bytes)
+func testWaitForSocketSuccess() async throws {
+    // Use a short socket path to avoid sun_path length limit (104 bytes)
         // /tmp/ + UUID (36) + .sock (5) = ~50 bytes, well under limit
         let shortUUID = UUID().uuidString.prefix(8)
         let socketPath = "/tmp/test-\(shortUUID).sock"
