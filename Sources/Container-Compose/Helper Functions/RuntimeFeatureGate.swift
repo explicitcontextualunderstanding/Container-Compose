@@ -23,11 +23,17 @@ public enum RuntimeFeatureGate {
     
     // MARK: - Version Detection
     
-    /// Cached runtime version (computed once)
-private static let cachedVersion: String? = {
-let process = Process()
-process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-process.arguments = ["container", "--version"]
+  /// Cached runtime version (computed once)
+  private static let cachedVersion: String? = {
+    // Check common container binary locations
+    let possiblePaths = ["/usr/local/bin/container", "/usr/bin/container", "/opt/homebrew/bin/container"]
+    guard let containerPath = possiblePaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+      return nil
+    }
+    
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: containerPath)
+    process.arguments = ["--version"]
 
 let pipe = Pipe()
 process.standardOutput = pipe
