@@ -735,7 +735,16 @@ final class PeerVerificationTests: XCTestCase {
 @available(macOS 12.0, *)
 final class CreateSignalSocketTests: XCTestCase {
 
-    func testCreateSignalSocketTruePreservesBehavior() async throws {
+  /// Skip if vsock is not available on this system
+  private func skipIfVsockUnavailable() throws {
+    let availability = checkVsockAvailability()
+    if !availability.isAvailable {
+      throw XCTSkip("Vsock not available on this system: \(availability.errorMessage ?? "unknown reason")")
+    }
+  }
+
+  func testCreateSignalSocketTruePreservesBehavior() async throws {
+    try skipIfVsockUnavailable()
         // When createSignalSocket is true (default for non-volume sockets),
         // the relay should create the signal socket directory structure
         let eventLog = RelayEventLog()

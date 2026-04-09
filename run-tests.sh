@@ -149,6 +149,8 @@ if [ "$FORCE_NO_SUDO" = true ]; then
 fi
 
 # Run swift tests and capture output
+# Export OCI_REGISTRY_URL so tests can access private registry
+export OCI_REGISTRY_URL
 swift test "${FILTERED_ARGS[@]}" 2>&1 | tee "$LOG_DIR/test_output_$TIMESTAMP.txt"
 TEST_EXIT_CODE=${PIPESTATUS[0]}
 
