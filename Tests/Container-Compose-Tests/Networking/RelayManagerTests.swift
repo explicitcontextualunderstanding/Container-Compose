@@ -345,20 +345,7 @@ final class SocketRelayIntegrationTests: XCTestCase {
         eventLog = nil
     }
 
-    // MARK: - Test Environment Helpers
-
-    /// Check if we can create real sockets in this environment
-    /// Returns true if socket creation is allowed (not sandboxed)
-    func canCreateSockets() -> Bool {
-        let testFd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
-        guard testFd >= 0 else {
-            return false
-        }
-        Darwin.close(testFd)
-        return true
-    }
-
-func testWaitForSocketTimeout() async throws {
+    func testWaitForSocketTimeout() async throws {
         let tempDir = FileManager.default.temporaryDirectory
         let socketPath = tempDir.appendingPathComponent("test-\(UUID().uuidString).sock").path
 
