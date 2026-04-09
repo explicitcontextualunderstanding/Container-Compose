@@ -114,29 +114,48 @@ final class NWConnectionWrapper: Streamable {
 
 /// Event log for debugging and diagnostics
 actor RelayEventLog {
-    enum Event {
-        case relayStarted(id: String, port: UInt16, path: String)
-        case relayStopped(id: String)
-        case connectionEstablished(relayId: String, connectionId: UUID)
-        case connectionClosed(relayId: String, connectionId: UUID)
-        /// Security event: connection rejected due to PID mismatch (Phase 5)
-        case connectionRejected(relayId: String, attemptedPID: pid_t, expectedPID: pid_t?)
-        /// Security event: connection authorized after PID verification (Phase 5)
-        case connectionAuthorized(relayId: String, pid: pid_t)
-        /// Security event: peer verification failed or unavailable
-        case peerVerificationFailed(relayId: String, reason: String)
-        case error(RelayError)
-    }
+  enum Event {
+    case relayStarted(id: String, port: UInt16, path: String)
+    case relayStopped(id: String)
+    case connectionEstablished(relayId: String, connectionId: UUID)
+    case connectionClosed(relayId: String, connectionId: UUID)
+    /// Security event: connection rejected due to PID mismatch (Phase 5)
+    case connectionRejected(relayId: String, attemptedPID: pid_t, expectedPID: pid_t?)
+    /// Security event: connection authorized after PID verification (Phase 5)
+    case connectionAuthorized(relayId: String, pid: pid_t)
+    /// Security event: peer verification failed or unavailable
+    case peerVerificationFailed(relayId: String, reason: String)
+    case error(RelayError)
 
-    private var events: [Event] = []
-
-    func record(_ event: Event) {
-        events.append(event)
+    /// Relay ID associated with this event, if any
+    var relayId: String? {
+      switch self {
+      case .relayStarted(let id, _, _): return id
+      case .relayStopped(let id): return id
+      case .connectionEstablished(let relayId, _): return relayId
+      case .connectionClosed(let relayId, _): return relayId
+      case .connectionRejected(let relayId, _, _): return relayId
+      case .connectionAuthorized(let relayId, _): return relayId
+      case .peerVerificationFailed(let relayId, _): return relayId
+      case .error: return nil
+      }
     }
+  }
 
-    func recentEvents(limit: Int = 100) -> [Event] {
-        Array(events.suffix(limit))
-    }
+  private var events: [Event] = []
+
+  func record(_ event: Event) {
+    events.append(event)
+  }
+
+  func recentEvents(limit: Int = 100) -> [Event] {
+    Array(events.suffix(limit))
+  }
+
+  /// Get all events for a specific relay
+  func eventsForRelay(_ relayId: String) -> [Event] {
+    events.filter { $0.relayId == relayId }
+  }
 }
 
 /// Status of a running relay
