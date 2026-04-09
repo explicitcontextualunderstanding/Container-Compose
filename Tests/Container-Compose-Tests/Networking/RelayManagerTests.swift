@@ -765,6 +765,7 @@ final class CreateSignalSocketTests: XCTestCase {
     }
 
   func testCreateSignalSocketFalseSkipsSocketCreation() async throws {
+    try skipIfUDSNotImplemented()
     // When createSignalSocket is false (for volume sockets like vsock-db),
         // the relay should not create/remove the signal socket
         let eventLog = RelayEventLog()
@@ -785,8 +786,9 @@ final class CreateSignalSocketTests: XCTestCase {
         }
     }
 
-    func testCreateSignalSocketDefaultsToTrue() async throws {
-        // Test that UDSVirtioFSRelay can be created with explicit createSignalSocket: true
+  func testCreateSignalSocketDefaultsToTrue() async throws {
+    try skipIfUDSNotImplemented()
+    // Test that UDSVirtioFSRelay can be created with explicit createSignalSocket: true
         let eventLog = RelayEventLog()
         let socketPath = "/tmp/test-default-\(UUID().uuidString).sock"
 
