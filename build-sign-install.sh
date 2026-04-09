@@ -197,8 +197,88 @@ if command -v codesign &> /dev/null; then
   cp "$BINARY_PATH" "$TARGET"
   chmod 755 "$TARGET"
 else
-  echo "Warning: codesign not found - container runtime may reject unsigned binary"
+    echo "Warning: codesign not found - container runtime may reject unsigned binary"
 fi
+
+# Generate entitlements report
+echo ""
+echo "=========================================="
+echo "Entitlements Report"
+echo "=========================================="
+
+# Define available entitlements and their requirements
+declare -A ENTITLEMENTS=(
+    ["com.apple.security.hypervisor"]="Required for Apple Virtualization framework. MUST be signed by Apple certificate."
+    ["com.apple.security.virtualization"]="Alias for hypervisor. MUST be signed by Apple certificate."
+    ["com.apple.security.application-groups"]="Allows app group access. Requires Team ID for valid production."
+    ["com.apple.security.hardened-runtime"]="Enables hardened runtime. Partial without Team ID."
+)
+
+# Check what entitlements file contains
+ENTITLEMENTS_PLIST="$SCRIPT_DIR/Container-Compose.entitlements"
+echo ""
+echo "Embedded Entitlements (from $ENTITLEMENTS_PLIST):"
+echo ""
+
+if [ -f "$ENTITLEMENTS_PLIST" ]; then
+    # Parse the plist and check each entitlement
+    while IFS= read -r line; do
+        if [[ "$line" == *"<key>"* ]]; then
+            ENT_KEY=$(echo "$line" | sed 's/.*<key>\(.*\)<\/key>.*/\1/')
+            echo "  - $ENT_KEY"
+            
+            # Check if we have info about this entitlement
+            if [ -n "${ENTITLEMENTS[$ENT_KEY]}" ]; then
+                echo "    Info: ${ENTITLEMENTS[$ENT_KEY]}"
+                
+                # Determine validity
+                case "$ENT_KEY" in
+                    "com.apple.security.hypervisor"|"com.apple.security.virtualization")
+                        echo "    ⚠️  REQUIRES Apple signing - invalid without Developer ID"
+                        ;;
+                    "com.apple.security.application-groups")
+                        echo "    ⚠️  Requires Team ID for production"
+                        ;;
+                    "com.apple.security.hardened-runtime")
+                        echo "    ℹ️  Partial functionality without Developer ID"
+                        ;;
+                esac
+            fi
+        fi
+    done < "$ENTITLEMENTS_PLIST"
+else
+    echo "  No entitlements file found"
+fi
+
+echo ""
+echo "Entitlements Summary:"
+echo "  - Embedded: $(grep -c "<key>" "$ENTITLEMENTS_PLIST" 2>/dev/null || echo 0)"
+echo "  - Valid for Production: 0 (requires paid Developer ID)"
+echo "  - Valid Locally: $(grep -c "<key>" "$ENTITLEMENTS_PLIST" 2>/dev/null || echo 0)"
+echo ""
+echo "ℹ️  Without Apple Developer Program membership, entitlements are embedded"
+echo "   but NOT valid for production. Binary will work locally but will fail"
+echo "   AMFI/production security checks."
+echo ""
+
+# List common entitlements we might want to add in the future
+echo "=========================================="
+echo "Available Entitlements (Future Consideration)"
+echo "=========================================="
+echo ""
+echo "For Apple Container runtime:"
+echo "  - com.apple.security.hypervisor (required)"
+echo ""
+echo "For notarization:"
+echo "  - com.apple.security.hardened-runtime"
+echo ""
+echo "For App Groups (if needed):"
+echo "  - com.apple.security.application-groups"
+echo ""
+echo "For TCC access (if needed):"
+echo "  - com.apple.security.tcc.services"
+echo ""
+echo "To add these, edit: $ENTITLEMENTS_PLIST"
 
 # Clean up any existing provenance attribute (ad-hoc sig prevents re-application)
 if command -v xattr &> /dev/null; then
