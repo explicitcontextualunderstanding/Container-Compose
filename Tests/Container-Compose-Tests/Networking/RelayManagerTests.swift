@@ -360,58 +360,55 @@ final class SocketRelayIntegrationTests: XCTestCase {
         }
     }
 
-  func testWaitForSocketSuccess() async throws {
-    // Use native BSD sockets instead of external nc process
-    let tempDir = FileManager.default.temporaryDirectory
-    let socketPath = tempDir.appendingPathComponent("test-\(UUID().uuidString).sock").path
+func testWaitForSocketSuccess() async throws {
+  // Use a short socket path to avoid sun_path length limit (104 bytes)
+  // /tmp/ + UUID (36) + .sock (5) = ~50 bytes, well under limit
+  let shortUUID = UUID().uuidString.prefix(8)
+  let socketPath = "/tmp/test-\(shortUUID).sock"
 
-    // Remove any existing socket file
+  // Clean up any existing socket file
+  try? FileManager.default.removeItem(atPath: socketPath)
+  defer {
     try? FileManager.default.removeItem(atPath: socketPath)
-
-    // Create a real Unix domain socket using BSD sockets
-    let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
-    guard fd >= 0 else {
-      throw XCTSkip("Unable to create test socket")
-    }
-
-    // Copy path to a C string first
-    let pathLength = socketPath.utf8.count
-    guard pathLength < 104 else { // sun_path is typically 104 bytes
-      Darwin.close(fd)
-      throw XCTSkip("Socket path too long")
-    }
-
-    // Create address structure with copied path
-    var addr = sockaddr_un()
-    addr.sun_family = sa_family_t(AF_UNIX)
-
-    // Copy path to sun_path using memcpy
-    socketPath.withCString { cString in
-      memcpy(&addr.sun_path, cString, pathLength + 1) // +1 for null terminator
-    }
-
-    defer {
-      Darwin.close(fd)
-      try? FileManager.default.removeItem(atPath: socketPath)
-    }
-
-    // Bind the socket
-    let bindResult = withUnsafePointer(to: &addr) { addrPtr in
-      addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-        Darwin.bind(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
-      }
-    }
-
-    guard bindResult == 0 else {
-      throw XCTSkip("Unable to bind test socket")
-    }
-
-    // Now test the waitForSocket method - it should detect this is a real socket
-    try await manager.waitForSocket(at: socketPath, timeout: 2.0, interval: 0.05)
-
-    // Verify file exists and is a socket
-    XCTAssertTrue(FileManager.default.fileExists(atPath: socketPath))
   }
+
+  // Create a real Unix domain socket using BSD sockets
+  let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+  guard fd >= 0 else {
+    XCTFail("Failed to create socket: \(errno)")
+    return
+  }
+  defer { Darwin.close(fd) }
+
+  // Verify path length is under sun_path limit
+  let pathLength = socketPath.utf8.count
+  XCTAssertLessThan(pathLength, 104, "Socket path \(pathLength) bytes exceeds sun_path limit")
+
+  // Create address structure
+  var addr = sockaddr_un()
+  addr.sun_family = sa_family_t(AF_UNIX)
+  addr.sun_len = UInt8(MemoryLayout<sockaddr_un>.size)
+
+  // Copy path to sun_path
+  socketPath.withCString { cString in
+    memcpy(&addr.sun_path, cString, pathLength + 1)
+  }
+
+  // Bind the socket
+  let bindResult = withUnsafePointer(to: &addr) { addrPtr in
+    addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+      Darwin.bind(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+    }
+  }
+
+  XCTAssertEqual(bindResult, 0, "Failed to bind socket: \(errno) - \(String(cString: strerror(errno)))")
+
+  // Now test the waitForSocket method
+  try await manager.waitForSocket(at: socketPath, timeout: 2.0, interval: 0.05)
+
+  // Verify file exists and is a socket
+  XCTAssertTrue(FileManager.default.fileExists(atPath: socketPath), "Socket file should exist")
+}
 
   func testPortCollisionHandling() async throws {
     // Use native NWListener instead of external nc process
