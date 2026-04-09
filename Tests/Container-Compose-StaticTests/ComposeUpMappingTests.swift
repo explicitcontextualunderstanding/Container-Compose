@@ -628,11 +628,8 @@ final class ComposeUpMappingTests: XCTestCase {
 
 // MARK: - Registry scheme (Apple Container 0.11.0+ extension)
 
- func testSchemeMappingHttps() throws {
- // Skip if running on 0.10.0 runtime
- guard RuntimeFeatureGate.isAvailable(.scheme) else {
- throw XCTSkip("Skipping: --scheme flag requires Apple Container 0.11.0+")
- }
+func testSchemeMappingHttps() throws {
+    // Container 0.11.0+ is installed and available
  
  let yaml = """
         services:
@@ -650,11 +647,8 @@ final class ComposeUpMappingTests: XCTestCase {
  XCTAssertEqual(args[args.index(after: schemeIdx)], "https", "Expected https scheme value")
  }
 
- func testSchemeMappingHttp() throws {
- // Skip if running on 0.10.0 runtime
- guard RuntimeFeatureGate.isAvailable(.scheme) else {
- throw XCTSkip("Skipping: --scheme flag requires Apple Container 0.11.0+")
- }
+func testSchemeMappingHttp() throws {
+    // Container 0.11.0+ is installed and available
  
  let yaml = """
         services:
