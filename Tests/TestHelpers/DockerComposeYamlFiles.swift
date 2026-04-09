@@ -412,17 +412,27 @@ public struct DockerComposeYamlFiles {
 
     /// Copies the provided Docker Compose YAML content to a temporary location and returns a
     /// TemporaryProject.
-    /// - Parameter yaml: The Docker Compose YAML content to copy.
-    /// - Returns: A TemporaryProject containing the URL and project name.
-    public static func copyYamlToTemporaryLocation(yaml: String) throws -> TemporaryProject {
-        let tempLocation = URL.temporaryDirectory.appending(
-            path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
-        let tempBase = tempLocation.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: tempBase, withIntermediateDirectories: true)
-        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
-        let projectName = tempBase.lastPathComponent
+/// - Parameter yaml: The Docker Compose YAML content to copy.
+  /// - Returns: A TemporaryProject containing the URL and project name.
+  /// Note: Replaces "name: vsock-relay-test" with UUID-based name for isolation
+  public static func copyYamlToTemporaryLocation(yaml: String) throws -> TemporaryProject {
+    let tempLocation = URL.temporaryDirectory.appending(
+      path: "CCT_\(UUID().uuidString)/docker-compose.yaml"
+    )
+    let tempBase = tempLocation.deletingLastPathComponent()
+    let projectName = tempBase.lastPathComponent
+    
+    // Replace hardcoded project name with isolated UUID-based name
+    // This ensures container names match the temp directory for proper cleanup
+    let isolatedYaml = yaml.replacingOccurrences(
+      of: "name: vsock-relay-test",
+      with: "name: \(projectName)"
+    )
+    
+    try? FileManager.default.createDirectory(at: tempBase, withIntermediateDirectories: true)
+    try isolatedYaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
-return TemporaryProject(url: tempLocation, base: tempBase, name: projectName)
+    return TemporaryProject(url: tempLocation, base: tempBase, name: projectName)
   }
 
   // MARK: - Vsock Relay Test Fixtures (Plan 84)
