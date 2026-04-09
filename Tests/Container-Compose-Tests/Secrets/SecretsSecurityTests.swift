@@ -480,63 +480,45 @@ struct SecretsSecurityTests {
 // MARK: - Mock Classes
 
 // Mock for AMFIRelayGating protocol from ContainerComposeCore
-final class MockAMFIRelayGating: AMFIRelayGating {
-	var shouldPassValidation = true
-	var errorMessage: String?
+final class MockAMFIRelayGating: AMFIRelayGating, @unchecked Sendable {
+  let shouldPassValidation: Bool
+  let errorMessage: String?
+  
+  init(shouldPassValidation: Bool = true, errorMessage: String? = nil) {
+    self.shouldPassValidation = shouldPassValidation
+    self.errorMessage = errorMessage
+  }
 
-	func validateForSecretsMount() async -> AMFIValidationResult {
-		if shouldPassValidation {
-			return AMFIValidationResult(passed: true)
-		} else {
-			return AMFIValidationResult(passed: false, errorMessage: errorMessage ?? "AMFI validation failed")
-		}
-	}
+  func validateForSocatRemoval(binaryPath: String) async -> GatingResult {
+    if shouldPassValidation {
+      return GatingResult.validated
+    } else {
+      return GatingResult(canRemoveSocat: false, isValidated: false, errorMessage: errorMessage ?? "AMFI validation failed")
+    }
+  }
 
-	func validateForSocatRemoval() async -> AMFIValidationResult {
-		if shouldPassValidation {
-			return AMFIValidationResult(passed: true)
-		} else {
-			return AMFIValidationResult(passed: false, errorMessage: errorMessage ?? "AMFI validation failed")
-		}
-	}
-
-	func validateBeforeRelayStart() async -> AMFIValidationResult {
-		if shouldPassValidation {
-			return AMFIValidationResult(passed: true)
-		} else {
-			return AMFIValidationResult(passed: false, errorMessage: errorMessage ?? "AMFI validation failed")
-		}
-	}
+  func validateBeforeRelayStart(binaryPath: String) async -> Bool {
+    return shouldPassValidation
+  }
 }
 
 // Mock for HorizontalIsolationValidator protocol from SecurityHardening
-final class MockHorizontalIsolationValidator: HorizontalIsolationValidating {
-	var shouldPassValidation = true
-	var errorMessage: String?
+final class MockHorizontalIsolationValidator: HorizontalIsolationValidating, @unchecked Sendable {
+  let shouldPassValidation: Bool
+  let errorMessage: String?
+  
+  init(shouldPassValidation: Bool = true, errorMessage: String? = nil) {
+    self.shouldPassValidation = shouldPassValidation
+    self.errorMessage = errorMessage
+  }
 
-	func validateEnclaveAccess(sourceCID: Int, enclavePath: String) async -> IsolationValidationResult {
-		if shouldPassValidation {
-			return IsolationValidationResult(passed: true)
-		} else {
-			return IsolationValidationResult(passed: false, errorMessage: errorMessage ?? "Isolation failed")
-		}
-	}
-
-	func validateContainerCommunication(sourceCID: Int, targetCID: Int) async -> IsolationValidationResult {
-		if shouldPassValidation {
-			return IsolationValidationResult(passed: true)
-		} else {
-			return IsolationValidationResult(passed: false, errorMessage: errorMessage ?? "Communication blocked")
-		}
-	}
-
-	func validateSocketPath(_ path: String) async -> IsolationValidationResult {
-		if shouldPassValidation {
-			return IsolationValidationResult(passed: true)
-		} else {
-			return IsolationValidationResult(passed: false, errorMessage: errorMessage ?? "Socket path validation failed")
-		}
-	}
+  func validateSocketPath(_ path: String) async -> IsolationResult {
+    if shouldPassValidation {
+      return IsolationResult.isolated
+    } else {
+      return IsolationResult(isIsolated: false, errorMessage: errorMessage ?? "Socket path validation failed")
+    }
+  }
 }
 
 actor MockESFClient: ESFClientProtocol {
