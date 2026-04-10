@@ -337,6 +337,38 @@ final class RelayConfigurationLoaderTests: XCTestCase {
     // Verify the path contains expected Virtio-FS volume structure
     XCTAssertTrue(relay.socket_path?.contains(".containers/Volumes") ?? false)
     XCTAssertTrue(relay.socket_path?.contains("honcho-db-sockets") ?? false)
-    XCTAssertTrue(relay.socket_path?.contains(".s.PGSQL.5432") ?? false)
-  }
+XCTAssertTrue(relay.socket_path?.contains(".s.PGSQL.5432") ?? false)
+}
+
+func testLoadsUDSRelayType() throws {
+    // Plan 88: Test that 'type: uds' is supported (Decision 3 - Transparent mapping)
+    let relay = AppleRelayConfig(type: "uds", port: 5432)
+    let service = Service(image: "postgres:15", x_apple_relays: [relay])
+    let loaded = try loader.loadRelays(from: [("db", service)])
+
+    XCTAssertEqual(loaded.count, 1, "Should load 1 UDS relay")
+}
+
+func testUDSRelayWithSocketPath() throws {
+    // Plan 88: Test UDS relay with explicit socket_path
+    let socketPath = "/tmp/test-uds.sock"
+    let relay = AppleRelayConfig(type: "uds", port: 5432, socket_path: socketPath)
+    let service = Service(image: "postgres:15", x_apple_relays: [relay])
+
+    let loaded = try loader.loadRelays(from: [("db", service)])
+
+    XCTAssertEqual(loaded.count, 1)
+    XCTAssertEqual(relay.socket_path, socketPath)
+}
+
+func testTransparentMappingVsockDbToUDS() throws {
+    // Plan 88: vsock-db should map to UDS at runtime (transparent mapping)
+    let relay = AppleRelayConfig(type: "vsock-db", port: 5432)
+    let service = Service(image: "postgres:15", x_apple_relays: [relay])
+
+    let loaded = try loader.loadRelays(from: [("db", service)])
+
+    XCTAssertEqual(loaded.count, 1, "vsock-db should load")
+    XCTAssertEqual(loaded[0].type, .vsockDb, "vsock-db type preserved for backward compat")
+}
 }
