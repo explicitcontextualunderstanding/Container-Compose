@@ -868,6 +868,46 @@ func testSocketPathLengthMargins() async throws {
 	let margin = 104 - actualCount
 	XCTAssertGreaterThanOrEqual(margin, 16, "Production path should have at least 16-char margin, had \(margin)")
 }
+
+func testUDSTransportDescription() async throws {
+    // Plan 88: Verify UDS transport description format
+    let socketPath = "/tmp/test-uds-description.sock"
+    let eventLog = RelayEventLog()
+
+    let relay = try UDSVirtioFSRelay(
+        socketPath: socketPath,
+        createSignalSocket: true,
+        eventLog: eventLog
+    )
+
+    let transport = await relay.transportType
+    let description = transport.description
+
+    XCTAssertTrue(description.hasPrefix("uds:"), "UDS transport should have 'uds:' prefix, got: \(description)")
+    XCTAssertTrue(description.contains(socketPath), "Description should contain socket path")
+}
+
+func testUDSWithVirtioFSMountPath() async throws {
+    // Plan 88: Verify UDS relay accepts explicit Virtio-FS mount path
+    let socketPath = "/Users/test/.containers/Volumes/myapp/sockets/test.sock"
+    let virtioMount = "/Users/test/.containers/Volumes/myapp"
+    let eventLog = RelayEventLog()
+
+    let relay = try UDSVirtioFSRelay(
+        socketPath: socketPath,
+        virtioFSMountPath: virtioMount,
+        createSignalSocket: false,
+        eventLog: eventLog
+    )
+
+    let transport = await relay.transportType
+    if case .uds(let path, let mount) = transport {
+        XCTAssertEqual(path, socketPath)
+        XCTAssertEqual(mount, virtioMount)
+    } else {
+        XCTFail("Transport should be UDS")
+    }
+}
 }
 
 // MARK: - Virtio-FS Detection Tests (Plan 84)
