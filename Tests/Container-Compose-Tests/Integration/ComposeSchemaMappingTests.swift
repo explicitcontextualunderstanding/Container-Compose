@@ -8,10 +8,11 @@ final class ComposeSchemaMappingTests: XCTestCase {
 
     // MARK: - End-to-End Schema Parsing
 
-    func testParsesFullFleetConfiguration() throws {
-        // Simulate parsing the actual Hermes/Honcho compose file
-        let yamlString = """
-        name: apple-honcho
+func testParsesFullFleetConfiguration() throws {
+	// Simulate parsing the actual Hermes/Honcho compose file
+	// Note: Includes both legacy vsock-db and new uds types for Plan 88
+	let yamlString = """
+name: apple-honcho
 services:
   honcho-db:
     image: walg-db:latest
@@ -20,7 +21,6 @@ services:
         port: 5432
         priority: "high"
 
-  # Plan 88: New UDS relay type
   honcho-db-uds:
     image: walg-db:latest
     x-apple-relays:

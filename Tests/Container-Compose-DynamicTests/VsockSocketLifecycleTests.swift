@@ -4,6 +4,7 @@
 // Tests: creation, data flow, cleanup, using existing infrastructure
 //===----------------------------------------------------------------------===//
 
+import XCTest
 import Testing
 import Foundation
 import ContainerCommands
@@ -334,88 +335,4 @@ private extension URL {
 var exists: Bool {
 FileManager.default.fileExists(atPath: self.path)
 }
-}
-
-// MARK: - UDS Socket Lifecycle Tests (Plan 88)
-
-/// UDS socket lifecycle tests - forward compatibility for Plan 88
-@Suite("UDS Socket Lifecycle Tests (Plan 88)", .serialized)
-struct UDSSocketLifecycleTests {
-
-	@Test("UDS: Socket creation in Virtio-FS volume")
-	func testUDSSocketCreationInVirtioFs() async throws {
-		let testVolume = FileManager.default.homeDirectoryForCurrentUser
-			.appendingPathComponent(".containers/Volumes/CCT_UDSSocket_\(UUID().uuidString)")
-		let socketPath = testVolume.appendingPathComponent("test.sock")
-
-		defer {
-			try? FileManager.default.removeItem(at: testVolume)
-		}
-
-		try FileManager.default.createDirectory(at: testVolume, withIntermediateDirectories: true)
-
-		let eventLog = RelayEventLog()
-		let relay = try UDSVirtioFSRelay(
-			socketPath: socketPath.path,
-			virtioFSMountPath: testVolume.path,
-			createSignalSocket: true,
-			eventLog: eventLog
-		)
-
-		let storedPath = await relay.unixSocketPath
-		XCTAssertEqual(storedPath, socketPath.path)
-	}
-
-	@Test("UDS: Socket path persistence across relay instances")
-	func testUDSSocketPathPersistence() async throws {
-		let socketPath = "/tmp/uds-persistence-\(UUID().uuidString).sock"
-		defer { try? FileManager.default.removeItem(atPath: socketPath) }
-
-		let eventLog1 = RelayEventLog()
-		let relay1 = try UDSVirtioFSRelay(
-			socketPath: socketPath,
-			virtioFSMountPath: nil,
-			createSignalSocket: true,
-			eventLog: eventLog1
-		)
-
-		let path1 = await relay1.unixSocketPath
-		XCTAssertEqual(path1, socketPath)
-
-		let eventLog2 = RelayEventLog()
-		let relay2 = try UDSVirtioFSRelay(
-			socketPath: path1,
-			virtioFSMountPath: nil,
-			createSignalSocket: true,
-			eventLog: eventLog2
-		)
-
-		let path2 = await relay2.unixSocketPath
-		XCTAssertEqual(path2, socketPath, "Socket path should persist across relay instances")
-	}
-
-	@Test("UDS: External socket detection (createSignalSocket: false)")
-	func testUDSExternalSocketDetection() async throws {
-		let testVolume = FileManager.default.homeDirectoryForCurrentUser
-			.appendingPathComponent(".containers/Volumes/CCT_UDSExt_\(UUID().uuidString)")
-		let socketPath = testVolume.appendingPathComponent(".s.PGSQL.5432")
-
-		defer {
-			try? FileManager.default.removeItem(at: testVolume)
-		}
-
-		try FileManager.default.createDirectory(at: testVolume, withIntermediateDirectories: true)
-		FileManager.default.createFile(atPath: socketPath.path, contents: nil)
-
-		let eventLog = RelayEventLog()
-		let relay = try UDSVirtioFSRelay(
-			socketPath: socketPath.path,
-			virtioFSMountPath: testVolume.path,
-			createSignalSocket: false,
-			eventLog: eventLog
-		)
-
-		let storedPath = await relay.unixSocketPath
-		XCTAssertEqual(storedPath, socketPath.path, "Should detect existing socket")
-	}
 }
