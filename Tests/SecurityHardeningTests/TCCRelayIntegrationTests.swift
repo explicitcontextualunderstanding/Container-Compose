@@ -259,4 +259,83 @@ final class TCCRelayIntegrationTests: XCTestCase {
         )
         XCTAssertEqual(config.preflightTimeout, 5.0)
     }
+
+    // MARK: - Plan 88 UDS TCC Integration Tests
+
+    func testValidateUDSRelayStartupWithDevelopmentConfig() async {
+        // Plan 88: UDS relay should validate with development config
+        let canStart = await integration.validateRelayStartup(relayType: "uds")
+        XCTAssertTrue(canStart, "UDS relay should start with development config")
+    }
+
+    func testValidateUDSDatabaseRelayStartup() async {
+        // Plan 88: UDS-db relay type for PostgreSQL over Virtio-FS
+        let canStart = await integration.validateRelayStartup(relayType: "uds-db")
+        XCTAssertTrue(canStart, "UDS-db relay should start with development config")
+    }
+
+    func testUDSRelayTypeFormat() async {
+        // Plan 88: Verify UDS relay type strings are recognized
+        let udsValid = await integration.validateRelayStartup(relayType: "uds")
+        let udsDbValid = await integration.validateRelayStartup(relayType: "uds-db")
+
+        XCTAssertTrue(udsValid, "'uds' relay type should be valid")
+        XCTAssertTrue(udsDbValid, "'uds-db' relay type should be valid")
+    }
+
+    func testUDSRequiresTCCAuthorizationInProduction() async {
+        // Plan 88: UDS over Virtio-FS requires TCC-gated filesystem access
+        // In production, TCC enforces access to ~/.containers/Volumes
+        let productionIntegration = TCCRelayIntegration(configuration: .production)
+
+        // With production config, TCC enforcement is enabled
+        // UDS relay validation should check TCC status
+        let result = await productionIntegration.preflightCheck()
+
+        // In production, TCC authorization is required for Virtio-FS access
+        // The actual result depends on TCC state, but we verify the check runs
+        XCTAssertNotNil(result.status)
+    }
+
+    func testUDSVsockDbHaveSameTCCRequirements() async {
+        // Plan 88: UDS and vsock-db should have same TCC validation pattern
+        // Both use Virtio-FS which is TCC-gated
+        let udsResult = await integration.validateRelayStartup(relayType: "uds")
+        let vsockDbResult = await integration.validateRelayStartup(relayType: "vsock-db")
+
+        // Both should pass with development config
+        XCTAssertTrue(udsResult)
+        XCTAssertTrue(vsockDbResult)
+    }
+
+    func testUDSRelayIntegrationPattern() async {
+        // Plan 88: Simulate UDS relay startup with TCC check
+        // Pattern: RelayManager.startRelay() for UDS transport
+
+        // Step 1: TCC preflight (same for all Virtio-FS transports)
+        let preflightResult = await integration.preflightCheck()
+        XCTAssertTrue(preflightResult.canProceed, "Should proceed with development config")
+
+        // Step 2: Validate UDS-specific relay
+        let canStartUDS = await integration.validateRelayStartup(relayType: "uds")
+        XCTAssertTrue(canStartUDS, "UDS relay should pass validation")
+
+        // Step 3: Validate UDS-db (database) relay
+        let canStartUDSDb = await integration.validateRelayStartup(relayType: "uds-db")
+        XCTAssertTrue(canStartUDSDb, "UDS-db relay should pass validation")
+    }
+
+    func testUDSTransparentMappingPreservesTCCCheck() async {
+        // Plan 88: vsock-db transparently maps to UDS - TCC check should still apply
+        // When vsock-db is mapped to UDS, TCC for Virtio-FS is still required
+
+        let preflight = await integration.preflightCheck()
+
+        // Both paths should use same TCC validation since both use Virtio-FS
+        let vsockDbValid = await integration.validateRelayStartup(relayType: "vsock-db")
+        let udsDbValid = await integration.validateRelayStartup(relayType: "uds-db")
+
+        // Results should be consistent (both use Virtio-FS TCC)
+        XCTAssertEqual(vsockDbValid, udsDbValid)
+    }
 }

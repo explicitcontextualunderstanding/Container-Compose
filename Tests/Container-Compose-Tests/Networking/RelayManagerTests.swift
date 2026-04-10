@@ -855,32 +855,28 @@ final class CreateSignalSocketTests: XCTestCase {
 XCTAssertNotNil(relay, "Relay should be created for path under 104 chars")
 }
 
-func testSocketPathLengthMargins() async throws {
-        // Plan 88 Finding C-2: Verify margin calculations for production paths
-        let basePath = "/Users/kieranlal/.containers/Volumes/"
-        let remaining = 104 - basePath.count
+// MARK: - Production Path Tests (Plan 88 Finding C-2)
 
-        XCTAssertGreaterThanOrEqual(remaining, 40, "Sufficient margin for project names")
-        // Production path is ~81 chars, has ~23-char margin
-        let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
-        let actualCount = productionPath.count
-        XCTAssertLessThan(actualCount, 104, "Production socket path must be under AF_UNIX limit")
-        let margin = 104 - actualCount
-        XCTAssertGreaterThanOrEqual(margin, 16, "Production path should have at least 16-char margin, had \(margin)")
-    }
+func testProductionSocketPath() async throws {
+    // Plan 88 Finding C-2: Comprehensive production path verification
+    // Combined test: margin calculations + actual path validation
 
-    func testProductionSocketPath() async throws {
-        // Plan 88 Finding C-2: Verify actual production path from honcho-stack-with-derivers.yml
-        let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
-        let actualCount = productionPath.count
+    // Verify base path has sufficient margin for project names
+    let basePath = "/Users/kieranlal/.containers/Volumes/"
+    let remaining = 104 - basePath.count
+    XCTAssertGreaterThanOrEqual(remaining, 40, "Base path should have 40+ chars for project names")
 
-        // Production path length: 81 characters (has 23-char margin under 104 limit)
-        XCTAssertEqual(actualCount, 81, "Production path length should be 81 characters")
-        XCTAssertLessThan(actualCount, 104, "Production socket path must be under AF_UNIX limit (104)")
+    // Verify actual production path from honcho-stack-with-derivers.yml
+    let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+    let actualCount = productionPath.count
 
-        // Verify 16-character margin
-        let margin = 104 - actualCount
-        XCTAssertGreaterThanOrEqual(margin, 16, "Production path should have at least 16-char margin")
+    // Production path length: 81 characters (has 23-char margin under 104 limit)
+    XCTAssertEqual(actualCount, 81, "Production path length should be 81 characters")
+    XCTAssertLessThan(actualCount, 104, "Production socket path must be under AF_UNIX limit (104)")
+
+    // Verify 16-character minimum margin
+    let margin = 104 - actualCount
+    XCTAssertGreaterThanOrEqual(margin, 16, "Production path should have at least 16-char margin, had \(margin)")
 
         // Verify path structure
         XCTAssertTrue(productionPath.hasPrefix("/Users/kieranlal/.containers/Volumes/"), "Path should start with Volumes dir")
@@ -1261,10 +1257,10 @@ final class CIDVerifierTests: XCTestCase {
         }
     }
 
-    func testTransparentVsockToUDSMapping() async throws {
+func testTransparentVsockToUDSMapping() async throws {
         // Plan 88: Verify vsock configurations are transparently mapped to UDS
         let manager = RelayManager()
-        
+
         // Create vsock configuration (should map to UDS)
         let vsockConfig = RelayManager.RelayConfiguration(
             id: "test-vsock-mapping",
@@ -1272,15 +1268,19 @@ final class CIDVerifierTests: XCTestCase {
             transport: .vsockDb(socketPath: "/tmp/test.sock"),
             description: "Test vsock-db to UDS mapping"
         )
-        
-        // Verify the transport type
-        XCTAssertEqual(vsockConfig.type, .vsockDb)
-        
+
+        // Verify the transport type using switch
+        if case .vsockDb(let path) = vsockConfig.transport {
+            XCTAssertEqual(path, "/tmp/test.sock")
+        } else {
+            XCTFail("Expected vsockDb transport")
+        }
+
         // The RelayManager should handle the transparent mapping
         // when startRelay is called (tested in integration tests)
     }
 
-    func testExtractPrimitivesFromConfig() {
+func testExtractPrimitivesFromConfig() {
         // Finding C-3: Test extraction of primitives for security validation
         let socketPath = "/tmp/test.sock"
         let config = RelayManager.RelayConfiguration(
@@ -1289,18 +1289,22 @@ final class CIDVerifierTests: XCTestCase {
             transport: .uds(path: socketPath, virtioFSMount: nil),
             description: "Test"
         )
-        
-        // Extract socket path
+
+        // Extract socket path from transport
         let extractedPath: String? = switch config.transport {
         case .uds(let path, _): path
         case .vsockDb(let path): path
         case .unixSocket(let path): path
         default: nil
         }
-        
+
         XCTAssertEqual(extractedPath, socketPath)
-        
-        // Extract type
-        XCTAssertEqual(config.type, .uds)
+
+        // Verify transport is UDS
+        if case .uds(let path, _) = config.transport {
+            XCTAssertEqual(path, socketPath)
+        } else {
+            XCTFail("Expected UDS transport")
+        }
     }
 }
