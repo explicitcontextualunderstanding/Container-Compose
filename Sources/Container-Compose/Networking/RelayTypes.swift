@@ -24,6 +24,9 @@ public typealias RelayConfiguration = SecurityHardening.RelayConfiguration
 /// Relay type enumeration (re-export from SecurityHardening)
 public typealias RelayType = SecurityHardening.RelayType
 
+/// Transport type for YAML configuration (nested type re-export)
+public typealias TransportType = SecurityHardening.RelayTransport.TransportType
+
 // MARK: - Relay Protocol
 
 /// Protocol for relay implementations (SocketRelay, UDSVirtioFSRelay, etc.)
