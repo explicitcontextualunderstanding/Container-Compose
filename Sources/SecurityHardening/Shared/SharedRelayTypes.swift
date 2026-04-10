@@ -13,6 +13,104 @@ public enum RelayTransport: Hashable, Sendable, Codable {
     case vsock(cid: UInt32, port: UInt32, unixSocketPath: String)
     @available(*, deprecated, message: "Use .uds(path:) — vSock blocked by Apple")
     case vsockDb(socketPath: String)
+
+    /// Human-readable description
+    public var description: String {
+        switch self {
+        case .unixSocket(let path): return "unix:\(path)"
+        case .uds(let path, _): return "uds:\(path)"
+        case .vsock(let cid, let port, let unixSocketPath):
+            if unixSocketPath.isEmpty {
+                return "vsock:\(cid):\(port)"
+            }
+            return "vsock:\(cid):\(port):\(unixSocketPath)"
+        case .vsockDb(let socketPath): return "vsock-db:\(socketPath)"
+        case .tcp(let host, let port): return "tcp:\(host):\(port)"
+        }
+    }
+
+    /// Simple transport type for YAML configuration (no associated values)
+    public enum TransportType: String, Codable, Hashable {
+        case uds
+        case vsock
+        case vsockDb
+        case unix
+        case tcp
+    }
+
+    /// Get the simple transport type
+    public var transportType: TransportType {
+        switch self {
+        case .unixSocket: return .unix
+        case .uds: return .uds
+        case .vsock: return .vsock
+        case .vsockDb: return .vsockDb
+        case .tcp: return .tcp
+        }
+    }
+
+    /// Coding keys for Codable conformance
+    enum CodingKeys: String, CodingKey {
+        case type
+        case path
+        case cid
+        case port
+        case host
+        case unixSocketPath
+        case socketPath
+        case virtioFSMount
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(TransportType.self, forKey: .type)
+
+        switch type {
+        case .unix:
+            let path = try container.decode(String.self, forKey: .path)
+            self = .unixSocket(path: path)
+        case .uds:
+            let path = try container.decode(String.self, forKey: .path)
+            let mount = try container.decodeIfPresent(String.self, forKey: .virtioFSMount)
+            self = .uds(path: path, virtioFSMount: mount)
+        case .vsock:
+            let cid = try container.decode(UInt32.self, forKey: .cid)
+            let port = try container.decode(UInt32.self, forKey: .port)
+            let unixSocketPath = try container.decodeIfPresent(String.self, forKey: .unixSocketPath) ?? ""
+            self = .vsock(cid: cid, port: port, unixSocketPath: unixSocketPath)
+        case .vsockDb:
+            let socketPath = try container.decode(String.self, forKey: .socketPath)
+            self = .vsockDb(socketPath: socketPath)
+        case .tcp:
+            let host = try container.decode(String.self, forKey: .host)
+            let port = try container.decode(UInt16.self, forKey: .port)
+            self = .tcp(host: host, port: port)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(transportType, forKey: .type)
+
+        switch self {
+        case .unixSocket(let path):
+            try container.encode(path, forKey: .path)
+        case .uds(let path, let mount):
+            try container.encode(path, forKey: .path)
+            try? container.encodeIfPresent(mount, forKey: .virtioFSMount)
+        case .vsock(let cid, let port, let unixSocketPath):
+            try container.encode(cid, forKey: .cid)
+            try container.encode(port, forKey: .port)
+            if !unixSocketPath.isEmpty {
+                try container.encode(unixSocketPath, forKey: .unixSocketPath)
+            }
+        case .vsockDb(let socketPath):
+            try container.encode(socketPath, forKey: .socketPath)
+        case .tcp(let host, let port):
+            try container.encode(host, forKey: .host)
+            try container.encode(port, forKey: .port)
+        }
+    }
 }
 
 /// Configuration for a socket relay (SecurityHardening compatible)

@@ -59,6 +59,7 @@ func shellSplit(_ string: String) -> [String] {
 //
 
 import Foundation
+import SecurityHardening
 
 
 /// Condition for `depends_on` long-form entries.
@@ -72,22 +73,22 @@ public enum DependsOnCondition: String, Codable, Hashable {
 /// Enables declarative routing in compose files (Phase 5)
 public struct ServiceRelay: Codable, Hashable {
     /// Transport protocol for the relay
-    public let transport: RelayTransport.TransportType
-    
+    public let transport: TransportType
+
     /// VSOCK Context ID (for vsock transport only)
     public let cid: UInt32?
-    
+
     /// Target service name to route to
     public let target: String?
-    
+
     /// Port number (for vsock/tcp transports)
     public let port: UInt32?
-    
+
     /// Unix socket path (for unix transport)
     public let socket: String?
-    
+
     public init(
-        transport: RelayTransport.TransportType,
+        transport: TransportType,
         cid: UInt32? = nil,
         target: String? = nil,
         port: UInt32? = nil,
