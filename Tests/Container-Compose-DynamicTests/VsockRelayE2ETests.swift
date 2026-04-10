@@ -195,12 +195,95 @@ struct VsockRelayPerformanceTests {
             let endTime = CFAbsoluteTimeGetCurrent()
             let duration = endTime - startTime
 
-            #expect(socketReady, "Socket should be ready within 5 seconds")
-            #expect(duration < 5.0, "Startup should be < 5s, was \(String(format: "%.2f", duration))s")
+#expect(socketReady, "Socket should be ready within 5 seconds")
+	#expect(duration < 5.0, "Startup should be < 5s, was \(String(format: "%.2f", duration))s")
 
-            // Cleanup
-            var composeDown = ComposeDown()
-            try await composeDown.run()
-        }
-    }
+	// Cleanup
+	var composeDown = ComposeDown()
+	try await composeDown.run()
+	}
+}
+
+@Suite("UDS Relay E2E Tests (Plan 88)", .serialized)
+struct UDSRelayE2ETests {
+	// MARK: - UDS Path Length Validation Tests
+
+	@Test("UDS: Path length validation rejects paths >= 104 chars")
+	func testUDSSocketPathLengthValidation() {
+		// Plan 88 Finding C-2: Must hard-error at config time for paths >= 104 chars
+		let longPath = String(repeating: "a", count: 110) + ".sock"
+
+		XCTAssertThrowsError(try UDSVirtioFSRelay(
+			socketPath: longPath,
+			virtioFSMountPath: nil,
+			createSignalSocket: true,
+			eventLog: RelayEventLog()
+		)) { error in
+			let errorString = String(describing: error)
+			XCTAssertTrue(
+				errorString.contains("too long") || errorString.contains("104"),
+				"Error should indicate path too long: \(errorString)"
+			)
+		}
+	}
+
+	@Test("UDS: Accepts valid socket paths under 104 chars")
+	func testUDSAcceptValidSocketPath() throws {
+		let validPath = "/tmp/valid-uds-socket-\(UUID().uuidString).sock"
+		defer { try? FileManager.default.removeItem(atPath: validPath) }
+
+		// Valid path should not throw
+		let relay = try UDSVirtioFSRelay(
+			socketPath: validPath,
+			virtioFSMountPath: nil,
+			createSignalSocket: true,
+			eventLog: RelayEventLog()
+		)
+
+		XCTAssertNotNil(relay)
+	}
+
+	// MARK: - UDS Transport Type Tests
+
+	@Test("UDS: Transport type correctly stores path and mount")
+	func testUDSTransportType() async throws {
+		let socketPath = "/tmp/transport-test-\(UUID().uuidString).sock"
+		let mountPath = "/Volumes/apple"
+		defer { try? FileManager.default.removeItem(atPath: socketPath) }
+
+		let relay = try UDSVirtioFSRelay(
+			socketPath: socketPath,
+			virtioFSMountPath: mountPath,
+			createSignalSocket: true,
+			eventLog: RelayEventLog()
+		)
+
+		let transport = await relay.transportType
+		if case .uds(let path, let mount) = transport {
+			XCTAssertEqual(path, socketPath)
+			XCTAssertEqual(mount, mountPath)
+		} else {
+			XCTFail("Transport should be .uds")
+		}
+	}
+
+	// MARK: - UDS Production Path Test
+
+	@Test("UDS: Production socket path (88 chars) is valid")
+	func testUDSProductionSocketPath() {
+		// Actual path from honcho-stack-with-derivers.yml
+		let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+
+		XCTAssertLessThan(productionPath.count, 104,
+			"Production socket path must be under AF_UNIX limit (104 chars)")
+
+		// Should not throw - valid path
+		XCTAssertNoThrow(try UDSVirtioFSRelay(
+			socketPath: productionPath,
+			virtioFSMountPath: "/Users/kieranlal/.containers/Volumes/apple-honcho",
+			createSignalSocket: false,
+			eventLog: RelayEventLog()
+		))
+	}
+}
 }
