@@ -76,62 +76,61 @@ func testVirtioFsPathDetection() async throws {
 	XCTAssertTrue(storedPath.contains(".containers/Volumes"), "Should detect Virtio-FS path")
 }
 
-  // MARK: - Test 3: Relay Configuration
+// MARK: - Test 3: Relay Configuration
 
-  /// Verify relay configuration matches expected values
-  func testRelayConfiguration() async throws {
-    let eventLog = RelayEventLog()
-    let socketPath = "/tmp/test.sock"
+/// Verify UDS relay configuration matches expected values
+/// Plan 88: Migrated from VsockRelay to UDSVirtioFSRelay
+func testRelayConfiguration() async throws {
+	let eventLog = RelayEventLog()
+	let socketPath = "/tmp/test-\(UUID().uuidString).sock"
+	defer { try? FileManager.default.removeItem(atPath: socketPath) }
 
-    let relay = try VsockRelay(
-      cid: 3,
-      port: 8080,
-      unixSocketPath: socketPath,
-      createSignalSocket: true,
-      eventLog: eventLog
-    )
+	let relay = try UDSVirtioFSRelay(
+		socketPath: socketPath,
+		virtioFSMountPath: nil,
+		createSignalSocket: true,
+		eventLog: eventLog
+	)
 
-    // Verify CID and port stored correctly
-    let transport = await relay.transportType
-    if case .vsock(let cid, let port, let path) = transport {
-      XCTAssertEqual(cid, 3, "CID should match")
-      XCTAssertEqual(port, 8080, "Port should match")
-      XCTAssertEqual(path, socketPath, "Path should match")
-    } else {
-      XCTFail("Transport should be vsock with cid, port, path")
-    }
-  }
+	// Verify UDS transport stored correctly
+	let transport = await relay.transportType
+	if case .uds(let path, _) = transport {
+		XCTAssertEqual(path, socketPath, "Path should match")
+	} else {
+		XCTFail("Transport should be UDS")
+	}
+}
 
-  // MARK: - Test 4: Socket Persistence
+// MARK: - Test 4: Socket Persistence
 
-  /// Verify socket path survives relay restarts
-  func testSocketPathPersistence() async throws {
-    let socketPath = "/tmp/persistence-test.sock"
+/// Verify socket path survives relay restarts
+/// Plan 88: Migrated from VsockRelay to UDSVirtioFSRelay
+func testSocketPathPersistence() async throws {
+	let socketPath = "/tmp/persistence-test-\(UUID().uuidString).sock"
+	defer { try? FileManager.default.removeItem(atPath: socketPath) }
 
-    // Create first relay
-    let eventLog1 = RelayEventLog()
-    let relay1 = try VsockRelay(
-      cid: 2,
-      port: 5432,
-      unixSocketPath: socketPath,
-      createSignalSocket: true,
-      eventLog: eventLog1
-    )
+	// Create first relay
+	let eventLog1 = RelayEventLog()
+	let relay1 = try UDSVirtioFSRelay(
+		socketPath: socketPath,
+		virtioFSMountPath: nil,
+		createSignalSocket: true,
+		eventLog: eventLog1
+	)
 
-    // Get initial transport
-    let transport1 = await relay1.transportType
-    guard case .vsock(let cid1, let port1, let path1) = transport1 else {
-      XCTFail("First relay should be vsock")
-      return
-    }
+	// Get initial transport
+	let transport1 = await relay1.transportType
+	guard case .uds(let path1, _) = transport1 else {
+		XCTFail("First relay should be UDS")
+		return
+	}
 
-    // Create second relay (simulates restart)
-    let eventLog2 = RelayEventLog()
-    let relay2 = try VsockRelay(
-      cid: cid1,
-      port: port1,
-      unixSocketPath: path1,
-      createSignalSocket: true,
+	// Create second relay (simulates restart)
+	let eventLog2 = RelayEventLog()
+	let relay2 = try UDSVirtioFSRelay(
+		socketPath: path1,
+		virtioFSMountPath: nil,
+		createSignalSocket: true,
       eventLog: eventLog2
     )
 
@@ -146,43 +145,44 @@ func testVirtioFsPathDetection() async throws {
     }
   }
 
-  // MARK: - Test 5: Invalid Port Handling
+// MARK: - Test 5: Path Length Validation
 
-  /// Verify relay rejects invalid ports
-  func testInvalidPortHandling() {
-    XCTAssertThrowsError(try VsockRelay(
-      cid: 2,
-      port: 0, // Invalid port
-      unixSocketPath: "/tmp/test.sock",
-      createSignalSocket: true,
-      eventLog: RelayEventLog()
-    )) { error in
-      // Verify error is about invalid port (check description)
-      let errorString = String(describing: error)
-      XCTAssertTrue(
-        errorString.contains("Invalid vsock port") || errorString.contains("port"),
-        "Error should indicate invalid port: \(errorString)"
-      )
-    }
-  }
+/// Verify UDS relay rejects paths >= 104 chars (AF_UNIX limit)
+/// Plan 88: Migrated from VsockRelay to UDSVirtioFSRelay
+func testPathLengthValidation() {
+	let longPath = String(repeating: "a", count: 110) + ".sock"
+	XCTAssertThrowsError(try UDSVirtioFSRelay(
+		socketPath: longPath,
+		virtioFSMountPath: nil,
+		createSignalSocket: true,
+		eventLog: RelayEventLog()
+	)) { error in
+		// Verify error is about path length
+		let errorString = String(describing: error)
+		XCTAssertTrue(
+			errorString.contains("too long") || errorString.contains("104"),
+			"Error should indicate path too long: \(errorString)"
+		)
+	}
+}
 
-  // MARK: - Test 6: Empty Socket Path
+// MARK: - Test 6: Empty Socket Path
 
-  /// Verify relay handles empty socket path
-  func testEmptySocketPath() async throws {
-    let eventLog = RelayEventLog()
+/// Verify UDS relay handles empty socket path
+/// Plan 88: Migrated from VsockRelay to UDSVirtioFSRelay
+func testEmptySocketPath() async throws {
+	let eventLog = RelayEventLog()
 
-    let relay = try VsockRelay(
-      cid: 2,
-      port: 5432,
-      unixSocketPath: "",
-      createSignalSocket: true,
-      eventLog: eventLog
-    )
+	let relay = try UDSVirtioFSRelay(
+		socketPath: "",
+		virtioFSMountPath: nil,
+		createSignalSocket: true,
+		eventLog: eventLog
+	)
 
-    // Empty path should be preserved (but may fail on start)
-    let path = await relay.unixSocketPath
-    XCTAssertEqual(path, "", "Empty path should be preserved")
+	// Empty path should be preserved (but may fail on start)
+	let path = await relay.unixSocketPath
+	XCTAssertEqual(path, "", "Empty path should be preserved")
   }
 
   // MARK: - Test 7: Transport Type Description
