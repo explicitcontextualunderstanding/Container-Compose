@@ -36,7 +36,7 @@ final class RelayManagerErrorHandlingTests: XCTestCase {
     let config = RelayManager.RelayConfiguration(
       id: "error-test",
       tcpPort: 15432,
-      transport: .vsock(cid: 999, port: 5432, unixSocketPath: ""),
+      transport: .uds(path: "/tmp/test-vsock-fallback-\(UUID().uuidString).sock", virtioFSMount: nil),
       description: "Error propagation test"
     )
 
@@ -73,7 +73,7 @@ final class RelayManagerErrorHandlingTests: XCTestCase {
     let config = RelayManager.RelayConfiguration(
       id: "degradation-test",
       tcpPort: 15433,
-      transport: .vsock(cid: 2, port: 5432, unixSocketPath: ""),
+      transport: .uds(path: "/tmp/test-\(UUID().uuidString).sock", virtioFSMount: nil),
       description: "Graceful degradation test"
     )
 
@@ -99,7 +99,7 @@ final class RelayManagerErrorHandlingTests: XCTestCase {
     let config = RelayManager.RelayConfiguration(
       id: "cleanup-test",
       tcpPort: 15434,
-      transport: .vsock(cid: 2, port: 5432, unixSocketPath: ""),
+      transport: .uds(path: "/tmp/test-\(UUID().uuidString).sock", virtioFSMount: nil),
       description: "Cleanup test"
     )
 
@@ -127,16 +127,20 @@ final class RelayManagerErrorHandlingTests: XCTestCase {
     await relayManager.stopRelay(id: "cleanup-test")
   }
 
-  // MARK: - Test 4: Duplicate ID Error
+// MARK: - Test 4: Duplicate ID Error
 
-  /// Verify proper error when starting duplicate relay
-  func testDuplicateIdError() async throws {
-    let config = RelayManager.RelayConfiguration(
-      id: "duplicate-test",
-      tcpPort: 15435,
-      transport: .vsock(cid: 2, port: 5432, unixSocketPath: ""),
-      description: "Duplicate ID test"
-    )
+/// Verify proper error when starting duplicate relay
+/// Plan 88: Migrated from vsock to UDS
+func testDuplicateIdError() async throws {
+	let socketPath = "/tmp/test-duplicate-\(UUID().uuidString).sock"
+	defer { try? FileManager.default.removeItem(atPath: socketPath) }
+
+	let config = RelayManager.RelayConfiguration(
+		id: "duplicate-test",
+		tcpPort: 15435,
+		transport: .uds(path: socketPath, virtioFSMount: nil),
+		description: "Duplicate ID test"
+	)
 
     // First start (may succeed or fail)
     do {
@@ -192,14 +196,14 @@ final class RelayManagerErrorHandlingTests: XCTestCase {
     let config1 = RelayManager.RelayConfiguration(
       id: "port-conflict-1",
       tcpPort: 15437,
-      transport: .vsock(cid: 2, port: 5432, unixSocketPath: ""),
+      transport: .uds(path: "/tmp/test-\(UUID().uuidString).sock", virtioFSMount: nil),
       description: "Port conflict test 1"
     )
 
     let config2 = RelayManager.RelayConfiguration(
       id: "port-conflict-2",
       tcpPort: 15437, // Same port
-      transport: .vsock(cid: 2, port: 5433, unixSocketPath: ""),
+      transport: .uds(path: "/tmp/test-5433-\(UUID().uuidString).sock", virtioFSMount: nil),
       description: "Port conflict test 2"
     )
 
@@ -234,7 +238,7 @@ final class RelayManagerErrorHandlingTests: XCTestCase {
     let config = RelayManager.RelayConfiguration(
       id: "event-log-test",
       tcpPort: 15438,
-      transport: .vsock(cid: 999, port: 5432, unixSocketPath: ""),
+      transport: .uds(path: "/tmp/test-vsock-fallback-\(UUID().uuidString).sock", virtioFSMount: nil),
       description: "Event log test"
     )
 
@@ -275,7 +279,7 @@ final class RelayManagerErrorHandlingTests: XCTestCase {
     let validConfig = RelayManager.RelayConfiguration(
       id: "valid-config",
       tcpPort: 15439,
-      transport: .vsock(cid: 2, port: 5432, unixSocketPath: ""),
+      transport: .uds(path: "/tmp/test-\(UUID().uuidString).sock", virtioFSMount: nil),
       description: "Valid config"
     )
 
@@ -287,7 +291,7 @@ final class RelayManagerErrorHandlingTests: XCTestCase {
     let emptyIdConfig = RelayManager.RelayConfiguration(
       id: "",
       tcpPort: 15440,
-      transport: .vsock(cid: 2, port: 5432, unixSocketPath: ""),
+      transport: .uds(path: "/tmp/test-\(UUID().uuidString).sock", virtioFSMount: nil),
       description: "Empty ID"
     )
     XCTAssertEqual(emptyIdConfig.id, "", "Should allow empty ID (may fail on start)")
@@ -301,19 +305,19 @@ final class RelayManagerErrorHandlingTests: XCTestCase {
       RelayManager.RelayConfiguration(
         id: "error-1",
         tcpPort: 15441,
-        transport: .vsock(cid: 999, port: 5432, unixSocketPath: ""),
+        transport: .uds(path: "/tmp/test-vsock-fallback-\(UUID().uuidString).sock", virtioFSMount: nil),
         description: "Error 1"
       ),
       RelayManager.RelayConfiguration(
         id: "error-2",
         tcpPort: 15442,
-        transport: .vsock(cid: 998, port: 5432, unixSocketPath: ""),
+        transport: .uds(path: "/tmp/test-998-\(UUID().uuidString).sock", virtioFSMount: nil),
         description: "Error 2"
       ),
       RelayManager.RelayConfiguration(
         id: "error-3",
         tcpPort: 15443,
-        transport: .vsock(cid: 997, port: 5432, unixSocketPath: ""),
+        transport: .uds(path: "/tmp/test-997-\(UUID().uuidString).sock", virtioFSMount: nil),
         description: "Error 3"
       )
     ]
