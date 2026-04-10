@@ -1284,39 +1284,37 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             Self.resolveServicePlaceholder(value, containerIps: containerIps, containerPorts: containerPorts, knownServiceNames: knownServiceNames)
 }
 
-// Load secrets from x-apple-secrets filter if present
-var secretsEnv: [String: String] = [:]
-if let secretsConfig = service.x_apple_secrets,
-   let filter = secretsConfig.filter, !filter.isEmpty {
-    // Get enclave path from global config or default to ~/.enclave
-    let enclavePath = dockerCompose.xAppleSecretsGlobal?.enclave
-        ?? (NSHomeDirectory() + "/.enclave")
-let fileManager = FileManager.default
-guard fileManager.fileExists(atPath: enclavePath) else {
-print("Warning: Enclave not found at \(enclavePath) for service \(serviceName). Skipping secrets.".yellow)
-return
-}
-
-// Process secrets from enclave
-        do {
-            let allFiles = try fileManager.contentsOfDirectory(atPath: enclavePath)
-            for fileName in allFiles {
-                let normalizedName = fileName
-                    .replacingOccurrences(of: ".txt", with: "")
-                    .uppercased()
-                if filter.contains(normalizedName) {
-                    let path = "\(enclavePath)/\(fileName)"
-                    if let content = try? String(contentsOfFile: path, encoding: .utf8)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines) {
-                        secretsEnv[normalizedName] = content
-                    }
-                }
-            }
-        } catch {
-            print("Warning: Failed to load secrets for service \(serviceName): \(error). Continuing without secrets.".yellow)
-        }
-    }
-}
+ // Load secrets from x-apple-secrets filter if present
+ var secretsEnv: [String: String] = [:]
+ if let secretsConfig = service.x_apple_secrets,
+ let filter = secretsConfig.filter, !filter.isEmpty {
+ // Get enclave path from global config or default to ~/.enclave
+ let enclavePath = dockerCompose.xAppleSecretsGlobal?.enclave
+ ?? (NSHomeDirectory() + "/.enclave")
+ let fileManager = FileManager.default
+ if fileManager.fileExists(atPath: enclavePath) {
+ // Process secrets from enclave
+ do {
+ let allFiles = try fileManager.contentsOfDirectory(atPath: enclavePath)
+ for fileName in allFiles {
+ let normalizedName = fileName
+ .replacingOccurrences(of: ".txt", with: "")
+ .uppercased()
+ if filter.contains(normalizedName) {
+ let path = "\(enclavePath)/\(fileName)"
+ if let content = try? String(contentsOfFile: path, encoding: .utf8)
+ .trimmingCharacters(in: .whitespacesAndNewlines) {
+ secretsEnv[normalizedName] = content
+ }
+ }
+ }
+ } catch {
+ print("Warning: Failed to load secrets for service \(serviceName): \(error). Continuing without secrets.".yellow)
+ }
+ } else {
+ print("Warning: Enclave not found at \(enclavePath) for service \(serviceName). Skipping secrets.".yellow)
+ }
+ }
 
 // Build the `container run` argument list using the standardized helper
 let runCommandArgs = try Self.makeRunArgs(
