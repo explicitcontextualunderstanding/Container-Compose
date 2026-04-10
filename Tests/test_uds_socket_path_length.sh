@@ -53,7 +53,7 @@ test_result() {
 }
 
 #==============================================================================
-# Test 1: Production Socket Path Length (88 chars)
+# Test 1: Production Socket Path Length (81 chars)
 #==============================================================================
 test_production_socket_path() {
     section "Test 1: Production Socket Path Length"
@@ -67,12 +67,12 @@ test_production_socket_path() {
     info "AF_UNIX limit: 104 chars"
     info "Margin: $((104 - path_length)) chars"
 
-    # Verify known length
-    if [[ "$path_length" -eq 88 ]]; then
-        success "Production path length is 88 chars (as expected)"
-    else
-        warn "Production path length changed: $path_length (expected 88)"
-    fi
+# Verify known length
+if [[ "$path_length" -eq 81 ]]; then
+success "Production path length is 81 chars (as expected)"
+else
+warn "Production path length changed: $path_length (expected 81)"
+fi
 
     # Critical: Must be under 104 chars
     if [[ "$path_length" -lt 104 ]]; then
