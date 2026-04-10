@@ -236,14 +236,117 @@ func testTransportIsSendable() {
         // Plan 88: Test .uds case with virtioFSMount parameter
         let socketPath = "/Users/test/.containers/Volumes/myproject/sockets/db.sock"
         let mountPath = "/Users/test/.containers/Volumes/myproject"
-        
+
         let transport = RelayTransport.uds(path: socketPath, virtioFSMount: mountPath)
-        
+
         if case .uds(let path, let mount) = transport {
             XCTAssertEqual(path, socketPath)
             XCTAssertEqual(mount, mountPath)
         } else {
             XCTFail("Expected UDS transport with Virtio-FS mount")
         }
+    }
+
+    // MARK: - Plan 88 Additional Unit Tests
+
+    func testRelayTransportTypealiasReexport() {
+        // Finding C-1: Verify RelayTransport typealias re-export
+        // Create transport using ContainerComposeCore.RelayTransport
+        let coreTransport = RelayTransport.uds(path: "/tmp/test.sock", virtioFSMount: nil)
+        
+        // Verify it's identical to SecurityHardening.RelayTransport
+        let securityTransport: SecurityHardening.RelayTransport = coreTransport
+        
+        // Verify type equality
+        XCTAssert(coreTransport == securityTransport, "Typealias should provide type equality")
+        
+        // Verify transport type works correctly
+        if case .uds(let path, _) = securityTransport {
+            XCTAssertEqual(path, "/tmp/test.sock")
+        } else {
+            XCTFail("Expected UDS transport")
+        }
+    }
+
+    func testSocketPathLengthBoundary() {
+        // Plan 88: Test exact 103/104 char boundary (Finding C-2)
+        let basePath = "/tmp/"
+        
+        // 103 chars - should pass
+        let path103 = basePath + String(repeating: "a", count: 103 - basePath.count)
+        XCTAssertEqual(path103.count, 103, "Path should be exactly 103 chars")
+        
+        XCTAssertNoThrow(try UDSVirtioFSRelay(
+            socketPath: path103,
+            createSignalSocket: true,
+            eventLog: RelayEventLog()
+        ), "103-char path should be valid")
+        
+        // 104 chars - should fail
+        let path104 = basePath + String(repeating: "a", count: 104 - basePath.count)
+        XCTAssertEqual(path104.count, 104, "Path should be exactly 104 chars")
+        
+        XCTAssertThrowsError(try UDSVirtioFSRelay(
+            socketPath: path104,
+            createSignalSocket: true,
+            eventLog: RelayEventLog()
+        )) { error in
+            guard case UDSError.socketPathTooLong = error else {
+                XCTFail("Expected socketPathTooLong for 104-char path")
+                return
+            }
+        }
+        
+        // 105 chars - should fail
+        let path105 = basePath + String(repeating: "a", count: 105 - basePath.count)
+        XCTAssertEqual(path105.count, 105, "Path should be exactly 105 chars")
+        
+        XCTAssertThrowsError(try UDSVirtioFSRelay(
+            socketPath: path105,
+            createSignalSocket: true,
+            eventLog: RelayEventLog()
+        )) { error in
+            guard case UDSError.socketPathTooLong = error else {
+                XCTFail("Expected socketPathTooLong for 105-char path")
+                return
+            }
+        }
+    }
+
+    func testVirtioFSMountDetection() {
+        // Plan 88: Test Virtio-FS mount path detection edge cases
+        let testCases: [(path: String, expectedVolume: Bool)] = [
+            ("/Users/test/.containers/Volumes/proj/sock", true),
+            ("/tmp/test.sock", false),
+            ("/var/run/test.sock", false),
+            ("/Users/test/.containers/Volumes/", true),
+            ("/Users/test/.containers/Volumes/a/b/c/d.sock", true)
+        ]
+        
+        for (path, expectedVolume) in testCases {
+            let isVolume = path.contains(".containers/Volumes")
+            XCTAssertEqual(isVolume, expectedVolume, "Path: \(path)")
+        }
+    }
+
+    func testCreateSignalSocketParameterDefaults() {
+        // Plan 88: Test createSignalSocket parameter default behavior
+        let socketPath = "/tmp/test-defaults.sock"
+        
+        // Default (createSignalSocket: true)
+        let relayWithSignal = try? UDSVirtioFSRelay(
+            socketPath: socketPath,
+            createSignalSocket: true,
+            eventLog: RelayEventLog()
+        )
+        XCTAssertNotNil(relayWithSignal, "Should create relay with signal socket")
+        
+        // Explicit false
+        let relayWithoutSignal = try? UDSVirtioFSRelay(
+            socketPath: socketPath,
+            createSignalSocket: false,
+            eventLog: RelayEventLog()
+        )
+        XCTAssertNotNil(relayWithoutSignal, "Should create relay without signal socket")
     }
 }

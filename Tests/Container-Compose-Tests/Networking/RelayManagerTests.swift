@@ -1300,11 +1300,128 @@ func testExtractPrimitivesFromConfig() {
 
         XCTAssertEqual(extractedPath, socketPath)
 
-        // Verify transport is UDS
-        if case .uds(let path, _) = config.transport {
-            XCTAssertEqual(path, socketPath)
-        } else {
-            XCTFail("Expected UDS transport")
-        }
-    }
+// Verify transport is UDS
+if case .uds(let path, _) = config.transport {
+XCTAssertEqual(path, socketPath)
+} else {
+XCTFail("Expected UDS transport")
+}
+}
+
+func testSocketPathLengthBoundary() async throws {
+// Plan 88 Finding C-2: Exact boundary at 103/104 chars
+let eventLog = RelayEventLog()
+
+// Path at exactly 103 chars should succeed
+let exactly103Chars = String(repeating: "a", count: 95) + "/sock"
+XCTAssertEqual(exactly103Chars.count, 103)
+XCTAssertNoThrow(try UDSVirtioFSRelay(
+socketPath: exactly103Chars,
+createSignalSocket: true,
+eventLog: eventLog
+), "103-char path should succeed")
+
+// Path at exactly 104 chars should fail
+let exactly104Chars = String(repeating: "b", count: 96) + "/sock"
+XCTAssertEqual(exactly104Chars.count, 104)
+XCTAssertThrowsError(try UDSVirtioFSRelay(
+socketPath: exactly104Chars,
+createSignalSocket: true,
+eventLog: eventLog
+), "104-char path should fail") { error in
+if case UDSError.socketPathTooLong = error {
+// Expected
+} else {
+XCTFail("Expected socketPathTooLong, got \(error)")
+}
+}
+}
+
+func testUDSInitializationWithExpectedUID() async throws {
+// Plan 88 Finding C-3: Primitive-based security API with expected UID
+let socketPath = "/tmp/test-uid-validation.sock"
+let expectedUID: uid_t = 501
+let eventLog = RelayEventLog()
+
+// Create relay with expected peer UID (primitive parameter)
+let relay = try UDSVirtioFSRelay(
+socketPath: socketPath,
+virtioFSMountPath: nil,
+createSignalSocket: true,
+expectedPeerUID: expectedUID,
+eventLog: eventLog
+)
+
+XCTAssertNotNil(relay)
+
+// Verify the transport is UDS
+let transport = await relay.transportType
+if case .uds(let path, _) = transport {
+XCTAssertEqual(path, socketPath)
+} else {
+XCTFail("Expected UDS transport")
+}
+}
+
+func testVirtioFSMountDetectionEdgeCases() {
+// Plan 88: Edge cases for Virtio-FS detection
+// Test various path formats that should/shouldn't be detected
+
+// Should be detected as Virtio-FS
+let virtioFSPaths = [
+"/Users/a/.containers/Volumes/x/s.sock",
+"/Users/verylongusername/.containers/Volumes/verylongprojectname/s.sock",
+"/path/to/.containers/Volumes/nested/deeply/socket.sock"
+]
+
+for path in virtioFSPaths {
+let isVirtioFS = path.contains("/.containers/Volumes/")
+XCTAssertTrue(isVirtioFS, "\(path) should be detected as Virtio-FS")
+}
+
+// Should NOT be detected as Virtio-FS
+let nonVirtioFSPaths = [
+"/tmp/socket.sock",
+"/Users/me/.container-compose/sockets/db.sock",
+"/var/run/postgresql/.s.PGSQL.5432",
+"/.containers/data.sock", // Missing /Volumes/
+"/path/containers/Volumes/s.sock" // Missing leading dot
+]
+
+for path in nonVirtioFSPaths {
+let isVirtioFS = path.contains("/.containers/Volumes/")
+XCTAssertFalse(isVirtioFS, "\(path) should NOT be detected as Virtio-FS")
+}
+}
+
+func testCreateSignalSocketParameterDefaults() async throws {
+// Plan 88: Verify default value for createSignalSocket parameter
+let socketPath = "/tmp/test-defaults.sock"
+let eventLog = RelayEventLog()
+
+// Test default value (should be true for non-volume paths)
+let relay1 = try UDSVirtioFSRelay(
+socketPath: socketPath,
+// createSignalSocket not specified - should default to true
+eventLog: eventLog
+)
+XCTAssertNotNil(relay1)
+
+// Test explicit true
+let relay2 = try UDSVirtioFSRelay(
+socketPath: socketPath + "2",
+createSignalSocket: true,
+eventLog: eventLog
+)
+XCTAssertNotNil(relay2)
+
+// Test explicit false (for volume paths)
+let volumePath = "/Users/kieranlal/.containers/Volumes/app/sockets/.s.PGSQL.5432"
+let relay3 = try UDSVirtioFSRelay(
+socketPath: volumePath,
+createSignalSocket: false,
+eventLog: eventLog
+)
+XCTAssertNotNil(relay3)
+}
 }

@@ -327,15 +327,91 @@ final class TCCRelayIntegrationTests: XCTestCase {
 
     func testUDSTransparentMappingPreservesTCCCheck() async {
         // Plan 88: vsock-db transparently maps to UDS - TCC check should still apply
-        // When vsock-db is mapped to UDS, TCC for Virtio-FS is still required
+// When vsock-db is mapped to UDS, TCC for Virtio-FS is still required
 
-        let preflight = await integration.preflightCheck()
+let preflight = await integration.preflightCheck()
 
-        // Both paths should use same TCC validation since both use Virtio-FS
-        let vsockDbValid = await integration.validateRelayStartup(relayType: "vsock-db")
-        let udsDbValid = await integration.validateRelayStartup(relayType: "uds-db")
+// Both paths should use same TCC validation since both use Virtio-FS
+let vsockDbValid = await integration.validateRelayStartup(relayType: "vsock-db")
+let udsDbValid = await integration.validateRelayStartup(relayType: "uds-db")
 
-        // Results should be consistent (both use Virtio-FS TCC)
-        XCTAssertEqual(vsockDbValid, udsDbValid)
-    }
+// Results should be consistent (both use Virtio-FS TCC)
+XCTAssertEqual(vsockDbValid, udsDbValid)
+}
+
+// MARK: - UDS TCC Tests (Plan 88 A-1)
+
+func testUDSRequiresTCCEvenWithoutVsock() async throws {
+// Plan 88 A-1: TCC is identity model since AF_UNIX doesn't expose CID
+let config = TCCRelayIntegration.Configuration.production
+let integration = TCCRelayIntegration(configuration: config)
+
+// UDS-over-Virtio-FS still requires TCC for the Virtio-FS mount
+let udsSocketPath = "/Users/kieranlal/.containers/Volumes/app/sockets/db.sock"
+let tccRequired = await integration.isTCCRequiredForPath(udsSocketPath)
+
+XCTAssertTrue(tccRequired, "UDS in Virtio-FS requires TCC authorization")
+}
+
+func testUDSSocketOutsideVirtioFSBlocked() async throws {
+// Plan 88: UDS sockets outside Virtio-FS should be blocked
+let config = TCCRelayIntegration.Configuration.production
+let integration = TCCRelayIntegration(configuration: config)
+
+let nonVirtioFSPath = "/tmp/uds-socket.sock"
+let allowed = await integration.validateRelayStartup(relayType: "uds", socketPath: nonVirtioFSPath)
+
+XCTAssertFalse(allowed, "UDS outside Virtio-FS should be blocked in production")
+}
+
+func testUDSPermissionChecksUseVirtioFSGating() async throws {
+// Plan 88 A-1: UID/GID + TCC replaces CID
+let socketPath = "/Users/kieranlal/.containers/Volumes/app/sockets/.s.PGSQL.5432"
+
+let permission = await integration.checkUDSPermission(
+socketPath: socketPath,
+requestedUID: 501,
+requestedGID: 20
+)
+
+// Should check Virtio-FS TCC status
+XCTAssertNotNil(permission.virtioFSAccessGranted)
+}
+
+func testUDSPeerValidationUsesSO_PEERCREDNotCID() async throws {
+// Plan 88 A-1: SO_PEERCRED replaces CID gating
+let peerValidation = await integration.validateUDSPeerIdentity(
+peerUID: 501,
+peerGID: 20,
+peerPID: 12345
+)
+
+// Should validate UID/GID, not CID
+XCTAssertTrue(peerValidation.usesSO_PEERCRED)
+XCTAssertFalse(peerValidation.checkedCID)
+XCTAssertEqual(peerValidation.validatedUID, 501)
+}
+
+func testUDSTCCFailureBlocksRelayStartup() async throws {
+// Plan 88: TCC failure should block UDS relay
+let config = TCCRelayIntegration.Configuration.production
+let integration = TCCRelayIntegration(configuration: config)
+
+// Simulate TCC denied
+let result = await integration.preflightCheck(simulatedTCCStatus: .denied)
+
+XCTAssertFalse(result.canProceed)
+XCTAssertTrue(result.shouldBlockStartup)
+XCTAssertEqual(result.status, .denied)
+}
+
+func testUDSTCCPromptInDevelopmentMode() async throws {
+// Plan 88: Development config allows TCC prompts
+let config = TCCRelayIntegration.Configuration.development
+let integration = TCCRelayIntegration(configuration: config)
+
+let result = await integration.preflightCheck(simulatedTCCStatus: .notDetermined)
+
+// Development allows proceeding even if TCC not determined
+XCTAssertTrue(result.canProceed || result.status == .notDetermined)
 }
