@@ -411,10 +411,40 @@ func testRelayConfigurationPreservesUDSTransport() {
       description: "Test Unix relay"
     )
 
-    if case .unixSocket(let path) = config.transport {
-      XCTAssertEqual(path, "/tmp/test.sock")
-    } else {
-      XCTFail("Transport should be .unixSocket, got \(config.transport)")
+        if case .unixSocket(let path) = config.transport {
+            XCTAssertEqual(path, "/tmp/test.sock")
+        } else {
+            XCTFail("Transport should be .unixSocket, got \(config.transport)")
+        }
     }
-  }
+
+    // MARK: - Plan 88 Production Path Tests
+
+    func testProductionSocketPath() {
+        // ACTUAL path from honcho-stack-with-derivers.yml
+        let path = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+        XCTAssertEqual(path.count, 81, "Production path length is 81 characters (23-char margin)")
+        XCTAssertLessThan(path.count, 104, "Production socket path must be under AF_UNIX limit")
+    }
+
+    func testHardErrorOnLongSocketPath() {
+        // Finding C-2: MUST fail at config time for paths ≥104 chars
+        let longPath = String(repeating: "a", count: 110) + ".sock"
+        XCTAssertThrowsError(try UDSVirtioFSRelay(
+            socketPath: longPath,
+            createSignalSocket: true,
+            eventLog: RelayEventLog()
+        )) { error in
+            guard case UDSError.socketPathTooLong = error else {
+                return XCTFail("Expected socketPathTooLong error, got: \(error)")
+            }
+        }
+    }
+
+    func testSocketPathLengthMargins() {
+        // If path exceeds 104 chars, hard-error at config time
+        let basePath = "/Users/kieranlal/.containers/Volumes/"
+        let remaining = 104 - basePath.count // ~61 chars
+        XCTAssertGreaterThanOrEqual(remaining, 40, "Sufficient margin for project names")
+    }
 }

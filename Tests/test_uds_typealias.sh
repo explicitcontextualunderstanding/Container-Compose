@@ -73,12 +73,12 @@ echo ""
 # Test 3: No duplicate definitions
 echo "Test 3: No duplicate enum definitions"
 if [[ -f "$RELAY_TYPES" ]]; then
-    enum_count=$(grep -c "^public enum RelayTransport" "$RELAY_TYPES" 2>/dev/null || echo "0")
-    if [[ "$enum_count" -eq 0 ]]; then
-        pass "No duplicate RelayTransport enum in Container-Compose"
-    else
-        fail "Duplicate enum found ($enum_count copies)"
-    fi
+  enum_count=$(grep -c "^public enum RelayTransport" "$RELAY_TYPES" 2>/dev/null) || enum_count=0
+  if [[ "$enum_count" -eq 0 ]]; then
+    pass "No duplicate RelayTransport enum in Container-Compose"
+  else
+    fail "Duplicate enum found ($enum_count copies)"
+  fi
 fi
 echo ""
 

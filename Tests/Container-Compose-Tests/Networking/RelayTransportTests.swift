@@ -1,5 +1,6 @@
 import XCTest
 @testable import ContainerComposeCore
+@testable import SecurityHardening
 
 final class RelayTransportTests: XCTestCase {
     
@@ -172,11 +173,77 @@ func testRelayConfigurationUDSTransport() {
     
 func testTransportIsSendable() {
     // This test verifies that RelayTransport compiles as Sendable
-    let transports: [RelayTransport] = [
-      .unixSocket(path: "/tmp/a.sock"),
-      .vsock(cid: 1, port: 1, unixSocketPath: "")
-    ]
+        let transports: [RelayTransport] = [
+            .unixSocket(path: "/tmp/a.sock"),
+            .vsock(cid: 1, port: 1, unixSocketPath: "")
+        ]
 
-    XCTAssertEqual(transports.count, 2)
-  }
+        XCTAssertEqual(transports.count, 2)
+    }
+
+    // MARK: - Plan 88 Typealias Re-export Tests (Finding C-1)
+
+    func testRelayTransportTypealiasFromSecurityHardening() {
+        // Finding C-1: RelayTransport is re-exported from SecurityHardening
+        // Verify type identity
+        let udsTransport = RelayTransport.uds(path: "/tmp/test.sock", virtioFSMount: nil)
+        
+        // Verify it can be used as SecurityHardening.RelayTransport
+        let securityTransport: SecurityHardening.RelayTransport = udsTransport
+        
+        // Verify they're equivalent
+        if case .uds(let path, _) = securityTransport {
+            XCTAssertEqual(path, "/tmp/test.sock")
+        } else {
+            XCTFail("Expected UDS transport from SecurityHardening")
+        }
+    }
+
+    func testRelayTypeTypealiasFromSecurityHardening() {
+        // Finding C-1: RelayType is re-exported from SecurityHardening
+        let udsType = RelayType.uds
+        
+        // Verify it can be used as SecurityHardening.RelayType
+        let securityType: SecurityHardening.RelayType = udsType
+        
+        XCTAssertEqual(securityType, .uds)
+        XCTAssertEqual(securityType.description, "uds")
+    }
+
+    func testUDSCodableRoundTrip() {
+        // Plan 88: Verify .uds case round-trips through Codable
+        let original = RelayTransport.uds(path: "/tmp/test.sock", virtioFSMount: "/Volumes/test")
+        
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        
+        do {
+            let data = try encoder.encode(original)
+            let decoded = try decoder.decode(RelayTransport.self, from: data)
+            
+            if case .uds(let path, let mount) = decoded {
+                XCTAssertEqual(path, "/tmp/test.sock")
+                XCTAssertEqual(mount, "/Volumes/test")
+            } else {
+                XCTFail("Expected UDS transport after decoding")
+            }
+        } catch {
+            XCTFail("Codable round-trip failed: \(error)")
+        }
+    }
+
+    func testUDSWithVirtioFSMountParameter() {
+        // Plan 88: Test .uds case with virtioFSMount parameter
+        let socketPath = "/Users/test/.containers/Volumes/myproject/sockets/db.sock"
+        let mountPath = "/Users/test/.containers/Volumes/myproject"
+        
+        let transport = RelayTransport.uds(path: socketPath, virtioFSMount: mountPath)
+        
+        if case .uds(let path, let mount) = transport {
+            XCTAssertEqual(path, socketPath)
+            XCTAssertEqual(mount, mountPath)
+        } else {
+            XCTFail("Expected UDS transport with Virtio-FS mount")
+        }
+    }
 }

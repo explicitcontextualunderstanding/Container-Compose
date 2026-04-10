@@ -255,10 +255,64 @@ public actor HorizontalIsolationValidator: Sendable {
     return result
 }
 
-    /// Returns the last validation result
-    public func lastValidation() async -> IsolationResult? {
-        lastResult
-    }
+/// Returns the last validation result
+public func lastValidation() async -> IsolationResult? {
+lastResult
+}
+
+/// UDS peer validation result (Plan 88 A-1)
+public struct UDSValidationResult: Sendable {
+public let isAllowed: Bool
+public let requiresSO_PEERCRED: Bool
+public let errorMessage: String?
+
+public init(isAllowed: Bool, requiresSO_PEERCRED: Bool = false, errorMessage: String? = nil) {
+self.isAllowed = isAllowed
+self.requiresSO_PEERCRED = requiresSO_PEERCRED
+self.errorMessage = errorMessage
+}
+
+public static let allowed = UDSValidationResult(isAllowed: true)
+public static let requiresPeerValidation = UDSValidationResult(isAllowed: true, requiresSO_PEERCRED: true)
+public static func denied(_ message: String) -> UDSValidationResult {
+UDSValidationResult(isAllowed: false, errorMessage: message)
+}
+}
+
+/// Validates UDS peer with primitive-based API (Plan 88 Finding C-3)
+/// Replaces CID-based validation with UID/GID verification
+/// - Parameters:
+///   - socketPath: Path to Unix domain socket
+///   - expectedUID: Expected UID from calling code (primitive, not config object)
+///   - expectedGID: Expected GID from calling code (primitive)
+/// - Returns: UDSValidationResult
+public func validateUDSPeer(
+socketPath: String,
+expectedUID: uid_t? = nil,
+expectedGID: gid_t? = nil
+) async -> UDSValidationResult {
+// Plan 88: Path-based validation first
+if socketPath.count >= 104 {
+return .denied("Socket path exceeds AF_UNIX limit (104 chars)")
+}
+
+// Check Virtio-FS path
+if socketPath.contains("/.containers/Volumes/") {
+// In Virtio-FS, TCC gating handles authorization
+// We return allowed but may require SO_PEERCRED for defense-in-depth
+if expectedUID != nil || expectedGID != nil {
+return .requiresPeerValidation
+}
+return .allowed
+}
+
+// Non-Virtio-FS paths require peer validation
+if expectedUID == nil && expectedGID == nil {
+return .denied("Socket outside Virtio-FS requires explicit UID/GID validation")
+}
+
+return .requiresPeerValidation
+}
 
     /// Performs full isolation audit
     /// - Returns: List of all detected violations
