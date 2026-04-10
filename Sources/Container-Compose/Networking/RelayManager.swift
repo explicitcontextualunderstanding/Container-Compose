@@ -278,13 +278,24 @@ actor RelayManager {
             throw RelayError.alreadyRunning(config.id)
         }
 
-        // MARK: - Plan 85 Security Gates
-        // NOTE: Security integration disabled pending architectural fix
-        // The SecurityHardening module needs public RelayConfiguration types
-        // See Plan 84 Phase 6 for resolution
-        /*
+        // MARK: - Plan 88 Phase 3: Security Gates Re-enabled (Finding C-3)
+        // Use primitive-based API to avoid import cycle
         if let secure = secureManager {
-            let securityResult = await secure.validateRelayStartup(config)
+            // Extract primitives for security validation
+            let socketPath: String? = switch config.transport {
+            case .uds(let path, _): path
+            case .vsockDb(let path): path
+            case .unixSocket(let path): path
+            case .vsock(_, _, let path): path.isEmpty ? nil : path
+            case .tcp: nil
+            }
+
+            let securityResult = await secure.validateRelayStartupPrimitives(
+                id: config.id,
+                socketPath: socketPath,
+                transport: config.transport
+            )
+
             guard securityResult.passed else {
                 let gate = securityResult.blockedBy?.description ?? "Unknown"
                 let message = securityResult.errorMessage ?? "Security validation failed"
@@ -293,9 +304,8 @@ actor RelayManager {
             }
             logger.info("Security gates passed for relay \(config.id)")
         }
-        */
 
-    // Route to appropriate relay implementation based on transport type
+        // Route to appropriate relay implementation based on transport type
     switch config.transport {
     case .uds(let path, _):
         // Plan 88: UDS-over-Virtio-FS transport
