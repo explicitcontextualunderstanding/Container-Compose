@@ -52,6 +52,16 @@ public struct XAppleSecretsConfig: Codable, Hashable, Sendable {
     case cleanup
   }
 
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.mount = try container.decode(String.self, forKey: .mount)
+    self.filter = try container.decodeIfPresent([String].self, forKey: .filter)
+    self.readOnly = try container.decodeIfPresent(Bool.self, forKey: .readOnly) ?? true
+    self.noexec = try container.decodeIfPresent(Bool.self, forKey: .noexec) ?? true
+    self.nosuid = try container.decodeIfPresent(Bool.self, forKey: .nosuid) ?? true
+    self.cleanup = try container.decodeIfPresent(CleanupPolicy.self, forKey: .cleanup) ?? .immediate
+  }
+
   public init(
     mount: String = "/run/secrets",
     filter: [String]? = nil,
