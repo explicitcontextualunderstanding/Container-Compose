@@ -500,3 +500,29 @@ public struct DockerComposeYamlFiles {
           - listen_addresses=*
     """
 }
+
+    // MARK: - UDS Relay Test Fixtures (Plan 88)
+
+    /// Test fixture for UDS relay with socket_path configuration
+    /// Migrated from vsock-db to UDS-over-Virtio-FS
+    public static let udsDbRelayYaml = """
+name: uds-relay-test
+services:
+  db:
+    image: ${OCI_REGISTRY_URL}/pgmicro:latest
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    volumes:
+      - test-db-sockets:/var/run/postgresql/sockets
+    x-apple-relays:
+      - type: uds
+        socket_path: /tmp/.container-compose-test/sockets/.s.PGSQL.5432
+    command:
+      - /pgmicro
+      - --unix-socket-dir=/var/run/postgresql/sockets
+volumes:
+  test-db-sockets:
+"""
+}
