@@ -164,6 +164,46 @@ public actor SecureRelayManager: Sendable {
         return result
     }
 
+    /// Plan 88 Phase 3: Primitive-based validation (Finding C-3)
+    /// Avoids import cycle by using primitives instead of RelayConfiguration
+    public func validateRelayStartupPrimitives(
+        id: String,
+        socketPath: String?,
+        transport: RelayTransport
+    ) async -> SecurityCheckResult {
+        // Gate 1: TCC preflight
+        let tccResult = await tccIntegration.preflightCheck()
+        guard tccResult.canProceed && !tccResult.shouldBlockStartup else {
+            return SecurityCheckResult.blocked(
+                .tccPreflight,
+                message: tccResult.errorMessage ?? "TCC check failed"
+            )
+        }
+
+        // Gate 2: AMFI validation
+        let amfiResult = await amfiGating.validateForSocatRemoval()
+        guard amfiResult.canRemoveSocat else {
+            return SecurityCheckResult.blocked(
+                .amfiValidation,
+                message: amfiResult.errorMessage ?? "AMFI validation failed"
+            )
+        }
+
+        // Gate 3: Path-based isolation for UDS
+        if let path = socketPath {
+            let isolationResult = await isolationValidator.validateSocketPath(path)
+            guard isolationResult.isIsolated else {
+                return SecurityCheckResult.blocked(
+                    .horizontalIsolation,
+                    message: "Socket path isolation failed: \(path)"
+                )
+            }
+        }
+
+        // All gates passed
+        return SecurityCheckResult.passed
+    }
+
     /// Validates container startup at ComposeUp level (global)
     /// Called once before container-compose up
     public func validateContainerStartup() async -> SecurityCheckResult {
