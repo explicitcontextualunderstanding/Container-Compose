@@ -1,6 +1,6 @@
 //===----------------------------------------------------------------------===//
-// VsockRelayFunctionalityTests.swift
-// Tests for vsock relay core functionality (not database features)
+// UDSRelayFunctionalityTests.swift
+// Tests for UDS relay core functionality (Plan 88 - replaces vsock)
 // Focus: socket creation, bridging, lifecycle, Virtio-FS integration
 //===----------------------------------------------------------------------===//
 
@@ -8,90 +8,73 @@ import XCTest
 import Foundation
 @testable import ContainerComposeCore
 
-/// Tests for vsock relay functionality (not database features)
+/// Tests for UDS relay functionality (Plan 88 - replaces vsock)
 /// Task Owner: @mac-kilo-kim
 /// Priority: Test OUR code, not PostgreSQL
 @available(macOS 15.0, *)
-final class VsockRelayFunctionalityTests: XCTestCase {
+final class UDSRelayFunctionalityTests: XCTestCase {
 
-  // MARK: - Skip Logic
+	// MARK: - Test 1: Socket Creation in Virtio-FS
 
-  /// Skip if vsock is not available on this system
-  private func skipIfVsockUnavailable() throws {
-    let availability = checkVsockAvailability()
-    if !availability.isAvailable {
-      throw XCTSkip("Vsock not available: \(availability.errorMessage ?? "unknown reason")")
-    }
-  }
+	/// Verify UDSVirtioFSRelay creates socket in Virtio-FS volume
+	func testSocketCreationInVirtioFsVolume() async throws {
+		let testVolume = FileManager.default.homeDirectoryForCurrentUser
+			.appendingPathComponent(".containers/Volumes/CCT_UDSTest_\(UUID().uuidString)")
+		let socketPath = testVolume.appendingPathComponent("test.sock")
 
-  override func setUp() async throws {
-    try await super.setUp()
-    try skipIfVsockUnavailable()
-  }
+		defer {
+			try? FileManager.default.removeItem(at: testVolume)
+		}
 
-  // MARK: - Test 1: Socket Creation in Virtio-FS
+		// Create volume directory
+		try FileManager.default.createDirectory(at: testVolume, withIntermediateDirectories: true)
 
-  /// Verify VsockRelay creates socket in Virtio-FS volume
-  func testSocketCreationInVirtioFsVolume() async throws {
-    let testVolume = FileManager.default.homeDirectoryForCurrentUser
-      .appendingPathComponent(".containers/Volumes/CCT_VsockTest_\(UUID().uuidString)")
-    let socketPath = testVolume.appendingPathComponent("test.sock")
+		// Plan 88: Create relay with UDS in Virtio-FS volume
+		let eventLog = RelayEventLog()
+		let relay = try UDSVirtioFSRelay(
+			socketPath: socketPath.path,
+			virtioFSMountPath: testVolume.path,
+			createSignalSocket: true,
+			eventLog: eventLog
+		)
 
-    defer {
-      try? FileManager.default.removeItem(at: testVolume)
-    }
+		// Verify transport type includes socket path
+		let transport = await relay.transportType
+		if case .uds(let path, _) = transport {
+			XCTAssertEqual(path, socketPath.path, "Socket path should be stored in transport")
+		} else {
+			XCTFail("Transport should be UDS")
+		}
 
-    // Create volume directory
-    try FileManager.default.createDirectory(at: testVolume, withIntermediateDirectories: true)
+		// Verify unixSocketPath property
+		let storedPath = await relay.unixSocketPath
+		XCTAssertEqual(storedPath, socketPath.path, "unixSocketPath should match")
+	}
 
-    // Create relay with socket in Virtio-FS volume
-    let eventLog = RelayEventLog()
-    let relay = try VsockRelay(
-      cid: 2,
-      port: 5432,
-      unixSocketPath: socketPath.path,
-      createSignalSocket: true,
-      eventLog: eventLog
-    )
+// MARK: - Test 2: Virtio-FS Path Detection
 
-    // Verify transport type includes socket path
-    let transport = await relay.transportType
-    if case .vsock(_, _, let path) = transport {
-      XCTAssertEqual(path, socketPath.path, "Socket path should be stored in transport")
-    } else {
-      XCTFail("Transport should be vsock")
-    }
+/// Verify UDS relay detects Virtio-FS paths correctly
+/// Plan 88: Migrated from VsockRelay to UDSVirtioFSRelay
+func testVirtioFsPathDetection() async throws {
+	let eventLog = RelayEventLog()
 
-    // Verify unixSocketPath property
-    let storedPath = await relay.unixSocketPath
-    XCTAssertEqual(storedPath, socketPath.path, "unixSocketPath should match")
+	// Test volume path
+	let volumePath = FileManager.default.homeDirectoryForCurrentUser
+		.appendingPathComponent(".containers/Volumes/CCT_DetectTest")
 
-    // Note: Actual socket file creation happens in relay.start(), not init
-    // This test validates the configuration is correct
-  }
+	let socketPath = volumePath.appendingPathComponent(".s.PGSQL.5432").path
 
-  // MARK: - Test 2: Virtio-FS Path Detection
+	let relay = try UDSVirtioFSRelay(
+		socketPath: socketPath,
+		virtioFSMountPath: volumePath.path,
+		createSignalSocket: false, // Volume socket - PostgreSQL creates it
+		eventLog: eventLog
+	)
 
-  /// Verify relay detects Virtio-FS paths correctly
-  func testVirtioFsPathDetection() async throws {
-    let eventLog = RelayEventLog()
-
-    // Test volume path (should set createSignalSocket: false)
-    let volumePath = FileManager.default.homeDirectoryForCurrentUser
-      .appendingPathComponent(".containers/Volumes/CCT_DetectTest/.s.PGSQL.5432")
-
-    let relay = try VsockRelay(
-      cid: 2,
-      port: 5432,
-      unixSocketPath: volumePath.path,
-      createSignalSocket: false, // Volume socket - PostgreSQL creates it
-      eventLog: eventLog
-    )
-
-    // Verify path detected correctly
-    let storedPath = await relay.unixSocketPath
-    XCTAssertTrue(storedPath.contains(".containers/Volumes"), "Should detect Virtio-FS path")
-  }
+	// Verify path detected correctly
+	let storedPath = await relay.unixSocketPath
+	XCTAssertTrue(storedPath.contains(".containers/Volumes"), "Should detect Virtio-FS path")
+}
 
   // MARK: - Test 3: Relay Configuration
 

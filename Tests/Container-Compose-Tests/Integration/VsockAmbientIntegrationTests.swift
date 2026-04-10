@@ -113,44 +113,49 @@ final class VsockAmbientIntegrationTests: XCTestCase {
 
     // MARK: - Phase 1: RelayManager → Port Binding (Spy Pattern)
 
-    /// Tests that RelayManager routes vsock config to appropriate relay type
-    func testRelayManagerRoutesVsockConfig() async throws {
-        let eventLog = RelayEventLog()
-        let relayManager = RelayManager(eventLog: eventLog)
+/// Tests that RelayManager routes UDS config to appropriate relay type
+/// Plan 88: Migrated from vsock to UDS
+func testRelayManagerRoutesUDSConfig() async throws {
+	let eventLog = RelayEventLog()
+	let relayManager = RelayManager(eventLog: eventLog)
 
-    let config = RelayManager.RelayConfiguration(
-      id: "test-vsock-relay",
-      tcpPort: 15432,
-      transport: .vsock(cid: 2, port: 5432, unixSocketPath: ""),
-      description: "Test vsock relay"
-    )
+	let socketPath = "/tmp/test-uds-relay-\(UUID().uuidString).sock"
+	defer { try? FileManager.default.removeItem(atPath: socketPath) }
 
-        do {
-            try await relayManager.startRelay(config)
-            let status = await relayManager.status()
-            XCTAssertEqual(status.count, 1, "Should have 1 active relay")
-            XCTAssertEqual(status[0].tcpPort, 15432)
-            await relayManager.stopRelay(id: "test-vsock-relay")
-        } catch {
-            let errorString = String(describing: error)
-            XCTAssertTrue(
-                errorString.contains("vsock") || errorString.contains("VSOCK") || errorString.contains("device unavailable"),
-                "Error should be vsock-related: \(errorString)"
-            )
-        }
-    }
+	let config = RelayManager.RelayConfiguration(
+		id: "test-uds-relay",
+		tcpPort: 15432,
+		transport: .uds(path: socketPath, virtioFSMount: nil),
+		description: "Test UDS relay"
+	)
 
-    /// Tests that RelayManager correctly tracks relay configuration
-    func testRelayManagerConfigurationTracking() async throws {
-        let eventLog = RelayEventLog()
-        let relayManager = RelayManager(eventLog: eventLog)
+	do {
+		try await relayManager.startRelay(config)
+		let status = await relayManager.status()
+		XCTAssertEqual(status.count, 1, "Should have 1 active relay")
+		XCTAssertEqual(status[0].tcpPort, 15432)
+		await relayManager.stopRelay(id: "test-uds-relay")
+	} catch {
+		let errorString = String(describing: error)
+		// UDS may fail if socket path is invalid or Virtio-FS not available
+		XCTFail("UDS relay should not fail: \(errorString)")
+	}
+}
 
-    let config = RelayManager.RelayConfiguration(
-      id: "db-relay",
-      tcpPort: 15433,
-      transport: .vsock(cid: 2, port: 5432, unixSocketPath: ""),
-      description: "DB relay"
-    )
+/// Tests that RelayManager correctly tracks relay configuration
+/// Plan 88: Migrated from vsock to UDS
+func testRelayManagerConfigurationTracking() async throws {
+	let eventLog = RelayEventLog()
+	let relayManager = RelayManager(eventLog: eventLog)
+
+	let socketPath = "/tmp/db-relay-\(UUID().uuidString).sock"
+
+	let config = RelayManager.RelayConfiguration(
+		id: "db-relay",
+		tcpPort: 15433,
+		transport: .uds(path: socketPath, virtioFSMount: nil),
+		description: "DB relay"
+	)
 
         do {
             try await relayManager.startRelay(config)
@@ -197,28 +202,30 @@ final class VsockAmbientIntegrationTests: XCTestCase {
         let services: [(serviceName: String, service: Service)] = [("test-db", dbService)]
         let loadedRelays = try loader.loadRelays(from: services)
 
-        XCTAssertEqual(loadedRelays.count, 1, "Should load 1 relay")
-        XCTAssertEqual(loadedRelays[0].port, 15434)
-        XCTAssertEqual(loadedRelays[0].type, .vsockDb)
-        XCTAssertEqual(loadedRelays[0].serviceName, "test-db")
+XCTAssertEqual(loadedRelays.count, 1, "Should load 1 relay")
+	XCTAssertEqual(loadedRelays[0].port, 15434)
+	// Plan 88: .vsockDb now maps to .uds at runtime
+	XCTAssertEqual(loadedRelays[0].type, .vsockDb)
+	XCTAssertEqual(loadedRelays[0].serviceName, "test-db")
 
-        let eventLog = RelayEventLog()
-        let relayManager = RelayManager(eventLog: eventLog)
+	let eventLog = RelayEventLog()
+	let relayManager = RelayManager(eventLog: eventLog)
 
-    let config = RelayManager.RelayConfiguration(
-      id: "integration-test-db",
-      tcpPort: UInt16(loadedRelays[0].port),
-      transport: .vsock(cid: 2, port: loadedRelays[0].port, unixSocketPath: ""),
-      description: "Integration test relay"
-    )
+	// Plan 88: Migrated from vsock to UDS
+	let socketPath = "/tmp/integration-test-\(UUID().uuidString).sock"
+	let config = RelayManager.RelayConfiguration(
+		id: "integration-test-db",
+		tcpPort: UInt16(loadedRelays[0].port),
+		transport: .uds(path: socketPath, virtioFSMount: nil),
+		description: "Integration test relay"
+	)
 
-    XCTAssertEqual(config.tcpPort, 15434)
-    if case .vsock(let cid, let port, _) = config.transport {
-            XCTAssertEqual(cid, 2)
-            XCTAssertEqual(port, 15434)
-        } else {
-            XCTFail("Transport should be vsock")
-        }
+	XCTAssertEqual(config.tcpPort, 15434)
+	if case .uds(let path, _) = config.transport {
+		XCTAssertEqual(path, socketPath)
+	} else {
+		XCTFail("Transport should be UDS")
+	}
 
         do {
             try await relayManager.startRelay(config)
