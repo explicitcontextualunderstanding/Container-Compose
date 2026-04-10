@@ -26,8 +26,7 @@ public final actor UDSVirtioFSRelay: RelayProtocol {
 private var listenSocket: Int32 = -1
 private var activeConnections: Set<UDSConnection> = []
 private var acceptTask: Task<Void, Never>?
-// TODO: Implement PeerValidator for SO_PEERCRED identity (Plan 88 A-1)
-// private let peerValidator: PeerValidator?
+private let peerValidator: PeerValidator
 
 /// AF_UNIX sun_path limit (includes null terminator)
 private static let sunPathMax = 104
@@ -60,12 +59,14 @@ eventLog: RelayEventLog
         self.createSignalSocket = createSignalSocket
         self.eventLog = eventLog
         self.transportType = .uds(path: socketPath, virtioFSMount: self.virtioFSMount)
-        self.logger = Logger(
-            subsystem: "com.container-compose.relay",
-            category: "UDSVirtioFS"
-        )
+self.logger = Logger(
+        subsystem: "com.container-compose.relay",
+        category: "UDSVirtioFS"
+    )
 
-        logger.info("Initialized UDS relay: path=\(socketPath, privacy: .public), createSignalSocket=\(createSignalSocket)")
+    self.peerValidator = PeerValidator(expectedUID: expectedPeerUID)
+
+    logger.info("Initialized UDS relay: path=\(socketPath, privacy: .public), createSignalSocket=\(createSignalSocket)")
     }
 
     /// Start listening for UDS connections
@@ -217,14 +218,23 @@ eventLog: RelayEventLog
                 continue
             }
 
-            // Handle connection
-            let connection = UDSConnection(socket: clientSocket, logger: logger)
-            activeConnections.insert(connection)
+// Handle connection
+        let connection = UDSConnection(socket: clientSocket, logger: logger)
+        activeConnections.insert(connection)
 
-            Task {
-                await connection.handle()
-                activeConnections.remove(connection)
-            }
+        // Plan 88 A-1: Validate peer using SO_PEERCRED
+        let validationResult = await peerValidator.validatePeer(socket_fd: clientSocket)
+        if case .failed(let reason) = validationResult {
+            logger.warning("Peer validation failed: \(reason)")
+            await connection.close()
+            activeConnections.remove(connection)
+            continue
+        }
+
+        Task {
+            await connection.handle()
+            activeConnections.remove(connection)
+        }
         }
     }
 
@@ -347,7 +357,7 @@ return .failed("Cannot read peer credentials: \(errno)")
 }
 
 /// Result of peer validation
-public enum PeerValidationResult {
+public enum PeerValidationResult: Sendable {
 case passed(peerUID: uid_t, peerGID: gid_t, peerPID: pid_t)
 case failed(String)
 
