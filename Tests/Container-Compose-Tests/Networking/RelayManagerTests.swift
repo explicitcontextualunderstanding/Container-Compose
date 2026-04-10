@@ -1309,33 +1309,35 @@ XCTFail("Expected UDS transport")
 }
 
 func testSocketPathLengthBoundary() async throws {
-// Plan 88 Finding C-2: Exact boundary at 103/104 chars
-let eventLog = RelayEventLog()
+        // Plan 88 Finding C-2: Exact boundary at 103/104 chars
+        let eventLog = RelayEventLog()
 
-// Path at exactly 103 chars should succeed
-let exactly103Chars = String(repeating: "a", count: 95) + "/sock"
-XCTAssertEqual(exactly103Chars.count, 103)
-XCTAssertNoThrow(try UDSVirtioFSRelay(
-socketPath: exactly103Chars,
-createSignalSocket: true,
-eventLog: eventLog
-), "103-char path should succeed")
+        // Path at exactly 103 chars should succeed
+        // "/tmp/" is 5 chars, so we need 98 more chars to make 103 total
+        let exactly103Chars = "/tmp/" + String(repeating: "a", count: 98)
+        XCTAssertEqual(exactly103Chars.count, 103, "Path should be exactly 103 chars")
+        XCTAssertNoThrow(try UDSVirtioFSRelay(
+            socketPath: exactly103Chars,
+            createSignalSocket: true,
+            eventLog: eventLog
+        ), "103-char path should succeed")
 
-// Path at exactly 104 chars should fail
-let exactly104Chars = String(repeating: "b", count: 96) + "/sock"
-XCTAssertEqual(exactly104Chars.count, 104)
-XCTAssertThrowsError(try UDSVirtioFSRelay(
-socketPath: exactly104Chars,
-createSignalSocket: true,
-eventLog: eventLog
-), "104-char path should fail") { error in
-if case UDSError.socketPathTooLong = error {
-// Expected
-} else {
-XCTFail("Expected socketPathTooLong, got \(error)")
-}
-}
-}
+        // Path at exactly 104 chars should fail
+        // "/tmp/" is 5 chars, so we need 99 more chars to make 104 total
+        let exactly104Chars = "/tmp/" + String(repeating: "b", count: 99)
+        XCTAssertEqual(exactly104Chars.count, 104, "Path should be exactly 104 chars")
+        XCTAssertThrowsError(try UDSVirtioFSRelay(
+            socketPath: exactly104Chars,
+            createSignalSocket: true,
+            eventLog: eventLog
+        ), "104-char path should fail") { error in
+            if case UDSError.socketPathTooLong = error {
+                // Expected
+            } else {
+                XCTFail("Expected socketPathTooLong, got \(error)")
+            }
+        }
+    }
 
 func testUDSInitializationWithExpectedUID() async throws {
 // Plan 88 Finding C-3: Primitive-based security API with expected UID
