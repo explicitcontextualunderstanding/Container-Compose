@@ -697,16 +697,133 @@ func testSchemeMappingHttp() throws {
         services:
           app:
             image: busybox:latest
-            scheme: invalid
-        """
-        do {
-            _ = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
-            XCTFail("Should have thrown for invalid scheme value")
-        } catch {
-            guard error is DecodingError else {
-                XCTFail("Expected DecodingError, got: \(error)")
-                return
-            }
-        }
+scheme: invalid
+"""
+do {
+    _ = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+    XCTFail("Should have thrown for invalid scheme value")
+} catch {
+    guard error is DecodingError else {
+        XCTFail("Expected DecodingError, got: \(error)")
+        return
     }
+}
+
+// MARK: - Secrets Environment Injection Tests
+
+func testSecretsInjectedAsEnvFlags() throws {
+    let yaml = """
+services:
+  web:
+    image: nginx:latest
+    x-apple-secrets:
+      filter:
+        - SECRET_ONE
+        - SECRET_TWO
+"""
+    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+    guard let service = dockerCompose.services["web"] ?? nil else { return XCTFail("Service 'web' missing") }
+
+    let secretsEnv = ["SECRET_ONE": "value1", "SECRET_TWO": "value2"]
+    let args = try ComposeUp.makeRunArgs(
+        service: service,
+        serviceName: "web",
+        image: nil,
+        dockerCompose: dockerCompose,
+        projectName: "proj",
+        detach: false,
+        cwd: "/tmp",
+        environmentVariables: [:],
+        secretsEnv: secretsEnv
+    )
+
+    XCTAssertTrue(args.contains("--env"), "Expected --env flag present for secrets")
+    XCTAssertTrue(args.contains("SECRET_ONE=value1"), "Expected SECRET_ONE in args")
+    XCTAssertTrue(args.contains("SECRET_TWO=value2"), "Expected SECRET_TWO in args")
+}
+
+func testNoSecretsNoExtraEnv() throws {
+    let yaml = """
+services:
+  web:
+    image: nginx:latest
+"""
+    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+    guard let service = dockerCompose.services["web"] ?? nil else { return XCTFail("Service 'web' missing") }
+
+    let args = try ComposeUp.makeRunArgs(
+        service: service,
+        serviceName: "web",
+        image: nil,
+        dockerCompose: dockerCompose,
+        projectName: "proj",
+        detach: false,
+        cwd: "/tmp",
+        environmentVariables: [:],
+        secretsEnv: [:]
+    )
+
+    // Should only have regular env vars, no secrets
+    let envCount = args.filter { $0 == "--env" }.count
+    XCTAssertEqual(envCount, 0, "Expected no --env flags when secretsEnv is empty")
+}
+
+func testEmptyFilterLoadsNoSecrets() throws {
+    let yaml = """
+services:
+  web:
+    image: nginx:latest
+    x-apple-secrets:
+      filter: []
+"""
+    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+    guard let service = dockerCompose.services["web"] ?? nil else { return XCTFail("Service 'web' missing") }
+
+    // With empty filter, no secrets should be injected
+    let args = try ComposeUp.makeRunArgs(
+        service: service,
+        serviceName: "web",
+        image: nil,
+        dockerCompose: dockerCompose,
+        projectName: "proj",
+        detach: false,
+        cwd: "/tmp",
+        environmentVariables: [:],
+        secretsEnv: [:]
+    )
+
+    let envCount = args.filter { $0 == "--env" }.count
+    XCTAssertEqual(envCount, 0, "Expected no --env flags when filter is empty")
+}
+
+func testSecretsNotMergedWithRegularEnv() throws {
+    let yaml = """
+services:
+  web:
+    image: nginx:latest
+    environment:
+      REGULAR_VAR: regular_value
+"""
+    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yaml)
+    guard let service = dockerCompose.services["web"] ?? nil else { return XCTFail("Service 'web' missing") }
+
+    // Regular env comes from service.environment, secrets come separately
+    let secretsEnv = ["MY_SECRET": "secret_value"]
+    let args = try ComposeUp.makeRunArgs(
+        service: service,
+        serviceName: "web",
+        image: nil,
+        dockerCompose: dockerCompose,
+        projectName: "proj",
+        detach: false,
+        cwd: "/tmp",
+        environmentVariables: ["REGULAR_VAR": "regular_value"],
+        secretsEnv: secretsEnv
+    )
+
+    // Both should be present as separate --env flags
+    XCTAssertTrue(args.contains("REGULAR_VAR=regular_value"), "Expected regular env var")
+    XCTAssertTrue(args.contains("MY_SECRET=secret_value"), "Expected secret env var")
+}
+}
 }

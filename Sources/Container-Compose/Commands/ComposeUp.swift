@@ -1282,19 +1282,51 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         let knownServiceNames = Array(dockerCompose.services.keys)
         combinedEnv = combinedEnv.mapValues { value in
             Self.resolveServicePlaceholder(value, containerIps: containerIps, containerPorts: containerPorts, knownServiceNames: knownServiceNames)
-        }
+}
 
-        // Build the `container run` argument list using the standardized helper
-        let runCommandArgs = try Self.makeRunArgs(
-            service: service,
-            serviceName: serviceName,
-            image: imageToRun,
-            dockerCompose: dockerCompose,
-            projectName: projectName,
-            detach: detach,
-            cwd: cwd,
-            environmentVariables: combinedEnv
-        )
+// Load secrets from x-apple-secrets filter if present
+var secretsEnv: [String: String] = [:]
+if let secretsConfig = service.x_apple_secrets,
+   let filter = secretsConfig.filter, !filter.isEmpty {
+    // Get enclave path from global config or default to ~/.enclave
+    let enclavePath = dockerCompose.xAppleSecretsGlobal?.enclave
+        ?? (NSHomeDirectory() + "/.enclave")
+    let fileManager = FileManager.default
+    guard fileManager.fileExists(atPath: enclavePath) else {
+        print("Warning: Enclave not found at \(enclavePath) for service \(serviceName). Skipping secrets.".yellow)
+    } else {
+        do {
+            let allFiles = try fileManager.contentsOfDirectory(atPath: enclavePath)
+            for fileName in allFiles {
+                let normalizedName = fileName
+                    .replacingOccurrences(of: ".txt", with: "")
+                    .uppercased()
+                if filter.contains(normalizedName) {
+                    let path = "\(enclavePath)/\(fileName)"
+                    if let content = try? String(contentsOfFile: path, encoding: .utf8)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines) {
+                        secretsEnv[normalizedName] = content
+                    }
+                }
+            }
+        } catch {
+            print("Warning: Failed to load secrets for service \(serviceName): \(error). Continuing without secrets.".yellow)
+        }
+    }
+}
+
+// Build the `container run` argument list using the standardized helper
+let runCommandArgs = try Self.makeRunArgs(
+    service: service,
+    serviceName: serviceName,
+    image: imageToRun,
+    dockerCompose: dockerCompose,
+    projectName: projectName,
+    detach: detach,
+    cwd: cwd,
+    environmentVariables: combinedEnv,
+    secretsEnv: secretsEnv
+)
 
         // Extract container name for status checks (consistent with makeRunArgs logic)
         let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
@@ -1743,8 +1775,10 @@ case .stopped:
 
 extension ComposeUp {
 
-    /// Helper for building the `container run` argument list for a service. Used by tests.
-    public static func makeRunArgs(service: Service, serviceName: String, image: String?, dockerCompose: DockerCompose, projectName: String, detach: Bool, cwd: String, environmentVariables: [String: String]) throws -> [String] {
+/// Helper for building the `container run` argument list for a service. Used by tests.
+/// - Parameters:
+///   - secretsEnv: Optional dict of secrets to inject via --env flags (from x-apple-secrets filter)
+public static func makeRunArgs(service: Service, serviceName: String, image: String?, dockerCompose: DockerCompose, projectName: String, detach: Bool, cwd: String, environmentVariables: [String: String], secretsEnv: [String: String] = [:]) throws -> [String] {
         var runArgs: [String] = []
 
         // Add detach flag if specified
@@ -1952,13 +1986,19 @@ var isDirectory: ObjCBool = false
       }
     }
 
-    // Map environment variables
-    for (key, value) in environmentVariables {
-      runArgs.append("--env")
-      runArgs.append("\(key)=\(value)")
-    }
+// Map environment variables
+for (key, value) in environmentVariables {
+    runArgs.append("--env")
+    runArgs.append("\(key)=\(value)")
+}
 
-        // Map port mappings if present (resolve environment variables in port specs)
+// Map secrets from x-apple-secrets filter (injected via --env, not volume mount)
+for (key, value) in secretsEnv {
+    runArgs.append("--env")
+    runArgs.append("\(key)=\(value)")
+}
+
+// Map port mappings if present (resolve environment variables in port specs)
         if let ports = service.ports {
             for portMapping in ports {
                 runArgs.append("--publish")
