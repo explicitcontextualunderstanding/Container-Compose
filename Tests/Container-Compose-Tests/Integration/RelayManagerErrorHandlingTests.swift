@@ -339,11 +339,51 @@ func testDuplicateIdError() async throws {
 
     // System should be stable after multiple errors
     let status = await relayManager.status()
-    print("Active relays: \(status.count)")
+print("Active relays: \(status.count)")
 
     // Cleanup any that started
     for config in configs {
-      await relayManager.stopRelay(id: config.id)
+        await relayManager.stopRelay(id: config.id)
     }
-  }
+}
+
+// MARK: - UDS Error Handling Tests (Plan 88)
+
+func testUDSRelayWithInvalidSocketPath() async throws {
+    // Plan 88: Test UDS relay handles invalid socket path gracefully
+    let invalidPath = String(repeating: "a", count: 110) + ".sock"
+
+    let config = RelayManager.RelayConfiguration(
+        id: "invalid-uds-relay",
+        tcpPort: 9999,
+        transport: .uds(path: invalidPath, virtioFSMount: nil),
+        description: "Test invalid UDS path"
+    )
+
+    do {
+        try await relayManager.startRelay(config)
+        XCTFail("Should have thrown error for path >= 104 chars")
+    } catch {
+        // Expected: UDSError.socketPathTooLong
+        let errorString = String(describing: error)
+        XCTAssertTrue(
+            errorString.contains("too long") || errorString.contains("104"),
+            "Error should indicate path too long: \(errorString)"
+        )
+    }
+}
+
+func testUDSRelayWithEmptyPath() async throws {
+    // Plan 88: Test UDS relay handles empty socket path
+    let config = RelayManager.RelayConfiguration(
+        id: "empty-uds-relay",
+        tcpPort: 9998,
+        transport: .uds(path: "", virtioFSMount: nil),
+        description: "Test empty UDS path"
+    )
+
+    // Empty path should be allowed (will fail at bind time, not init)
+    try await relayManager.startRelay(config)
+    await relayManager.stopRelay(id: "empty-uds-relay")
+}
 }
