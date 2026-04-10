@@ -12,35 +12,44 @@ final class ComposeSchemaMappingTests: XCTestCase {
         // Simulate parsing the actual Hermes/Honcho compose file
         let yamlString = """
         name: apple-honcho
-        services:
-          honcho-db:
-            image: walg-db:latest
-            x-apple-relays:
-            - type: "vsock-db"
-              port: 5432
-              priority: "high"
+services:
+  honcho-db:
+    image: walg-db:latest
+    x-apple-relays:
+      - type: "vsock-db"
+        port: 5432
+        priority: "high"
 
-          hermes:
-            image: hermes:v26
-            x-apple-relays:
-            - type: "vsock-log-stream"
-              port: 5001
-              target: "code-graph"
-              priority: "high"
-            - type: "vsock-mcp-bridge"
-              port: 5002
-              target: "honcho-hub"
-              priority: "high"
-            - type: "vsock-ane-embedding"
-              port: 6000
-              priority: "high"
+  # Plan 88: New UDS relay type
+  honcho-db-uds:
+    image: walg-db:latest
+    x-apple-relays:
+      - type: "uds"
+        port: 5433
+        socket_path: "/run/uds-honcho-db.sock"
+        priority: "high"
 
-          honcho-hub:
-            image: honcho:latest
+  hermes:
+    image: hermes:v26
+    x-apple-relays:
+      - type: "vsock-log-stream"
+        port: 5001
+        target: "code-graph"
+        priority: "high"
+      - type: "vsock-mcp-bridge"
+        port: 5002
+        target: "honcho-hub"
+        priority: "high"
+      - type: "vsock-ane-embedding"
+        port: 6000
+        priority: "high"
 
-          code-graph:
-            image: codegraph:latest
-        """
+  honcho-hub:
+    image: honcho:latest
+
+  code-graph:
+    image: codegraph:latest
+"""
 
         // Parse YAML
         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
