@@ -134,14 +134,12 @@ func testSocketPathPersistence() async throws {
       eventLog: eventLog2
     )
 
-    // Verify configuration preserved
+// Verify configuration preserved
     let transport2 = await relay2.transportType
-    if case .vsock(let cid2, let port2, let path2) = transport2 {
-      XCTAssertEqual(cid2, cid1, "CID should persist")
-      XCTAssertEqual(port2, port1, "Port should persist")
-      XCTAssertEqual(path2, path1, "Path should persist")
+    if case .uds(let path2, _) = transport2 {
+        XCTAssertEqual(path2, path1, "Path should persist")
     } else {
-      XCTFail("Second relay should preserve transport")
+        XCTFail("Second relay should preserve UDS transport")
     }
   }
 
