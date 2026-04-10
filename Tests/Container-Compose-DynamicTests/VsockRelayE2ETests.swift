@@ -16,8 +16,15 @@ import TestHelpers
 @Suite("Vsock Relay E2E Tests", .containerDependent, .serialized)
 struct VsockRelayE2ETests {
 
-@Test("E2E: vsock-db relay with real PostgreSQL container")
+  @Test("E2E: vsock-db relay with real PostgreSQL container")
   func testVsockRelayWithRealDatabase() async throws {
+    // Skip if vsock unavailable (macOS host)
+    let availability = checkVsockAvailability()
+    if !availability.isAvailable {
+      print("⚠️ Skipping E2E test: Vsock unavailable - \(availability.errorMessage ?? "unknown")")
+      return
+    }
+
     // Wait for available VM slots before starting
     // Uses same pattern as run_tests.sh cleanup
     try await ContainerPollingHelpers.waitForContainerSlots(maxSlots: 4, timeout: 30)

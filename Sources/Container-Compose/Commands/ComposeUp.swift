@@ -634,8 +634,8 @@ func validateRelayConfigurations(
         }
     }
 
-    /// Start a relay from x-apple-relays configuration (Phase 82: vsock ambient shim)
-    private func startAppleRelay(
+/// Start a relay from x-apple-relays configuration (Phase 82: vsock ambient shim)
+func startAppleRelay(
         serviceName: String,
         service: Service,
         relayConfig: AppleRelayConfig,
@@ -687,8 +687,8 @@ func validateRelayConfigurations(
         )
     }
 
-    /// Find an available TCP port (ephemeral)
-  private func findAvailablePort() async -> UInt16 {
+/// Find an available TCP port (ephemeral)
+func findAvailablePort() async -> UInt16 {
     // Create a temporary socket to find an available port
     let socket = socket(AF_INET, SOCK_STREAM, 0)
     defer { Darwin.close(socket) }
@@ -724,7 +724,7 @@ func validateRelayConfigurations(
     return assignedAddr.sin_port.bigEndian
   }
 
-  private func getIPForContainer(_ containerName: String) async throws -> String? {
+  func getIPForContainer(_ containerName: String) async throws -> String? {
         let container = try await ClientContainer.get(id: containerName)
         let ip = container.networks.compactMap { $0.ipv4Address.address.description }.first
 
@@ -736,7 +736,7 @@ func validateRelayConfigurations(
     ///   - containerName: The exact name of the container (e.g. "Assignment-Manager-API-db").
     ///   - timeout: Max seconds to wait before failing.
     ///   - interval: How often to poll (in seconds).
-    private func waitUntilContainerIsRunning(_ containerName: String, timeout: TimeInterval = 30, interval: TimeInterval = 0.5) async throws {
+    func waitUntilContainerIsRunning(_ containerName: String, timeout: TimeInterval = 30, interval: TimeInterval = 0.5) async throws {
         let deadline = Date().addingTimeInterval(timeout)
 
         while Date() < deadline {
@@ -768,7 +768,7 @@ func validateRelayConfigurations(
     }
 
     /// Captures the last N lines of container output for debugging failed health checks.
-    private func captureContainerLogs(_ containerName: String, lines: Int = 50) async -> String {
+    func captureContainerLogs(_ containerName: String, lines: Int = 50) async -> String {
         // Use actor to safely collect logs from concurrent callbacks
         actor LogCollector {
             private var output = ""
@@ -790,7 +790,7 @@ func validateRelayConfigurations(
     }
 
     /// Waits for a container to pass its healthcheck by running the healthcheck command inside it.
-    private func waitForHealthy(containerName: String, dependencyName: String, healthcheck: Healthcheck) async throws {
+    func waitForHealthy(containerName: String, dependencyName: String, healthcheck: Healthcheck) async throws {
         guard let test = healthcheck.test, test.first != "NONE" else {
             return // No healthcheck or explicitly disabled
         }
@@ -876,7 +876,7 @@ func validateRelayConfigurations(
     ///   - dependencyName: The service name for logging (e.g. "migrations").
     ///   - timeout: Max seconds to wait before failing.
     ///   - interval: How often to poll (in seconds).
-    private func waitForCompletedSuccessfully(
+    func waitForCompletedSuccessfully(
         containerName: String,
         dependencyName: String,
         timeout: TimeInterval = 300,

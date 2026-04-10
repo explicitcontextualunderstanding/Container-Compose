@@ -14,6 +14,21 @@ import Foundation
 @available(macOS 15.0, *)
 final class VsockRelayFunctionalityTests: XCTestCase {
 
+  // MARK: - Skip Logic
+
+  /// Skip if vsock is not available on this system
+  private func skipIfVsockUnavailable() throws {
+    let availability = checkVsockAvailability()
+    if !availability.isAvailable {
+      throw XCTSkip("Vsock not available: \(availability.errorMessage ?? "unknown reason")")
+    }
+  }
+
+  override func setUp() async throws {
+    try await super.setUp()
+    try skipIfVsockUnavailable()
+  }
+
   // MARK: - Test 1: Socket Creation in Virtio-FS
 
   /// Verify VsockRelay creates socket in Virtio-FS volume
