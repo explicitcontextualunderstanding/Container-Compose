@@ -736,14 +736,9 @@ final class PeerVerificationTests: XCTestCase {
 final class CreateSignalSocketTests: XCTestCase {
 
   /// Skip if UDSVirtioFSRelay is not fully implemented (stub)
-  private func skipIfUDSNotImplemented() throws {
-    // UDSVirtioFSRelay is currently stubbed (35 lines)
-    // Full implementation pending Phase 1 completion
-    throw XCTSkip("UDSVirtioFSRelay not fully implemented - stub only")
-  }
 
   func testCreateSignalSocketTruePreservesBehavior() async throws {
-    try skipIfUDSNotImplemented()
+    
         // When createSignalSocket is true (default for non-volume sockets),
         // the relay should create the signal socket directory structure
         let eventLog = RelayEventLog()
@@ -765,7 +760,7 @@ final class CreateSignalSocketTests: XCTestCase {
     }
 
   func testCreateSignalSocketFalseSkipsSocketCreation() async throws {
-    try skipIfUDSNotImplemented()
+    
     // When createSignalSocket is false (for volume sockets like vsock-db),
         // the relay should not create/remove the signal socket
         let eventLog = RelayEventLog()
@@ -787,7 +782,7 @@ final class CreateSignalSocketTests: XCTestCase {
     }
 
   func testCreateSignalSocketDefaultsToTrue() async throws {
-    try skipIfUDSNotImplemented()
+    
     // Test that UDSVirtioFSRelay can be created with explicit createSignalSocket: true
         let eventLog = RelayEventLog()
         let socketPath = "/tmp/test-default-\(UUID().uuidString).sock"
@@ -803,7 +798,7 @@ final class CreateSignalSocketTests: XCTestCase {
     }
 
   func testCreateSignalSocketWithEmptyPath() async throws {
-    try skipIfUDSNotImplemented()
+    
     // Test behavior with empty socketPath
         let eventLog = RelayEventLog()
 
@@ -823,7 +818,7 @@ final class CreateSignalSocketTests: XCTestCase {
     }
 
   func testCreateSignalSocketWithVeryLongPath() async throws {
-    try skipIfUDSNotImplemented()
+    
     // Plan 88 Decision 5: Hard-error on paths >= 104 chars
         let eventLog = RelayEventLog()
         let longPath = String(repeating: "a", count: 110) + ".sock"
@@ -842,7 +837,7 @@ final class CreateSignalSocketTests: XCTestCase {
     }
 
   func testCreateSignalSocketAtPathLimit() async throws {
-    try skipIfUDSNotImplemented()
+    
     // Verify paths under 104 chars work fine
         let eventLog = RelayEventLog()
         let path = String(repeating: "a", count: 90) + ".sock"

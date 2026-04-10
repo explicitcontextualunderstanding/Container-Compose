@@ -117,7 +117,7 @@ for arg in "$@"; do
   if [[ "$arg" == "--no-sudo" ]]; then
     FORCE_NO_SUDO=true
   elif [[ "$arg" == "--auto-clean" ]]; then
-    true # already handled above
+    AUTO_CLEAN=true
   elif [[ "$arg" == "--filter" ]]; then
     FILTERED_ARGS+=("$arg") # keep --filter as-is
   elif [[ "$arg" =~ ^[A-Za-z].*Tests?$ ]]; then
