@@ -344,24 +344,46 @@ func testServiceEqualityWithDifferentRelays() {
 
   // MARK: - Transport Type Preservation Tests (Plan 84 Phase 3)
 
-  func testRelayConfigurationPreservesVsockTransport() {
-    // Test that RelayConfiguration preserves .vsock transport type
-    let transport = RelayTransport.vsock(cid: 2, port: 5432, unixSocketPath: "")
-    let config = RelayManager.RelayConfiguration(
-      id: "test-vsock-relay",
-      tcpPort: 5432,
-      transport: transport,
-      description: "Test vsock relay"
-    )
+func testRelayConfigurationPreservesVsockTransport() {
+	// Plan 88: vsock is deprecated - test remains for backward compatibility
+	let transport = RelayTransport.vsock(cid: 2, port: 5432, unixSocketPath: "")
+	let config = RelayManager.RelayConfiguration(
+		id: "test-vsock-relay",
+		tcpPort: 5432,
+		transport: transport,
+		description: "Test vsock relay"
+	)
 
-    // Verify transport type is preserved (not converted to unixSocket)
-    if case .vsock(let cid, let port, _) = config.transport {
-      XCTAssertEqual(cid, 2)
-      XCTAssertEqual(port, 5432)
-    } else {
-      XCTFail("Transport should be .vsock, got \(config.transport)")
-    }
-  }
+	// Verify transport type is preserved (not converted to unixSocket)
+	if case .vsock(let cid, let port, _) = config.transport {
+		XCTAssertEqual(cid, 2)
+		XCTAssertEqual(port, 5432)
+	} else {
+		XCTFail("Transport should be .vsock, got \(config.transport)")
+	}
+}
+
+func testRelayConfigurationPreservesUDSTransport() {
+	// Plan 88: New UDS transport for Virtio-FS
+	let socketPath = "/tmp/test-uds-\(UUID().uuidString).sock"
+	defer { try? FileManager.default.removeItem(atPath: socketPath) }
+
+	let transport = RelayTransport.uds(path: socketPath, virtioFSMount: "/Volumes/apple")
+	let config = RelayManager.RelayConfiguration(
+		id: "test-uds-relay",
+		tcpPort: 0,
+		transport: transport,
+		description: "Test UDS relay"
+	)
+
+	// Verify transport type is preserved
+	if case .uds(let path, let mount) = config.transport {
+		XCTAssertEqual(path, socketPath)
+		XCTAssertEqual(mount, "/Volumes/apple")
+	} else {
+		XCTFail("Transport should be .uds, got \(config.transport)")
+	}
+}
 
   func testRelayConfigurationPreservesTcpTransport() {
     let transport = RelayTransport.tcp(host: "0.0.0.0", port: 5432)

@@ -11,9 +11,16 @@ final class RelayTransportTests: XCTestCase {
     }
     
 func testVsockDescription() {
-    let transport = RelayTransport.vsock(cid: 3, port: 5432, unixSocketPath: "")
-    XCTAssertEqual(transport.description, "vsock:3:5432")
-  }
+	// Plan 88: vsock is deprecated - test remains for backward compatibility
+	let transport = RelayTransport.vsock(cid: 3, port: 5432, unixSocketPath: "")
+	XCTAssertEqual(transport.description, "vsock:3:5432")
+}
+
+func testUDSDescription() {
+	// Plan 88: New UDS transport for Virtio-FS
+	let transport = RelayTransport.uds(path: "/tmp/test.sock", virtioFSMount: nil)
+	XCTAssertEqual(transport.description, "uds:/tmp/test.sock")
+}
     
     func testUnixSocketPathExtraction() {
         let path = "/Users/test/.container-compose/sockets/db.sock"
@@ -27,15 +34,29 @@ func testVsockDescription() {
     }
     
 func testVsockParameterExtraction() {
-    let transport = RelayTransport.vsock(cid: 42, port: 8080, unixSocketPath: "")
+	// Plan 88: vsock is deprecated - test remains for backward compatibility
+	let transport = RelayTransport.vsock(cid: 42, port: 8080, unixSocketPath: "")
 
-    if case .vsock(let cid, let port, _) = transport {
-      XCTAssertEqual(cid, 42)
-      XCTAssertEqual(port, 8080)
-    } else {
-      XCTFail("Expected vsock transport")
-    }
-  }
+	if case .vsock(let cid, let port, _) = transport {
+		XCTAssertEqual(cid, 42)
+		XCTAssertEqual(port, 8080)
+	} else {
+		XCTFail("Expected vsock transport")
+	}
+}
+
+func testUDSParameterExtraction() {
+	// Plan 88: New UDS transport for Virtio-FS
+	let socketPath = "/Users/test/.container-compose/sockets/db.sock"
+	let transport = RelayTransport.uds(path: socketPath, virtioFSMount: "/Volumes/apple")
+
+	if case .uds(let path, let mount) = transport {
+		XCTAssertEqual(path, socketPath)
+		XCTAssertEqual(mount, "/Volumes/apple")
+	} else {
+		XCTFail("Expected UDS transport")
+	}
+}
     
     // MARK: - RelayConfiguration Tests
     
@@ -102,25 +123,50 @@ func testRelayConfigurationTransportInitializer() {
     }
     
 func testRelayConfigurationVsockTransport() {
-    let transport = RelayTransport.vsock(cid: 10, port: 9000, unixSocketPath: "")
-    let config = RelayManager.RelayConfiguration(
-      id: "vsock-config",
-      tcpPort: 9000,
-      transport: transport,
-      description: "Vsock configuration"
-    )
+	// Plan 88: vsock is deprecated - test remains for backward compatibility
+	let transport = RelayTransport.vsock(cid: 10, port: 9000, unixSocketPath: "")
+	let config = RelayManager.RelayConfiguration(
+		id: "vsock-config",
+		tcpPort: 9000,
+		transport: transport,
+		description: "Vsock configuration"
+	)
 
-    // unixSocketPath should return empty string for vsock
-    XCTAssertEqual(config.unixSocketPath, "")
+	// unixSocketPath should return empty string for vsock
+	XCTAssertEqual(config.unixSocketPath, "")
 
-    // Transport should be vsock
-    if case .vsock(let cid, let port, _) = config.transport {
-      XCTAssertEqual(cid, 10)
-      XCTAssertEqual(port, 9000)
-    } else {
-      XCTFail("Expected vsock transport")
-    }
-  }
+	// Transport should be vsock
+	if case .vsock(let cid, let port, _) = config.transport {
+		XCTAssertEqual(cid, 10)
+		XCTAssertEqual(port, 9000)
+	} else {
+		XCTFail("Expected vsock transport")
+	}
+}
+
+func testRelayConfigurationUDSTransport() {
+	// Plan 88: New UDS transport for Virtio-FS
+	let socketPath = "/tmp/uds-test-\(UUID().uuidString).sock"
+	defer { try? FileManager.default.removeItem(atPath: socketPath) }
+
+	let transport = RelayTransport.uds(path: socketPath, virtioFSMount: nil)
+	let config = RelayManager.RelayConfiguration(
+		id: "uds-config",
+		tcpPort: 0,
+		transport: transport,
+		description: "UDS configuration"
+	)
+
+	// unixSocketPath should return the UDS path
+	XCTAssertEqual(config.unixSocketPath, socketPath)
+
+	// Transport should be UDS
+	if case .uds(let path, _) = config.transport {
+		XCTAssertEqual(path, socketPath)
+	} else {
+		XCTFail("Expected UDS transport")
+	}
+}
     
     // MARK: - Transport Sendable Tests
     

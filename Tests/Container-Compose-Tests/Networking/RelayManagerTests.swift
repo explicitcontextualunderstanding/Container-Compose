@@ -545,26 +545,29 @@ func testWaitForSocketSuccess() async throws {
 @available(macOS 12.0, *)
 final class RelayE2ETests: XCTestCase {
 
-    func testFullStackWithRelay() async throws {
-        // Test relay configuration using SharedRelayTypes
-        let config = RelayConfiguration(
-            id: "test-relay",
-            tcpPort: 15432,
-            transport: .vsock(cid: 3, port: 5432, unixSocketPath: "/tmp/test.sock"),
-            description: "Test relay configuration"
-        )
+func testFullStackWithRelay() async throws {
+	// Test relay configuration using SharedRelayTypes
+	// Plan 88: Migrated from vsock to UDS
+	let socketPath = "/tmp/test-relay-\(UUID().uuidString).sock"
+	defer { try? FileManager.default.removeItem(atPath: socketPath) }
 
-        // Verify configuration is valid
-        if case .vsock(let cid, let port, _) = config.transport {
-            XCTAssertEqual(cid, 3, "CID should be 3")
-            XCTAssertEqual(port, 5432, "Port should be 5432")
-        } else {
-            XCTFail("Expected vsock transport")
-        }
+	let config = RelayConfiguration(
+		id: "test-relay",
+		tcpPort: 15432,
+		transport: .uds(path: socketPath, virtioFSMount: nil),
+		description: "Test relay configuration"
+	)
 
-        XCTAssertEqual(config.tcpPort, 15432, "TCP port should be set")
-        XCTAssertEqual(config.id, "test-relay", "ID should be set")
-    }
+	// Verify configuration is valid
+	if case .uds(let path, _) = config.transport {
+		XCTAssertEqual(path, socketPath, "Socket path should match")
+	} else {
+		XCTFail("Expected UDS transport")
+	}
+
+	XCTAssertEqual(config.tcpPort, 15432, "TCP port should be set")
+	XCTAssertEqual(config.id, "test-relay", "ID should be set")
+}
 
 func testContainerComposeBinaryExists() {
     let possiblePaths = [

@@ -59,17 +59,18 @@ final class NetworkTraceTests: XCTestCase {
     }
   }
 
-  func testRecordsConnectionEstablished() async {
-    let event = TraceEvent.connectionEstablished(
-      relayId: testRelayId,
-      connectionId: testConnectionId,
-      transport: .vsock(cid: 3, port: 5001, unixSocketPath: "")
-    )
-    await trace.record(event)
+func testRecordsConnectionEstablished() async {
+	// Plan 88: Migrated from vsock to UDS
+	let event = TraceEvent.connectionEstablished(
+		relayId: testRelayId,
+		connectionId: testConnectionId,
+		transport: .uds(path: "/tmp/test.sock", virtioFSMount: nil)
+	)
+	await trace.record(event)
 
-    let events = await trace.eventsForRelay(testRelayId)
-    XCTAssertEqual(events.count, 1)
-  }
+	let events = await trace.eventsForRelay(testRelayId)
+	XCTAssertEqual(events.count, 1)
+}
 
   func testRecordsConnectionClosed() async {
     let event = TraceEvent.connectionClosed(
@@ -93,7 +94,7 @@ final class NetworkTraceTests: XCTestCase {
     await trace.record(.connectionEstablished(
       relayId: relay1,
       connectionId: UUID(),
-      transport: .vsock(cid: 3, port: 5001, unixSocketPath: "")
+      transport: .uds(path: "/tmp/test.sock", virtioFSMount: nil)
     ))
     await trace.record(.dataTransfer(
       relayId: relay2,
@@ -116,7 +117,7 @@ final class NetworkTraceTests: XCTestCase {
     await trace.record(.connectionEstablished(
       relayId: testRelayId,
       connectionId: testConnectionId,
-      transport: .vsock(cid: 3, port: 5001, unixSocketPath: "")
+      transport: .uds(path: "/tmp/test.sock", virtioFSMount: nil)
     ))
 
     let securityEvents = await trace.securityEvents()
