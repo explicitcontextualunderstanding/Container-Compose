@@ -57,23 +57,22 @@ final class ProductionVolumeDynamicTests: XCTestCase {
         let parentDir = productionSocketPath.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
 
-        // Create UDSVirtioFSRelay with production volume socket path
-        let eventLog = RelayEventLog()
-        let relay = try UDSVirtioFSRelay(
-            cid: 2,
-            port: 5432,
-            unixSocketPath: productionSocketPath.path,
-            createSignalSocket: true,
-            eventLog: eventLog
-        )
+    // Create UDSVirtioFSRelay with production volume socket path
+    let eventLog = RelayEventLog()
+    let relay = try UDSVirtioFSRelay(
+      socketPath: productionSocketPath.path,
+      virtioFSMountPath: nil,
+      createSignalSocket: true,
+      eventLog: eventLog
+    )
 
-        // Verify relay was created with correct path
-        let transport = await relay.transportType
-        if case .uds(_, _, let path) = transport {
-            XCTAssertEqual(path, productionSocketPath.path, "Socket path should match production volume path")
-        } else {
-            XCTFail("Transport type should be UDS")
-        }
+    // Verify relay was created with correct path
+    let transport = await relay.transportType
+    if case .uds(let path, _) = transport {
+      XCTAssertEqual(path, productionSocketPath.path, "Socket path should match production volume path")
+    } else {
+      XCTFail("Transport type should be UDS")
+    }
 
         // Clean up test socket directory
         try? FileManager.default.removeItem(at: parentDir)
@@ -150,51 +149,44 @@ final class ProductionVolumeDynamicTests: XCTestCase {
         // Create test directory
         try FileManager.default.createDirectory(at: testDir, withIntermediateDirectories: true)
 
-        // Create first relay
-        let eventLog1 = RelayEventLog()
-        let relay1 = try UDSVirtioFSRelay(
-            cid: 2,
-            port: 5432,
-            unixSocketPath: socketPath.path,
-            createSignalSocket: true,
-            eventLog: eventLog1
-        )
+    // Create first relay
+    let eventLog1 = RelayEventLog()
+    let relay1 = try UDSVirtioFSRelay(
+      socketPath: socketPath.path,
+      virtioFSMountPath: nil,
+      createSignalSocket: true,
+      eventLog: eventLog1
+    )
 
-        // Get transport info from first relay
-        let transport1 = await relay1.transportType
-        guard case .uds(let cid1, let port1, let path1) = transport1 else {
-            XCTFail("First relay should be UDS transport")
-            return
-        }
-
-        XCTAssertEqual(cid1, 2, "CID should persist")
-        XCTAssertEqual(port1, 5432, "Port should persist")
-        XCTAssertEqual(path1, socketPath.path, "Path should persist")
-
-        // Simulate relay restart by creating new relay with same path
-        let eventLog2 = RelayEventLog()
-        let relay2 = try UDSVirtioFSRelay(
-            cid: 2,
-            port: 5432,
-            unixSocketPath: socketPath.path,
-            createSignalSocket: true,  // Should handle existing socket gracefully
-            eventLog: eventLog2
-        )
-
-        // Verify second relay has same configuration
-        let transport2 = await relay2.transportType
-        guard case .uds(let cid2, let port2, let path2) = transport2 else {
-            XCTFail("Second relay should be UDS transport")
-            return
-        }
-
-        XCTAssertEqual(cid2, cid1, "CID should persist across restart")
-        XCTAssertEqual(port2, port1, "Port should persist across restart")
-        XCTAssertEqual(path2, path1, "Path should persist across restart")
-        XCTAssertEqual(path2, socketPath.path, "Socket path should remain consistent")
+    // Get transport info from first relay
+    let transport1 = await relay1.transportType
+    guard case .uds(let path1, _) = transport1 else {
+      XCTFail("First relay should be UDS transport")
+      return
     }
 
-    /// Test 5: Verify production volume structure matches expected layout
+    XCTAssertEqual(path1, socketPath.path, "Path should persist")
+
+    // Simulate relay restart by creating new relay with same path
+    let eventLog2 = RelayEventLog()
+    let relay2 = try UDSVirtioFSRelay(
+      socketPath: socketPath.path,
+      virtioFSMountPath: nil,
+      createSignalSocket: true,
+      eventLog: eventLog2
+    )
+
+    // Verify second relay has same configuration
+    let transport2 = await relay2.transportType
+    guard case .uds(let path2, _) = transport2 else {
+      XCTFail("Second relay should be UDS transport")
+      return
+    }
+
+  XCTAssertEqual(path2, socketPath.path, "Socket path should remain consistent")
+}
+
+/// Test 5: Verify production volume structure matches expected layout
     /// Validates that production volumes exist and are accessible
     func testProductionVolumeStructure() async throws {
         let expectedVolumes = [
@@ -244,18 +236,17 @@ final class ProductionVolumeDynamicTests: XCTestCase {
         let isWritable = FileManager.default.isWritableFile(atPath: testDir.path)
         XCTAssertTrue(isWritable, "Test directory should be writable")
 
-        // Create UDSVirtioFSRelay (doesn't actually create socket file during init)
-        let eventLog = RelayEventLog()
-        let relay = try UDSVirtioFSRelay(
-            cid: 2,
-            port: 5432,
-            unixSocketPath: socketPath.path,
-            createSignalSocket: true,
-            eventLog: eventLog
-        )
+    // Create UDSVirtioFSRelay (doesn't actually create socket file during init)
+    let eventLog = RelayEventLog()
+    let relay = try UDSVirtioFSRelay(
+      socketPath: socketPath.path,
+      virtioFSMountPath: nil,
+      createSignalSocket: true,
+      eventLog: eventLog
+    )
 
-        XCTAssertNotNil(relay, "Relay should be created successfully")
-    }
+    XCTAssertNotNil(relay, "Relay should be created successfully")
+  }
 }
 
 // MARK: - FileManager Extension

@@ -4,20 +4,41 @@ Swift 6.1 project for Apple Container runtime orchestration.
 
 ## Swift Environment Rules (Critical)
 
-**No Swift LSP available via MCP bridge.** sourcekit-lsp cannot be routed through `mcp-language-server` (confirmed non-functional). Do NOT attempt to use any LSP tool on `.swift` files.
+**Do NOT use `mcp-language-server` for sourcekit-lsp** — it cannot communicate with
+sourcekit-lsp (zero stdio output, 30s timeout). Use `sourcekit-lsp-mcp` instead.
 
-### Lost LSP Feature → Agent Workaround
+### Swift MCP Tools: sourcekit-lsp-mcp
 
-| Lost Feature | Workaround |
+`sourcekit-lsp-mcp` provides 10 Swift analysis tools via MCP. It responds to MCP
+`initialize` instantly, then starts sourcekit-lsp in the background (Bridge-and-Poll).
+First tool call may be slow while sourcekit-lsp indexes; subsequent calls are fast.
+
+| Tool | Description |
 |---|---|
-| Error squiggles | `swift build` — parse line/column errors from output |
-| Auto-complete | `Grep` for existing usage patterns of the API |
-| Go to Definition | Follow `import` statements + `Grep` for `(struct\|class\|enum\|protocol\|actor) SymbolName` |
-| Find References | `Grep -rn "SymbolName" Sources/` |
-| Hover (type info) | Read the file; check `import` statements for module origin |
-| Refactoring safety | Multi-file `Grep` + `Edit`, then `swift build` to catch breakage |
+| `swift_hover` | Type info + doc comments at file:line:char |
+| `swift_definition` | Go to symbol definition |
+| `swift_references` | Find all references across project |
+| `swift_document_symbols` | Hierarchical file outline |
+| `swift_workspace_symbol` | Search symbols by name |
+| `swift_diagnostics` | Compiler errors/warnings for a file |
+| `swift_call_hierarchy` | Call graph (incoming/outgoing) |
+| `swift_implementations` | Protocol conformances, overrides |
+| `swift_code_actions` | Available quick fixes |
+| `swift_rename` | Rename symbol atomically across project |
 
-### Discovery-First Protocol
+### When to Use MCP Tools vs Grep
+
+| Task | MCP Tool | Grep Fallback |
+|---|---|---|
+| Type info at a symbol | `swift_hover` | Read file + check imports |
+| Find definition | `swift_definition` | `Grep -rnE "(struct\|class\|enum\|protocol\|actor) Name" Sources/` |
+| Find references | `swift_references` | `Grep -rn "Name" Sources/ Tests/` |
+| File outline | `swift_document_symbols` | Read file structure |
+| Compiler errors | `swift_diagnostics` | `swift build` |
+| Rename symbol | `swift_rename` | Multi-file `Grep` + `Edit` + `swift build` |
+| Symbol search | `swift_workspace_symbol` | `Grep -rn "pattern" Sources/` |
+
+### Discovery-First Protocol (fallback when MCP tools are unavailable)
 
 **Phase A — Map the Module Graph (do this once per session)**
 
@@ -52,7 +73,7 @@ SecurityHardeningTests depends on both `SecurityHardening` and `ContainerCompose
 ### Build Rules
 
 - **Always check for running Swift processes before building:** `ps aux | grep -E "swift-build|swift-frontend" | grep -v grep | wc -l` — wait if > 0
-- **Use `swift build` for compilation errors** — this is the ONLY way to get Swift diagnostics
+- **Use `swift build` for definitive compilation errors** — `swift_diagnostics` uses cached results from sourcekit-lsp and may miss issues
 - **Use `./run-tests.sh` for tests** — handles cleanup, logging, port allocation
 - **SwiftPM uses a `.build` lock** — only one build at a time; stale Xcode processes can hang indefinitely
 
