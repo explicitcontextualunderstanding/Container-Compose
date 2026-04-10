@@ -204,6 +204,31 @@ func testGeneratesHexDump() async {
     }
 
     let events = await trace.recentEvents(limit: 1000)
-    XCTAssertEqual(events.count, 1000)
-  }
+XCTAssertEqual(events.count, 1000)
+}
+
+// MARK: - UDS Transport Trace Tests (Plan 88)
+
+func testRecordsUDSTransportEvent() async {
+    // Plan 88: Test that UDS transport events are recorded correctly
+    let socketPath = "/tmp/test-uds-trace.sock"
+
+    await trace.record(.relayStarted(
+        relayId: "uds-relay",
+        port: 5432,
+        path: socketPath
+    ))
+
+    let events = await trace.recentEvents(limit: 10)
+    XCTAssertGreaterThanOrEqual(events.count, 1)
+
+    // Verify the path contains UDS socket
+    let hasUDSEvent = events.contains { event in
+        if case .relayStarted(let id, _, let path) = event {
+            return id == "uds-relay" && path.contains("uds")
+        }
+        return false
+    }
+    XCTAssertTrue(hasUDSEvent, "Should have recorded UDS relay started event")
+}
 }

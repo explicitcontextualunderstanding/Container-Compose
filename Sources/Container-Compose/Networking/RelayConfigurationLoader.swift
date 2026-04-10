@@ -8,33 +8,37 @@ import os.log
 public struct RelayConfigurationLoader {
     private let logger = Logger(subsystem: "com.container-compose.relay", category: "ConfigurationLoader")
     
-    /// Supported relay types for hardware-accelerated IPC
-    public enum SupportedRelayType: String, CaseIterable {
-        case vsockAneEmbedding = "vsock-ane-embedding"
-        case vsockMcpBridge = "vsock-mcp-bridge"
-        case vsockLogStream = "vsock-log-stream"
-        case vsockDb = "vsock-db"
-        case vsockGeneric = "vsock-generic"
-        
-        public var description: String {
-            switch self {
-            case .vsockAneEmbedding: return "ANE Native Embedding Relay"
-            case .vsockMcpBridge: return "MCP Bridge Relay"
-            case .vsockLogStream: return "Log Stream Relay"
-            case .vsockDb: return "Database VSOCK Relay (PostgreSQL/WAL-G)"
-            case .vsockGeneric: return "Generic VSOCK Relay"
-            }
-        }
+/// Supported relay types for hardware-accelerated IPC
+public enum SupportedRelayType: String, CaseIterable {
+	case vsockAneEmbedding = "vsock-ane-embedding"
+	case vsockMcpBridge = "vsock-mcp-bridge"
+	case vsockLogStream = "vsock-log-stream"
+	case vsockDb = "vsock-db"
+	case vsockGeneric = "vsock-generic"
+	case uds = "uds"
+	case udsDb = "uds-db"
+
+	public var description: String {
+		switch self {
+		case .vsockAneEmbedding: return "ANE Native Embedding Relay"
+		case .vsockMcpBridge: return "MCP Bridge Relay"
+		case .vsockLogStream: return "Log Stream Relay"
+		case .vsockDb: return "Database VSOCK Relay (PostgreSQL/WAL-G)"
+		case .vsockGeneric: return "Generic VSOCK Relay"
+		case .uds: return "UDS Relay (Virtio-FS)"
+		case .udsDb: return "UDS Database Relay (PostgreSQL over Virtio-FS)"
+		}
+	}
         
         /// Whether this relay type requires a target service
         public var requiresTarget: Bool {
-            switch self {
-            case .vsockMcpBridge, .vsockLogStream:
-                return true
-            case .vsockAneEmbedding, .vsockDb, .vsockGeneric:
-                return false
-            }
-        }
+switch self {
+	case .vsockMcpBridge, .vsockLogStream:
+		return true
+	case .vsockAneEmbedding, .vsockDb, .vsockGeneric, .uds, .udsDb:
+		return false
+	}
+}
     }
     
     /// Errors during configuration loading
