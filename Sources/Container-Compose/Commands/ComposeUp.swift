@@ -398,16 +398,17 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             "TCP relay in service '\(serviceName)' requires either 'port' or 'target'"
           )
         }
-      case .vsockDb:
-        // vsockDb validated via socket path check
-        break
-      case .uds:
-        break
-      }
+    case .vsockDb:
+      // vsockDb validated via socket path check
+      break
+    case .uds:
+      // UDS validated via socket path check
+      break
     }
   }
+}
 
-  /// Resolves target CID from service name (for relay configuration)
+/// Resolves target CID from service name (for relay configuration)
   private func resolveCID(target: String?, services: [(serviceName: String, service: Service)]) -> UInt32? {
       guard let targetName = target else { return nil }
 
@@ -569,12 +570,13 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
   case .unix:
     // Use specified socket path
     hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
-  case .vsockDb:
-    // Use specified socket path for vsock-db type
-    hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
-  case .uds:
-    hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
-  }
+    case .vsockDb:
+      // Use specified socket path for vsock-db type
+      hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
+    case .uds:
+      // UDS uses specified socket path
+      hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
+    }
 
     // Determine TCP port
     let tcpPort: UInt16
@@ -606,8 +608,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       transport = .tcp(host: "0.0.0.0", port: tcpPort)
     case .unix:
       transport = .unixSocket(path: hostSocketPath)
-  }
-  let config = RelayManager.RelayConfiguration(
+    case .uds:
+      transport = .uds(path: hostSocketPath)
+    }
+    let config = RelayManager.RelayConfiguration(
     id: relayId,
     tcpPort: tcpPort,
     transport: transport,
