@@ -349,4 +349,39 @@ func testValidateUDSSocketPathProduction() async throws {
         XCTAssertTrue(result.isAllowed || result.requiresSO_PEERCRED)
     }
 
+// MARK: - Plan 88 UDS Path-Based Tests
+
+func testUDSPathValidation() async {
+    // Plan 88: UDS uses path-based isolation instead of CID
+    let socketPath = "/Users/test/.containers/Volumes/myproject/sockets/db.sock"
+
+    let result = await validator.validateSocketPath(socketPath)
+
+    XCTAssertTrue(result.isIsolated, "UDS relay should be allowed in Virtio-FS volumes")
+}
+
+func testUDSSocketPathIsolation() async {
+    // Plan 88: Path-based isolation for UDS sockets
+    let validPath = "/Users/test/.containers/Volumes/project-a/sockets/db.sock"
+    let invalidPath = "/tmp/container-shared/test.sock"
+
+    // Valid path within Virtio-FS volume should be isolated (in production config)
+    let prodValidator = HorizontalIsolationValidator(configuration: .production)
+    let validResult = await prodValidator.validateSocketPath(validPath)
+    XCTAssertTrue(validResult.isIsolated, "Path in .containers/Volumes should be isolated")
+
+    // Invalid path outside Virtio-FS should not be isolated (production)
+    let invalidResult = await prodValidator.validateSocketPath(invalidPath)
+    XCTAssertFalse(invalidResult.isIsolated, "Path in /tmp should not be isolated in production")
+}
+
+func testUDSProductionPathValidation() async {
+    // Plan 88: Validate production UDS paths
+    let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+
+    let result = await validator.validateSocketPath(productionPath)
+
+    XCTAssertTrue(result.isIsolated, "Production path should be allowed")
+    XCTAssertLessThan(productionPath.count, 104, "Production path must be under 104 chars")
+}
 }
