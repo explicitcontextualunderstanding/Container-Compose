@@ -335,12 +335,12 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
   ComposeDown.writeStateFile(statePath, state: state)
   print("Info: State file written with \(state.containers.count) container(s), \(state.networks.count) network(s), and \(state.socketRelays.count) socket relay(s).")
 
-        if !detach {
-            await waitForever()
-        }
-    }
+  if !detach {
+    await waitForever()
+  }
+}
 
-  private func waitForever() async -> Never {
+private func waitForever() async -> Never {
     for await _ in AsyncStream<Void>(unfolding: {}) {
       // This will never run
     }

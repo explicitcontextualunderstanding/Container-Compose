@@ -367,42 +367,24 @@ actor RelayManager {
     await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: config.unixSocketPath))
     logger.info("Relay \(config.id) started successfully")
 
-case .vsockDb(let socketPath):
-    // vsockDb is a special case - PostgreSQL creates socket in Virtio-FS
-    logger.info("Starting VSOCK-DB relay \(config.id): TCP:\(config.tcpPort) → vsock-db:\(socketPath)")
+  case .vsockDb(let socketPath):
+    // Plan 88: vsockDb → UDS over Virtio-FS (vSock unavailable in Apple user containers)
+    logger.info("Starting UDS-DB relay \(config.id): TCP:\(config.tcpPort) → UDS:\(socketPath)")
+    logger.info("Note: vSock unavailable — using UDS over Virtio-FS (Plan 88)")
 
-    // Check vsock availability first
-    let availability = checkVsockAvailability()
-    if !availability.isAvailable {
-        logger.warning("Vsock not available: \(availability.errorMessage ?? "unknown"). Falling back to TCP relay.")
-        logger.info("Hint: For Apple Container with TCP/IP, use type: tcp in compose file")
+    // Always use UDSVirtioFSRelay — PostgreSQL creates socket in Virtio-FS
+    let relay = try UDSVirtioFSRelay(
+      socketPath: socketPath,
+      createSignalSocket: false, // PostgreSQL creates the socket
+      eventLog: eventLog
+    )
 
-        // Fall back to TCP relay (SocketRelay)
-        let relay = try await SocketRelay(
-            tcpPort: config.tcpPort,
-            unixPath: socketPath,
-            eventLog: eventLog
-        )
-        relays[config.id] = relay
-        try await relay.start()
-        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "tcp-fallback:\(socketPath)"))
-        logger.info("TCP fallback relay \(config.id) started successfully")
-    } else {
-        let relay = try VsockRelay(
-            cid: 2, // Host CID
-            port: UInt32(config.tcpPort),
-            unixSocketPath: socketPath,
-            createSignalSocket: false, // PostgreSQL creates the socket
-            eventLog: eventLog
-        )
+    relays[config.id] = relay
+    try await relay.start()
 
-        relays[config.id] = relay
-        try await relay.start()
-
-        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock-db:\(socketPath)"))
-        logger.info("VSOCK-DB relay \(config.id) started successfully")
-    }
-}
+    await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "uds-db:\(socketPath)"))
+    logger.info("UDS-DB relay \(config.id) started successfully (Plan 88)")
+  }
     }
 
     /// Stop a specific relay by ID
