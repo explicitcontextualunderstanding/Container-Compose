@@ -132,23 +132,36 @@ public protocol RelayProtocol: Actor {
 
 /// Errors specific to UDS-over-Virtio-FS operations
 enum UDSError: Error, CustomStringConvertible {
-    case socketPathTooLong(path: String, length: Int, limit: Int)
-    case virtioFSNotAvailable
-    case socketBindingFailed(String)
-    case connectionFailed(String)
+  case socketPathTooLong(path: String, length: Int, limit: Int)
+  case virtioFSNotAvailable
+  case socketBindingFailed(String)
+  case connectionFailed(String)
+  // Plan 88: Additional error cases for UDSVirtioFSRelay
+  case socketCreationFailed(errno: Int32, message: String)
+  case socketBindFailed(errno: Int32, message: String)
+  case socketListenFailed(errno: Int32, message: String)
+  case socketTimeout(path: String)
 
-    var description: String {
-        switch self {
-        case .socketPathTooLong(let path, let length, let limit):
-            return "Socket path too long: \(length) chars (limit: \(limit)). Path: \(path). Shorten the project or volume name."
-        case .virtioFSNotAvailable:
-            return "Virtio-FS mount not available: ~/.containers/Volumes not found"
-        case .socketBindingFailed(let reason):
-            return "Failed to bind UDS socket: \(reason)"
-        case .connectionFailed(let reason):
-            return "UDS connection failed: \(reason)"
-        }
+  var description: String {
+    switch self {
+    case .socketPathTooLong(let path, let length, let limit):
+      return "Socket path too long: \(length) chars (limit: \(limit)). Path: \(path). Shorten the project or volume name."
+    case .virtioFSNotAvailable:
+      return "Virtio-FS mount not available: ~/.containers/Volumes not found"
+    case .socketBindingFailed(let reason):
+      return "Failed to bind UDS socket: \(reason)"
+    case .connectionFailed(let reason):
+      return "UDS connection failed: \(reason)"
+    case .socketCreationFailed(let errno, let message):
+      return "Socket creation failed: \(message) (errno: \(errno))"
+    case .socketBindFailed(let errno, let message):
+      return "Socket bind failed: \(message) (errno: \(errno))"
+    case .socketListenFailed(let errno, let message):
+      return "Socket listen failed: \(message) (errno: \(errno))"
+    case .socketTimeout(let path):
+      return "Timeout waiting for socket at: \(path)"
     }
+  }
 }
 
 // MARK: - Vsock Types

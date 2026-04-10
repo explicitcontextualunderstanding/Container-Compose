@@ -335,12 +335,12 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
   ComposeDown.writeStateFile(statePath, state: state)
   print("Info: State file written with \(state.containers.count) container(s), \(state.networks.count) network(s), and \(state.socketRelays.count) socket relay(s).")
 
-  if !detach {
-    await waitForever()
-  }
-}
+        if !detach {
+            await waitForever()
+        }
+    }
 
-private func waitForever() async -> Never {
+  func waitForever() async -> Never {
     for await _ in AsyncStream<Void>(unfolding: {}) {
       // This will never run
     }
@@ -349,8 +349,8 @@ private func waitForever() async -> Never {
 
   // MARK: - Socket Relay Functions
 
-/// Validates relay configurations for CID uniqueness and target existence
-func validateRelayConfigurations(
+  /// Validates relay configurations for CID uniqueness and target existence
+  private func validateRelayConfigurations(
       _ services: [(serviceName: String, service: Service)]
   ) throws {
       var seenCIDs: [UInt32: String] = [:]
@@ -402,13 +402,13 @@ func validateRelayConfigurations(
         // vsockDb validated via socket path check
         break
       case .uds:
-        // UDS validated via socket path check
         break
       }
+    }
   }
 
   /// Resolves target CID from service name (for relay configuration)
-  func resolveCID(target: String?, services: [(serviceName: String, service: Service)]) -> UInt32? {
+  private func resolveCID(target: String?, services: [(serviceName: String, service: Service)]) -> UInt32? {
       guard let targetName = target else { return nil }
 
       // Find the target service and return its CID
@@ -421,7 +421,7 @@ func validateRelayConfigurations(
   }
 
 /// Start socket relays for services with publish_socket, relay, or x-apple-relays configuration
-    func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
+    private func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
         // Validate relay configurations first
         do {
             try validateRelayConfigurations(services)
@@ -546,7 +546,7 @@ func validateRelayConfigurations(
   }
 
   /// Start a relay from declarative YAML configuration (Phase 5)
-  func startDeclarativeRelay(
+  private func startDeclarativeRelay(
       serviceName: String,
       service: Service,
       relay: ServiceRelay,
@@ -573,7 +573,6 @@ func validateRelayConfigurations(
     // Use specified socket path for vsock-db type
     hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
   case .uds:
-    // UDS uses specified socket path
     hostSocketPath = relay.socket ?? RelayConstants.socketPath(for: serviceName, project: projectName).path
   }
 
@@ -607,8 +606,6 @@ func validateRelayConfigurations(
       transport = .tcp(host: "0.0.0.0", port: tcpPort)
     case .unix:
       transport = .unixSocket(path: hostSocketPath)
-    case .uds:
-      transport = .uds(path: hostSocketPath)
   }
   let config = RelayManager.RelayConfiguration(
     id: relayId,
@@ -634,8 +631,8 @@ func validateRelayConfigurations(
         }
     }
 
-/// Start a relay from x-apple-relays configuration (Phase 82: vsock ambient shim)
-func startAppleRelay(
+    /// Start a relay from x-apple-relays configuration (Phase 82: vsock ambient shim)
+    private func startAppleRelay(
         serviceName: String,
         service: Service,
         relayConfig: AppleRelayConfig,
@@ -687,8 +684,8 @@ func startAppleRelay(
         )
     }
 
-/// Find an available TCP port (ephemeral)
-func findAvailablePort() async -> UInt16 {
+    /// Find an available TCP port (ephemeral)
+  private func findAvailablePort() async -> UInt16 {
     // Create a temporary socket to find an available port
     let socket = socket(AF_INET, SOCK_STREAM, 0)
     defer { Darwin.close(socket) }
@@ -724,7 +721,7 @@ func findAvailablePort() async -> UInt16 {
     return assignedAddr.sin_port.bigEndian
   }
 
-  func getIPForContainer(_ containerName: String) async throws -> String? {
+  private func getIPForContainer(_ containerName: String) async throws -> String? {
         let container = try await ClientContainer.get(id: containerName)
         let ip = container.networks.compactMap { $0.ipv4Address.address.description }.first
 
@@ -736,7 +733,7 @@ func findAvailablePort() async -> UInt16 {
     ///   - containerName: The exact name of the container (e.g. "Assignment-Manager-API-db").
     ///   - timeout: Max seconds to wait before failing.
     ///   - interval: How often to poll (in seconds).
-    func waitUntilContainerIsRunning(_ containerName: String, timeout: TimeInterval = 30, interval: TimeInterval = 0.5) async throws {
+    private func waitUntilContainerIsRunning(_ containerName: String, timeout: TimeInterval = 30, interval: TimeInterval = 0.5) async throws {
         let deadline = Date().addingTimeInterval(timeout)
 
         while Date() < deadline {
@@ -768,7 +765,7 @@ func findAvailablePort() async -> UInt16 {
     }
 
     /// Captures the last N lines of container output for debugging failed health checks.
-    func captureContainerLogs(_ containerName: String, lines: Int = 50) async -> String {
+    private func captureContainerLogs(_ containerName: String, lines: Int = 50) async -> String {
         // Use actor to safely collect logs from concurrent callbacks
         actor LogCollector {
             private var output = ""
@@ -790,7 +787,7 @@ func findAvailablePort() async -> UInt16 {
     }
 
     /// Waits for a container to pass its healthcheck by running the healthcheck command inside it.
-    func waitForHealthy(containerName: String, dependencyName: String, healthcheck: Healthcheck) async throws {
+    private func waitForHealthy(containerName: String, dependencyName: String, healthcheck: Healthcheck) async throws {
         guard let test = healthcheck.test, test.first != "NONE" else {
             return // No healthcheck or explicitly disabled
         }
@@ -876,7 +873,7 @@ func findAvailablePort() async -> UInt16 {
     ///   - dependencyName: The service name for logging (e.g. "migrations").
     ///   - timeout: Max seconds to wait before failing.
     ///   - interval: How often to poll (in seconds).
-    func waitForCompletedSuccessfully(
+    private func waitForCompletedSuccessfully(
         containerName: String,
         dependencyName: String,
         timeout: TimeInterval = 300,

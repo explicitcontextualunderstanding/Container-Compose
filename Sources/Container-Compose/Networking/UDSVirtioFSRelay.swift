@@ -36,7 +36,7 @@ public final actor UDSVirtioFSRelay: RelayProtocol {
     ///   - virtioFSMountPath: Optional Virtio-FS mount path
     ///   - createSignalSocket: If true, creates the socket; if false, waits for external socket
     ///   - eventLog: Event logging actor
-    public init(
+    init(
         socketPath: String,
         virtioFSMountPath: String? = nil,
         createSignalSocket: Bool = true,
@@ -231,8 +231,9 @@ public final actor UDSVirtioFSRelay: RelayProtocol {
             return "/run/virtiofs"
         }
         // Check for .containers/Volumes directory
-        let volumesDir = FileManager.default.homeDirectoryForCurrentUser()
-            .appendingPathComponent(".containers/Volumes")
+        let volumesDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".containers")
+            .appendingPathComponent("Volumes")
         if FileManager.default.fileExists(atPath: volumesDir.path) {
             return volumesDir.path
         }
