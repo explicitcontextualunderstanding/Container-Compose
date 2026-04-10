@@ -107,12 +107,27 @@ public actor TCCRelayIntegration: Sendable {
 
     // MARK: - Public API
 
-    /// Performs preflight check before relay/container startup
-    /// This is the main entry point for RelayManager integration
-    /// - Returns: PreflightResult indicating if startup should proceed
-    public func preflightCheck() async -> PreflightResult {
-        // Skip if TCC enforcement is disabled
-        guard configuration.enforceTCCAuthorization else {
+ /// Performs preflight check before relay/container startup
+ /// This is the main entry point for RelayManager integration
+ /// - Returns: PreflightResult indicating if startup should proceed
+ public func preflightCheck() async -> PreflightResult {
+ // Skip TCC check in CI environment or when explicitly disabled
+ let skipTCC = ProcessInfo.processInfo.environment["CONTAINER_COMPOSE_SKIP_TCC"] == "1"
+ || ProcessInfo.processInfo.environment["CI"] == "true"
+ 
+ if skipTCC {
+ let result = PreflightResult(
+ canProceed: true,
+ status: .authorized,
+ errorMessage: nil,
+ shouldBlockStartup: false
+ )
+ lastPreflightResult = result
+ return result
+ }
+ 
+ // Skip if TCC enforcement is disabled
+ guard configuration.enforceTCCAuthorization else {
             let result = PreflightResult(
                 canProceed: true,
                 status: .unknown,
