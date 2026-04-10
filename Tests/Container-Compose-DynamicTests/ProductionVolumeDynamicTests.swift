@@ -25,14 +25,24 @@ final class ProductionVolumeDynamicTests: XCTestCase {
     /// Test timeout for socket operations
     private let socketTimeout: TimeInterval = 30.0
 
-    // MARK: - Test Lifecycle
+  // MARK: - Test Lifecycle
 
-    override func setUp() async throws {
-        try await super.setUp()
-        // Verify production volumes exist
-        let volumesExist = productionVolumeBase.exists
-        XCTAssertTrue(volumesExist, "Production volumes directory must exist at \(productionVolumeBase.path)")
+  /// Skip if vsock is not available on this system
+  private func skipIfVsockUnavailable() throws {
+    let availability = checkVsockAvailability()
+    if !availability.isAvailable {
+      throw XCTSkip("Vsock not available: \(availability.errorMessage ?? "unknown reason")")
     }
+  }
+
+  override func setUp() async throws {
+    try await super.setUp()
+    // Skip tests if vsock unavailable (macOS host without Linux container)
+    try skipIfVsockUnavailable()
+    // Verify production volumes exist
+    let volumesExist = productionVolumeBase.exists
+    XCTAssertTrue(volumesExist, "Production volumes directory must exist at \(productionVolumeBase.path)")
+  }
 
     // MARK: - Phase 3.5: Production Volume Tests
 

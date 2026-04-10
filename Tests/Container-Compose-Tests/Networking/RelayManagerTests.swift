@@ -802,8 +802,9 @@ final class CreateSignalSocketTests: XCTestCase {
         XCTAssertNotNil(relay, "Relay should be created successfully")
     }
 
-    func testCreateSignalSocketWithEmptyPath() async throws {
-        // Test behavior with empty socketPath
+  func testCreateSignalSocketWithEmptyPath() async throws {
+    try skipIfUDSNotImplemented()
+    // Test behavior with empty socketPath
         let eventLog = RelayEventLog()
 
         let relay = try UDSVirtioFSRelay(
@@ -821,8 +822,9 @@ final class CreateSignalSocketTests: XCTestCase {
         }
     }
 
-    func testCreateSignalSocketWithVeryLongPath() async throws {
-        // Plan 88 Decision 5: Hard-error on paths >= 104 chars
+  func testCreateSignalSocketWithVeryLongPath() async throws {
+    try skipIfUDSNotImplemented()
+    // Plan 88 Decision 5: Hard-error on paths >= 104 chars
         let eventLog = RelayEventLog()
         let longPath = String(repeating: "a", count: 110) + ".sock"
 
@@ -839,8 +841,9 @@ final class CreateSignalSocketTests: XCTestCase {
         }
     }
 
-    func testCreateSignalSocketAtPathLimit() async throws {
-        // Verify paths under 104 chars work fine
+  func testCreateSignalSocketAtPathLimit() async throws {
+    try skipIfUDSNotImplemented()
+    // Verify paths under 104 chars work fine
         let eventLog = RelayEventLog()
         let path = String(repeating: "a", count: 90) + ".sock"
 

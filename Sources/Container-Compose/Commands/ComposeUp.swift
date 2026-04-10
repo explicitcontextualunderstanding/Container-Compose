@@ -340,7 +340,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
     }
 
-  func waitForever() async -> Never {
+  private func waitForever() async -> Never {
     for await _ in AsyncStream<Void>(unfolding: {}) {
       // This will never run
     }
@@ -349,8 +349,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
   // MARK: - Socket Relay Functions
 
-  /// Validates relay configurations for CID uniqueness and target existence
-  private func validateRelayConfigurations(
+/// Validates relay configurations for CID uniqueness and target existence
+func validateRelayConfigurations(
       _ services: [(serviceName: String, service: Service)]
   ) throws {
       var seenCIDs: [UInt32: String] = [:]
@@ -408,7 +408,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
   }
 
   /// Resolves target CID from service name (for relay configuration)
-  private func resolveCID(target: String?, services: [(serviceName: String, service: Service)]) -> UInt32? {
+  func resolveCID(target: String?, services: [(serviceName: String, service: Service)]) -> UInt32? {
       guard let targetName = target else { return nil }
 
       // Find the target service and return its CID
@@ -421,7 +421,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
   }
 
 /// Start socket relays for services with publish_socket, relay, or x-apple-relays configuration
-    private func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
+    func startSocketRelays(for services: [(serviceName: String, service: Service)]) async -> [ComposeDown.SocketRelayState] {
         // Validate relay configurations first
         do {
             try validateRelayConfigurations(services)
@@ -546,7 +546,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
   }
 
   /// Start a relay from declarative YAML configuration (Phase 5)
-  private func startDeclarativeRelay(
+  func startDeclarativeRelay(
       serviceName: String,
       service: Service,
       relay: ServiceRelay,
