@@ -738,7 +738,8 @@ final class PeerVerificationTests: XCTestCase {
 @available(macOS 12.0, *)
 final class CreateSignalSocketTests: XCTestCase {
 
-  /// Skip if UDSVirtioFSRelay is not fully implemented (stub)
+  // Note: Tests migrated from VsockRelay to UDSVirtioFSRelay (Plan 88)
+  // UDSVirtioFSRelay is fully implemented - no skips needed
 
   func testCreateSignalSocketTruePreservesBehavior() async throws {
     
