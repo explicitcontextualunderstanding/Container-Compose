@@ -156,13 +156,15 @@ struct SecretsMountManagerTests {
       cleanup: .immediate
     )
 
-    let options = await manager.buildMountOptions(config: config)
+let options = await manager.buildMountOptions(config: config)
 
-    #expect(options.contains("size=1m"))
-    #expect(options.contains("mode=0400"))
-    #expect(options.contains("noexec"))
-    #expect(options.contains("nosuid"))
-  }
+	#if os(Linux)
+	#expect(options.contains("size=1m"))
+	#endif
+	#expect(options.contains("mode=0400"))
+	#expect(options.contains("noexec"))
+	#expect(options.contains("nosuid"))
+}
 
   @Test("Build mount options without noexec")
   func buildMountOptionsWithoutNoexec() async {
@@ -178,12 +180,14 @@ struct SecretsMountManagerTests {
       cleanup: .immediate
     )
 
-    let options = await manager.buildMountOptions(config: config)
+let options = await manager.buildMountOptions(config: config)
 
-    #expect(options.contains("size=1m"))
-    #expect(!options.contains("noexec"))
-    #expect(options.contains("nosuid"))
-  }
+	#if os(Linux)
+	#expect(options.contains("size=1m"))
+	#endif
+	#expect(!options.contains("noexec"))
+	#expect(options.contains("nosuid"))
+}
 
   @Test("Build mount options without nosuid")
   func buildMountOptionsWithoutNosuid() async {
@@ -199,12 +203,14 @@ struct SecretsMountManagerTests {
       cleanup: .immediate
     )
 
-    let options = await manager.buildMountOptions(config: config)
+let options = await manager.buildMountOptions(config: config)
 
-    #expect(options.contains("size=1m"))
-    #expect(options.contains("noexec"))
-    #expect(!options.contains("nosuid"))
-  }
+	#if os(Linux)
+	#expect(options.contains("size=1m"))
+	#endif
+	#expect(options.contains("noexec"))
+	#expect(!options.contains("nosuid"))
+}
 
   // MARK: - Error Handling Tests
 
