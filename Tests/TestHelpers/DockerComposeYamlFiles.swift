@@ -492,20 +492,19 @@ public struct DockerComposeYamlFiles {
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
         x-apple-relays:
-          - type: vsock-db
-            port: 5432
-        command:
-          - postgres
-          - -c
-          - listen_addresses=*
-    """
-}
+  - type: vsock-db
+    port: 5432
+  command:
+    - postgres
+    - -c
+    - listen_addresses=*
+  """
 
-    // MARK: - UDS Relay Test Fixtures (Plan 88)
+  // MARK: - UDS Relay Test Fixtures (Plan 88)
 
-    /// Test fixture for UDS relay with socket_path configuration
-    /// Migrated from vsock-db to UDS-over-Virtio-FS
-    public static let udsDbRelayYaml = """
+  /// Test fixture for UDS relay with socket_path configuration
+  /// Migrated from vsock-db to UDS-over-Virtio-FS
+  public static let udsDbRelayYaml = """
 name: uds-relay-test
 services:
   db:

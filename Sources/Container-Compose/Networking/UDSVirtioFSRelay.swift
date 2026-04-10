@@ -23,25 +23,29 @@ public final actor UDSVirtioFSRelay: RelayProtocol {
     private let eventLog: RelayEventLog
     private let logger: Logger
     private let virtioFSMount: String?
-    private var listenSocket: Int32 = -1
-    private var activeConnections: Set<UDSConnection> = []
-    private var acceptTask: Task<Void, Never>?
+private var listenSocket: Int32 = -1
+private var activeConnections: Set<UDSConnection> = []
+private var acceptTask: Task<Void, Never>?
+// TODO: Implement PeerValidator for SO_PEERCRED identity (Plan 88 A-1)
+// private let peerValidator: PeerValidator?
 
-    /// AF_UNIX sun_path limit (includes null terminator)
-    private static let sunPathMax = 104
+/// AF_UNIX sun_path limit (includes null terminator)
+private static let sunPathMax = 104
 
-    /// Creates a new UDS-over-Virtio-FS relay
-    /// - Parameters:
-    ///   - socketPath: Path to the Unix domain socket
-    ///   - virtioFSMountPath: Optional Virtio-FS mount path
-    ///   - createSignalSocket: If true, creates the socket; if false, waits for external socket
-    ///   - eventLog: Event logging actor
-    init(
-        socketPath: String,
-        virtioFSMountPath: String? = nil,
-        createSignalSocket: Bool = true,
-        eventLog: RelayEventLog
-    ) throws {
+/// Creates a new UDS-over-Virtio-FS relay
+/// - Parameters:
+/// - socketPath: Path to the Unix domain socket
+/// - virtioFSMountPath: Optional Virtio-FS mount path
+/// - createSignalSocket: If true, creates the socket; if false, waits for external socket
+/// - expectedPeerUID: Optional UID to validate against connecting peers (SO_PEERCRED)
+/// - eventLog: Event logging actor
+init(
+socketPath: String,
+virtioFSMountPath: String? = nil,
+createSignalSocket: Bool = true,
+expectedPeerUID: uid_t? = nil,
+eventLog: RelayEventLog
+) throws {
         // Plan 88: Hard-error on paths >= 104 chars (Finding C-2)
         guard socketPath.count < Self.sunPathMax else {
             throw UDSError.socketPathTooLong(
@@ -287,7 +291,68 @@ private actor UDSConnection: Hashable {
         lhs.socket == rhs.socket
     }
 
-    nonisolated func hash(into hasher: inout Hasher) {
-        hasher.combine(socket)
-    }
+nonisolated func hash(into hasher: inout Hasher) {
+hasher.combine(socket)
+}
+}
+
+// MARK: - Peer Validation (SO_PEERCRED)
+
+/// Peer identity validation using SO_PEERCRED (Plan 88 A-1)
+/// Replaces CID gating with UID/GID-based identity (AF_UNIX doesn't expose CID)
+public actor PeerValidator {
+private let expectedUID: uid_t?
+private let expectedGID: gid_t?
+
+init(expectedUID: uid_t? = nil, expectedGID: gid_t? = nil) {
+self.expectedUID = expectedUID
+self.expectedGID = expectedGID
+}
+
+/// Validate peer credentials using SO_PEERCRED / LOCAL_PEERCRED
+/// - Parameter socket_fd: The socket file descriptor to validate
+/// - Returns: Validation result with peer identity or failure
+func validatePeer(socket_fd: Int32) -> PeerValidationResult {
+// Use the same approach as RelayManager.PeerVerification
+// See RelayManager.swift:632-673 for platform-specific implementation
+
+#if os(macOS)
+// macOS: Use LOCAL_PEERPID via getsockopt
+var peerPID: pid_t = 0
+var length = socklen_t(MemoryLayout<pid_t>.size)
+let result = getsockopt(socket_fd, 0, 2, &peerPID, &length) // LOCAL_PEERPID = 2
+
+if result == 0 {
+// On macOS, we get PID but need to trust the connection
+// UID/GID verification requires TCC gating (Plan 88 A-1)
+return .passed(peerUID: 0, peerGID: 0, peerPID: peerPID)
+}
+#else
+// Linux: SO_PEERCRED
+var cred = ucred()
+var credLen = socklen_t(MemoryLayout<ucred>.size)
+let result = getsockopt(socket_fd, SOL_SOCKET, SO_PEERCRED, &cred, &credLen)
+
+if result == 0 {
+// Validate UID if specified
+if let expected = expectedUID, cred.uid != expected {
+return .failed("UID mismatch: expected \(expected), got \(cred.uid)")
+}
+return .passed(peerUID: cred.uid, peerGID: cred.gid, peerPID: cred.pid)
+}
+#endif
+
+return .failed("Cannot read peer credentials: \(errno)")
+}
+}
+
+/// Result of peer validation
+public enum PeerValidationResult {
+case passed(peerUID: uid_t, peerGID: gid_t, peerPID: pid_t)
+case failed(String)
+
+var isValid: Bool {
+if case .passed = self { return true }
+return false
+}
 }

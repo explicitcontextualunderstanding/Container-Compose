@@ -132,6 +132,10 @@ private let SUNPATH_MAX = 104
 /// - Host (macOS) creates an AF_VSOCK socket
 /// - Guest VMs connect to the host using vsock protocol
 /// - This relay bridges vsock connections to Unix sockets for container communication
+///
+/// - Note: Deprecated in Plan 88. Use `UDSVirtioFSRelay` instead.
+///   `/dev/vsock` is blocked by Apple in user containers (macOS 26+).
+@available(*, deprecated, message: "Use UDSVirtioFSRelay — /dev/vsock blocked by Apple in user containers")
 public final actor VsockRelay: RelayProtocol {
     public let transportType: RelayTransport
     public var isRunning: Bool { isRunningValue }

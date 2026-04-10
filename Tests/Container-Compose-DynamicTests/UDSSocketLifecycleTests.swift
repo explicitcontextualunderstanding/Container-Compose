@@ -213,36 +213,3 @@ struct UDSSocketLifecycleTests {
         }
     }
 }
-
-extension ContainerPollingHelpers {
-    static func pollForContainer(
-        projectName: String,
-        serviceName: String,
-        timeout: TimeInterval
-    ) async throws -> ClientContainer? {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            let containers = try await ClientContainer.list()
-                .filter { $0.configuration.id == "\(projectName)-\(serviceName)" }
-
-            if let container = containers.first, container.status == .running {
-                return container
-            }
-            try await Task.sleep(nanoseconds: 500_000_000)
-        }
-        return nil
-    }
-
-    static func pollForFile(path: URL, timeout: TimeInterval) async throws -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if path.exists { return true }
-            try await Task.sleep(nanoseconds: 500_000_000)
-        }
-        return false
-    }
-}
-
-private extension URL {
-    var exists: Bool { FileManager.default.fileExists(atPath: self.path) }
-}

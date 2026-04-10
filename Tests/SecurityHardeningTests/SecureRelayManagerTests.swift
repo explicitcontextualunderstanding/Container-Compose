@@ -26,7 +26,7 @@ final class SecureRelayManagerTests: XCTestCase {
     func testProductionConfiguration() {
         let config = SecureRelayManager.Configuration.production
         XCTAssertTrue(config.tccConfig.enforceTCCAuthorization)
-        XCTAssertTrue(config.amfiConfig.enforceAMFIGating)
+        XCTAssertTrue(config.amfiConfig.enforceAMFIValidation)
         XCTAssertTrue(config.isolationConfig.enforceHorizontalIsolation)
         XCTAssertTrue(config.logSecurityEvents)
     }
@@ -34,7 +34,7 @@ final class SecureRelayManagerTests: XCTestCase {
     func testDevelopmentConfiguration() {
         let config = SecureRelayManager.Configuration.development
         XCTAssertFalse(config.tccConfig.enforceTCCAuthorization)
-        XCTAssertFalse(config.amfiConfig.enforceAMFIGating)
+        XCTAssertFalse(config.amfiConfig.enforceAMFIValidation)
         XCTAssertFalse(config.isolationConfig.enforceHorizontalIsolation)
         XCTAssertTrue(config.logSecurityEvents)
     }
