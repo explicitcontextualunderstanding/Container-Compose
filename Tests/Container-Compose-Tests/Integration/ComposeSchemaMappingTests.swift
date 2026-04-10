@@ -284,7 +284,33 @@ services:
 
         // Should NOT throw missingTarget error
         let loadedRelays = try loader.loadRelays(from: services)
-        XCTAssertEqual(loadedRelays.count, 1)
-        XCTAssertNil(loadedRelays[0].target)
+XCTAssertEqual(loadedRelays.count, 1)
+    XCTAssertNil(loadedRelays[0].target)
+}
+
+func testUDSRelayTypeInComposeSchema() throws {
+    // Plan 88: Test that 'type: uds' can be parsed from compose YAML
+    // This tests the transparent mapping decision (Decision 3)
+    let yamlString = """
+services:
+  db:
+    image: postgres:15
+    x-apple-relays:
+    - type: "uds"
+      port: 5432
+      socket_path: "/tmp/test-uds.sock"
+"""
+
+    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
+    let loader = RelayConfigurationLoader()
+
+    let services: [(serviceName: String, service: Service)] = dockerCompose.services.compactMap { name, service in
+        guard let service = service else { return nil }
+        return (name, service)
     }
+
+    // This will fail until SupportedRelayType has .uds case - TDD workflow
+    let loadedRelays = try loader.loadRelays(from: services)
+    XCTAssertEqual(loadedRelays.count, 1, "Should load UDS relay from YAML")
+}
 }
