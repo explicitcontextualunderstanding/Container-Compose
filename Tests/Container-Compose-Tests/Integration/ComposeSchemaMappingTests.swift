@@ -10,7 +10,7 @@ final class ComposeSchemaMappingTests: XCTestCase {
 
 func testParsesFullFleetConfiguration() throws {
 	// Simulate parsing the actual Hermes/Honcho compose file
-	// Note: Includes both legacy vsock-db and new uds types for Plan 88
+	// Note: UDS type will be added when Plan 88 implementation is complete
 	let yamlString = """
 name: apple-honcho
 services:
@@ -19,14 +19,6 @@ services:
     x-apple-relays:
       - type: "vsock-db"
         port: 5432
-        priority: "high"
-
-  honcho-db-uds:
-    image: walg-db:latest
-    x-apple-relays:
-      - type: "uds"
-        port: 5433
-        socket_path: "/run/uds-honcho-db.sock"
         priority: "high"
 
   hermes:

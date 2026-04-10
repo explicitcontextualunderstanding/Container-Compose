@@ -128,7 +128,7 @@ struct VsockSocketLifecycleTests {
         .appendingPathComponent(".containers/Volumes/\(projectName)/db-sockets/.s.PGSQL.5432")
 
       _ = try await ContainerPollingHelpers.pollForFile(path: socketPath, timeout: 10)
-      #expect(socketPath.exists, "Socket should exist while container runs")
+      #expect(socketPath.socketExists, "Socket should exist while container runs")
 
       // Stop container
       var composeDown = ComposeDown()
@@ -238,7 +238,7 @@ struct VsockSocketLifecycleTests {
 
       // Simulate relay restart (if possible) or just check persistence
       try await Task.sleep(nanoseconds: 2_000_000_000)
-      #expect(socketPath.exists, "Socket should persist")
+      #expect(socketPath.socketExists, "Socket should persist")
     }
   }
 
@@ -320,7 +320,7 @@ extension ContainerPollingHelpers {
   ) async throws -> Bool {
     let deadline = Date().addingTimeInterval(timeout)
     while Date() < deadline {
-      if path.exists {
+      if path.socketExists {
         return true
       }
       try await Task.sleep(nanoseconds: 500_000_000)
@@ -332,7 +332,7 @@ extension ContainerPollingHelpers {
 // MARK: - URL Extension
 
 private extension URL {
-var exists: Bool {
+var socketExists: Bool {
 FileManager.default.fileExists(atPath: self.path)
 }
 }
