@@ -1291,10 +1291,13 @@ if let secretsConfig = service.x_apple_secrets,
     // Get enclave path from global config or default to ~/.enclave
     let enclavePath = dockerCompose.xAppleSecretsGlobal?.enclave
         ?? (NSHomeDirectory() + "/.enclave")
-    let fileManager = FileManager.default
-    guard fileManager.fileExists(atPath: enclavePath) else {
-        print("Warning: Enclave not found at \(enclavePath) for service \(serviceName). Skipping secrets.".yellow)
-    } else {
+let fileManager = FileManager.default
+guard fileManager.fileExists(atPath: enclavePath) else {
+print("Warning: Enclave not found at \(enclavePath) for service \(serviceName). Skipping secrets.".yellow)
+return
+}
+
+// Process secrets from enclave
         do {
             let allFiles = try fileManager.contentsOfDirectory(atPath: enclavePath)
             for fileName in allFiles {
