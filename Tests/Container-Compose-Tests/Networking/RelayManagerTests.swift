@@ -908,6 +908,22 @@ func testUDSWithVirtioFSMountPath() async throws {
         XCTFail("Transport should be UDS")
     }
 }
+
+func testUDSErrorDescriptions() {
+    // Plan 88: Verify UDS error descriptions are informative
+    let pathTooLong = UDSError.socketPathTooLong(path: "/tmp/verylongpath.sock", length: 110, limit: 104)
+    XCTAssertTrue(pathTooLong.description.contains("too long"))
+    XCTAssertTrue(pathTooLong.description.contains("110"))
+    XCTAssertTrue(pathTooLong.description.contains("104"))
+
+    let creationFailed = UDSError.socketCreationFailed(errno: 13, message: "Permission denied")
+    XCTAssertTrue(creationFailed.description.contains("creation failed"))
+    XCTAssertTrue(creationFailed.description.contains("Permission denied"))
+
+    let bindFailed = UDSError.socketBindFailed(errno: 98, message: "Address already in use")
+    XCTAssertTrue(bindFailed.description.contains("bind failed"))
+    XCTAssertTrue(bindFailed.description.contains("Address already in use"))
+}
 }
 
 // MARK: - Virtio-FS Detection Tests (Plan 84)
