@@ -130,8 +130,7 @@ check_stale_lock_files() {
         echo " These can cause 'invalid access' errors during build."
         echo ""
 
-        echo "DEBUG: AUTO_CLEAN='$AUTO_CLEAN'"
-if [ "$AUTO_CLEAN" = true ]; then
+        if [ "$AUTO_CLEAN" = true ]; then
             should_clean=true
         else
             echo "Remove stale lock files? [Y/n] "

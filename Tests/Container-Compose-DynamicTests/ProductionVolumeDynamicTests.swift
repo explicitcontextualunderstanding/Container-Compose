@@ -27,7 +27,7 @@ final class ProductionVolumeDynamicTests: XCTestCase {
 
   // MARK: - Test Lifecycle
 
-  /// Skip if vsock is not available on this system
+  /// Skip if UDS is not available on this system
   private func skipIfVsockUnavailable() throws {
     let availability = checkVsockAvailability()
     if !availability.isAvailable {
@@ -37,7 +37,7 @@ final class ProductionVolumeDynamicTests: XCTestCase {
 
   override func setUp() async throws {
     try await super.setUp()
-    // Skip tests if vsock unavailable (macOS host without Linux container)
+    // Skip tests if UDS unavailable (macOS host without Linux container)
     try skipIfVsockUnavailable()
     // Verify production volumes exist
     let volumesExist = productionVolumeBase.exists
@@ -47,7 +47,7 @@ final class ProductionVolumeDynamicTests: XCTestCase {
     // MARK: - Phase 3.5: Production Volume Tests
 
     /// Test 1: Verify socket creation in production volume path
-    /// Validates that VsockRelay can create sockets in real production volumes
+    /// Validates that UDSVirtioFSRelay can create sockets in real production volumes
     func testSocketCreationInProductionVolume() async throws {
         // Use apple-honcho production volume
         let productionSocketPath = productionVolumeBase
@@ -57,9 +57,9 @@ final class ProductionVolumeDynamicTests: XCTestCase {
         let parentDir = productionSocketPath.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
 
-        // Create VsockRelay with production volume socket path
+        // Create UDSVirtioFSRelay with production volume socket path
         let eventLog = RelayEventLog()
-        let relay = try VsockRelay(
+        let relay = try UDSVirtioFSRelay(
             cid: 2,
             port: 5432,
             unixSocketPath: productionSocketPath.path,
@@ -69,10 +69,10 @@ final class ProductionVolumeDynamicTests: XCTestCase {
 
         // Verify relay was created with correct path
         let transport = await relay.transportType
-        if case .vsock(_, _, let path) = transport {
+        if case .uds(_, _, let path) = transport {
             XCTAssertEqual(path, productionSocketPath.path, "Socket path should match production volume path")
         } else {
-            XCTFail("Transport type should be vsock")
+            XCTFail("Transport type should be UDS")
         }
 
         // Clean up test socket directory
@@ -152,7 +152,7 @@ final class ProductionVolumeDynamicTests: XCTestCase {
 
         // Create first relay
         let eventLog1 = RelayEventLog()
-        let relay1 = try VsockRelay(
+        let relay1 = try UDSVirtioFSRelay(
             cid: 2,
             port: 5432,
             unixSocketPath: socketPath.path,
@@ -162,8 +162,8 @@ final class ProductionVolumeDynamicTests: XCTestCase {
 
         // Get transport info from first relay
         let transport1 = await relay1.transportType
-        guard case .vsock(let cid1, let port1, let path1) = transport1 else {
-            XCTFail("First relay should be vsock transport")
+        guard case .uds(let cid1, let port1, let path1) = transport1 else {
+            XCTFail("First relay should be UDS transport")
             return
         }
 
@@ -173,7 +173,7 @@ final class ProductionVolumeDynamicTests: XCTestCase {
 
         // Simulate relay restart by creating new relay with same path
         let eventLog2 = RelayEventLog()
-        let relay2 = try VsockRelay(
+        let relay2 = try UDSVirtioFSRelay(
             cid: 2,
             port: 5432,
             unixSocketPath: socketPath.path,
@@ -183,8 +183,8 @@ final class ProductionVolumeDynamicTests: XCTestCase {
 
         // Verify second relay has same configuration
         let transport2 = await relay2.transportType
-        guard case .vsock(let cid2, let port2, let path2) = transport2 else {
-            XCTFail("Second relay should be vsock transport")
+        guard case .uds(let cid2, let port2, let path2) = transport2 else {
+            XCTFail("Second relay should be UDS transport")
             return
         }
 
@@ -244,9 +244,9 @@ final class ProductionVolumeDynamicTests: XCTestCase {
         let isWritable = FileManager.default.isWritableFile(atPath: testDir.path)
         XCTAssertTrue(isWritable, "Test directory should be writable")
 
-        // Create VsockRelay (doesn't actually create socket file during init)
+        // Create UDSVirtioFSRelay (doesn't actually create socket file during init)
         let eventLog = RelayEventLog()
-        let relay = try VsockRelay(
+        let relay = try UDSVirtioFSRelay(
             cid: 2,
             port: 5432,
             unixSocketPath: socketPath.path,

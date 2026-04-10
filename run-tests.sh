@@ -36,6 +36,13 @@ echo ""
 [ -n "$_ENV_SETUP_SUMMARY" ] && echo " Env: $_ENV_SETUP_SUMMARY"
 
 # Check for stale lock files in temp directory
+AUTO_CLEAN=false
+for arg in "$@"; do
+    if [[ "$arg" == "--auto-clean" ]]; then
+        AUTO_CLEAN=true
+        break
+    fi
+done
 check_stale_lock_files
 
 # Check for root-owned files in .build if not running as root
