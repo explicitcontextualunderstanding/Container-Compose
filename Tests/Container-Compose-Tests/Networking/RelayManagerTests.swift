@@ -856,17 +856,17 @@ XCTAssertNotNil(relay, "Relay should be created for path under 104 chars")
 }
 
 func testSocketPathLengthMargins() async throws {
-    // Plan 88 Finding C-2: Verify margin calculations for production paths
-    let basePath = "/Users/kieranlal/.containers/Volumes/"
-    let remaining = 104 - basePath.count
+	// Plan 88 Finding C-2: Verify margin calculations for production paths
+	let basePath = "/Users/kieranlal/.containers/Volumes/"
+	let remaining = 104 - basePath.count
 
-    XCTAssertGreaterThanOrEqual(remaining, 40, "Sufficient margin for project names")
-
-    // Production path is 88 chars, has 16-char margin
-    let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
-    XCTAssertEqual(productionPath.count, 88, "Production path length known")
-    XCTAssertLessThan(productionPath.count, 104, "Production socket path must be under AF_UNIX limit")
-    XCTAssertEqual(104 - productionPath.count, 16, "Production path has 16-char margin")
+	XCTAssertGreaterThanOrEqual(remaining, 40, "Sufficient margin for project names")
+	// Production path is ~81 chars, has ~23-char margin
+	let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+	let actualCount = productionPath.count
+	XCTAssertLessThan(actualCount, 104, "Production socket path must be under AF_UNIX limit")
+	let margin = 104 - actualCount
+	XCTAssertGreaterThanOrEqual(margin, 16, "Production path should have at least 16-char margin, had \(margin)")
 }
 }
 

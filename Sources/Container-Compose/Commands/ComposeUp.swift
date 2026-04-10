@@ -647,28 +647,32 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     // vsock-db is a special case (PostgreSQL socket), vsock-* maps to .vsock
     let transportType: RelayTransport.TransportType
 
-    switch relayConfig.type {
-    case "vsock-db":
-        transportType = .vsockDb
-    case "vsock":
-        transportType = .vsock
-    case "tcp":
-        transportType = .tcp
-    case "unix":
-        transportType = .unix
-    default:
-        // Handle types like "vsock-xyz" - extract prefix
-        if relayConfig.type.hasPrefix("vsock-") {
+        switch relayConfig.type {
+        case "vsock-db":
+            transportType = .vsockDb
+        case "vsock":
             transportType = .vsock
-        } else if relayConfig.type.hasPrefix("tcp-") {
+        case "tcp":
             transportType = .tcp
-        } else if relayConfig.type.hasPrefix("unix-") {
+        case "unix":
             transportType = .unix
-        } else {
-            print("⚠️ Unsupported relay type '\(relayConfig.type)' for service \(serviceName)")
-            return nil
+        case "uds":
+            transportType = .uds
+        default:
+            // Handle types like "vsock-xyz" - extract prefix
+            if relayConfig.type.hasPrefix("vsock-") {
+                transportType = .vsock
+            } else if relayConfig.type.hasPrefix("tcp-") {
+                transportType = .tcp
+            } else if relayConfig.type.hasPrefix("unix-") {
+                transportType = .unix
+            } else if relayConfig.type.hasPrefix("uds-") {
+                transportType = .uds
+            } else {
+                print("⚠️ Unsupported relay type '\(relayConfig.type)' for service \(serviceName)")
+                return nil
+            }
         }
-    }
 
         let relay = ServiceRelay(
             transport: transportType,
