@@ -338,15 +338,22 @@ final class SecretsMountIntegrationTests: XCTestCase {
 
   // MARK: - Performance Tests
 
-  func testMountManySecretsPerformance() async throws {
-    // Create many secrets
-    for i in 0..<50 {
-      try? "secret-value-\(i)".write(
-        toFile: "\(mockEnclavePath!)/secret_\(i).txt",
-        atomically: true,
-        encoding: .utf8
-      )
-    }
+func testMountManySecretsPerformance() async throws {
+// Clear existing secrets first for clean state
+if let contents = try? FileManager.default.contentsOfDirectory(atPath: mockEnclavePath) {
+for file in contents {
+try? FileManager.default.removeItem(atPath: "\(mockEnclavePath!)/\(file)")
+}
+}
+
+// Create many secrets
+for i in 0..<50 {
+try? "secret-value-\(i)".write(
+toFile: "\(mockEnclavePath!)/secret_\(i).txt",
+atomically: true,
+encoding: .utf8
+)
+}
 
     let config = XAppleSecretsConfig(
       mount: "/run/secrets",

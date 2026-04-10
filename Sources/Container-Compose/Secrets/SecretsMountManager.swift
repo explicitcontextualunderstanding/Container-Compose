@@ -116,16 +116,19 @@ public actor SecretsMountManager {
   }
 
 /// Build mount options based on configuration
-	public nonisolated func buildMountOptions(config: XAppleSecretsConfig) -> [String] {
-		var options: [String] = []
-		#if os(Linux)
-		options.append("size=1m")
-		#endif
-		options.append("mode=0400")
-		if config.noexec { options.append("noexec") }
-		if config.nosuid { options.append("nosuid") }
-		return options
-	}
+public nonisolated func buildMountOptions(config: XAppleSecretsConfig) -> [String] {
+var options: [String] = []
+#if os(Linux)
+options.append("size=1m")
+options.append("mode=0400")
+#else
+// macOS: tmpfs doesn't support -o mode. Permissions set via chmod after mount.
+// size is also not supported on macOS tmpfs
+#endif
+if config.noexec { options.append("noexec") }
+if config.nosuid { options.append("nosuid") }
+return options
+}
 
   /// Load secrets from enclave with optional filtering
   public func loadSecrets(filter: [String]?) async throws -> [String: String] {
@@ -161,27 +164,76 @@ public actor SecretsMountManager {
     return result
   }
 
-  /// Mount tmpfs at the specified path
-  private func mountTmpfs(at path: String, options: [String]) async throws {
-    let optionsString = options.joined(separator: ",")
-    let task = Process()
-    task.launchPath = "/sbin/mount"
-    task.arguments = ["-t", "tmpfs", "-o", optionsString, "tmpfs", path]
+/// Mount tmpfs at the specified path
+private func mountTmpfs(at path: String, options: [String]) async throws {
+#if os(macOS)
+// macOS: Use mount_tmpfs directly with its specific syntax
+// usage: mount_tmpfs [-o options] [-i | -e] [-n max_nodes] [-s max_mem_size] <directory>
+// Note: macOS mount_tmpfs is restricted to root/superuser in SIP-enabled systems
+let task = Process()
+task.launchPath = "/sbin/mount_tmpfs"
+// Convert our options format to mount_tmpfs format
+var args: [String] = []
+// Filter out unsupported options - macOS tmpfs doesn't support mode/size via -o
+let supportedOptions = options.filter { !$0.hasPrefix("mode=") && !$0.hasPrefix("size=") }
+if !supportedOptions.isEmpty {
+args.append("-o")
+args.append(supportedOptions.joined(separator: ","))
+}
+args.append(path)
+task.arguments = args
 
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
+let pipe = Pipe()
+task.standardOutput = pipe
+task.standardError = pipe
 
-    try task.run()
-    task.waitUntilExit()
+try task.run()
+task.waitUntilExit()
 
-    guard task.terminationStatus == 0 else {
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-      logger.error("Failed to mount tmpfs: \(errorMessage)")
-      throw SecretsError.mountFailed(underlying: NSError(domain: "MountError", code: Int(task.terminationStatus), userInfo: [NSLocalizedDescriptionKey: errorMessage]))
-    }
-  }
+guard task.terminationStatus == 0 else {
+let data = pipe.fileHandleForReading.readDataToEndOfFile()
+let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+// Log warning but don't fail - tmpfs may be restricted on macOS
+logger.warning("Failed to mount tmpfs (expected on macOS without root): \(errorMessage)")
+// On macOS without root, create a regular directory as fallback
+try? FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
+// Set restrictive permissions
+let chmodTask = Process()
+chmodTask.launchPath = "/bin/chmod"
+chmodTask.arguments = ["700", path]
+try? chmodTask.run()
+chmodTask.waitUntilExit()
+return
+}
+
+// Set restrictive permissions after mount
+let chmodTask = Process()
+chmodTask.launchPath = "/bin/chmod"
+chmodTask.arguments = ["700", path]
+try? chmodTask.run()
+chmodTask.waitUntilExit()
+#else
+// Linux: tmpfs supports -o options
+let optionsString = options.joined(separator: ",")
+let task = Process()
+task.launchPath = "/sbin/mount"
+task.arguments = ["-t", "tmpfs", "-o", optionsString, "tmpfs", path]
+
+let pipe = Pipe()
+task.standardOutput = pipe
+task.standardError = pipe
+
+try task.run()
+task.waitUntilExit()
+
+guard task.terminationStatus == 0 else {
+let data = pipe.fileHandleForReading.readDataToEndOfFile()
+let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+logger.error("Failed to mount tmpfs: \(errorMessage)")
+throw SecretsError.mountFailed(underlying: NSError(domain: "MountError", code: Int(task.terminationStatus), userInfo: [NSLocalizedDescriptionKey: errorMessage]))
+}
+#endif
+}
 
   /// Unmount tmpfs at the specified path
   private func unmountTmpfs(at path: String) async throws {

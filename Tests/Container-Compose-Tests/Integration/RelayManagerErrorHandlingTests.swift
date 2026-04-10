@@ -16,11 +16,12 @@ final class RelayManagerErrorHandlingTests: XCTestCase {
   var eventLog: RelayEventLog!
   var relayManager: RelayManager!
 
-  override func setUp() {
-    super.setUp()
-    eventLog = RelayEventLog()
-    relayManager = RelayManager(eventLog: eventLog)
-  }
+override func setUp() {
+        super.setUp()
+        eventLog = RelayEventLog()
+        // Disable security gates for tests - TCC preflight requires entitlements not available in test environment
+        relayManager = RelayManager(eventLog: eventLog, enableSecurity: false)
+    }
 
   override func tearDown() async throws {
     await relayManager.stopAll()
