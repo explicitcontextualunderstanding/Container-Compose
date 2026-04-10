@@ -517,6 +517,7 @@ services:
       - test-db-sockets:/var/run/postgresql/sockets
     x-apple-relays:
       - type: uds
+        port: 5432
         socket_path: /tmp/.container-compose-test/sockets/.s.PGSQL.5432
     command:
       - /pgmicro
