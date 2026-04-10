@@ -54,8 +54,8 @@ services:
         // Parse YAML
         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
 
-        // Verify services parsed
-        XCTAssertEqual(dockerCompose.services.count, 4)
+ // Verify services parsed
+ XCTAssertEqual(dockerCompose.services.count, 5)
 
         // Verify honcho-db has vsock-db relay
         guard let dbServiceOptional = dockerCompose.services["honcho-db"],
@@ -86,28 +86,33 @@ services:
 
         let loadedRelays = try loader.loadRelays(from: services)
 
-        // Should have 4 relays total (1 DB + 3 Hermes)
-        XCTAssertEqual(loadedRelays.count, 4)
+ // Should have 5 relays total (1 vsock-db + 1 uds-db + 3 Hermes)
+ XCTAssertEqual(loadedRelays.count, 5)
 
-        // Verify types using fully qualified type names
-        let dbRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockDb }
-        XCTAssertNotNil(dbRelay)
-        XCTAssertEqual(dbRelay?.port, 5432)
+ // Verify types using fully qualified type names
+ let dbRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockDb }
+ XCTAssertNotNil(dbRelay)
+ XCTAssertEqual(dbRelay?.port, 5432)
 
-        let aneRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockAneEmbedding }
-        XCTAssertNotNil(aneRelay)
-        XCTAssertEqual(aneRelay?.port, 6000)
+ // Verify uds-db relay (Plan 88)
+ let udsDbRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.udsDb }
+ XCTAssertNotNil(udsDbRelay)
+ XCTAssertEqual(udsDbRelay?.port, 5433)
 
-        let mcpRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockMcpBridge }
-        XCTAssertNotNil(mcpRelay)
-        XCTAssertEqual(mcpRelay?.port, 5002)
-        XCTAssertEqual(mcpRelay?.target, "honcho-hub")
+ let aneRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockAneEmbedding }
+ XCTAssertNotNil(aneRelay)
+ XCTAssertEqual(aneRelay?.port, 6000)
 
-        let logRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockLogStream }
-        XCTAssertNotNil(logRelay)
-        XCTAssertEqual(logRelay?.port, 5001)
-        XCTAssertEqual(logRelay?.target, "code-graph")
-    }
+ let mcpRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockMcpBridge }
+ XCTAssertNotNil(mcpRelay)
+ XCTAssertEqual(mcpRelay?.port, 5002)
+ XCTAssertEqual(mcpRelay?.target, "honcho-hub")
+
+ let logRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockLogStream }
+ XCTAssertNotNil(logRelay)
+ XCTAssertEqual(logRelay?.port, 5001)
+ XCTAssertEqual(logRelay?.target, "code-graph")
+ }
 
     func testRejectsMalformedRelayType() throws {
         // YAML parsing accepts any string, validation happens in loadRelays

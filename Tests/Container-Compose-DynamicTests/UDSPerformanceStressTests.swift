@@ -180,16 +180,15 @@ struct UDSPerformanceStressTests {
                     try await Task.sleep(nanoseconds: 100_000_000)
                 }
 
-                guard socketReady else {
-                    print("Cycle \(cycle): Socket not ready, skipping")
-                    continue
-                }
+guard socketReady else {
+print("Cycle \(cycle): Socket not ready, skipping")
+continue
+}
 
-                var composeDown = ComposeDown()
-                composeDown.projectName = projectName
-                try await composeDown.run()
+var composeDown = try ComposeDown.parse(["--cwd", tempDir.path(percentEncoded: false)])
+try await composeDown.run()
 
-                await Task.yield()
+await Task.yield()
                 try await Task.sleep(nanoseconds: 1_000_000_000)
 
                 successCount += 1
@@ -233,18 +232,18 @@ struct UDSPerformanceStressTests {
                 }
                 try await Task.sleep(nanoseconds: 100_000_000)
             }
-            #expect(socketReady, "Socket should be ready")
+#expect(socketReady, "Socket should be ready")
 
-            let baselineContainerCount = (try? await ClientContainer.list()?.count) ?? 0
-            print("Baseline container count: \(baselineContainerCount)")
+ let baselineContainerCount = (try? await ClientContainer.list())?.count ?? 0
+ print("Baseline container count: \(baselineContainerCount)")
 
-            for _ in 0..<5 {
-                _ = try? await ClientContainer.list()
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-            }
+ for _ in 0..<5 {
+ _ = try? await ClientContainer.list()
+ try await Task.sleep(nanoseconds: 1_000_000_000)
+ }
 
-            let finalContainerCount = (try? await ClientContainer.list()?.count) ?? 0
-            print("Final container count: \(finalContainerCount)")
+ let finalContainerCount = (try? await ClientContainer.list())?.count ?? 0
+ print("Final container count: \(finalContainerCount)")
 
             #expect(
                 finalContainerCount <= baselineContainerCount + 2,
@@ -328,13 +327,12 @@ struct UDSPerformanceStressTests {
                 ])
                 try await composeUp.run()
 
-                try await Task.sleep(nanoseconds: 2_000_000_000)
+try await Task.sleep(nanoseconds: 2_000_000_000)
 
-                var composeDown = ComposeDown()
-                composeDown.projectName = projectName
-                try await composeDown.run()
+var composeDown = try ComposeDown.parse(["--cwd", tempDir.path(percentEncoded: false)])
+try await composeDown.run()
 
-                await ContainerPollingHelpers.cleanupProjectContainers(projectName: projectName)
+await ContainerPollingHelpers.cleanupProjectContainers(projectName: projectName)
                 cleanupSuccesses += 1
             } catch {
                 print("Cleanup cycle error: \(error)")
@@ -454,17 +452,16 @@ struct UDSPerformanceStressTests {
 
                 #expect(socketReady, "Attempt \(attempt): Socket should be ready")
 
-                if attempt == 1 {
-                    firstStartDuration = duration
-                } else {
-                    secondStartDuration = duration
-                }
+if attempt == 1 {
+firstStartDuration = duration
+} else {
+secondStartDuration = duration
+}
 
-                var composeDown = ComposeDown()
-                composeDown.projectName = projectName
-                try await composeDown.run()
+var composeDown = try ComposeDown.parse(["--cwd", tempDir.path(percentEncoded: false)])
+try await composeDown.run()
 
-                if attempt == 1 {
+if attempt == 1 {
                     await ContainerPollingHelpers.cleanupProjectContainers(projectName: projectName)
                     try await Task.sleep(nanoseconds: 2_000_000_000)
                 }

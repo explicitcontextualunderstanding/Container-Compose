@@ -20,7 +20,7 @@ import ArgumentParser
 public struct Main: AsyncParsableCommand {
     private static let commandName: String = "container-compose"
     private static let version: String = "0.11.0"
-    private static let gitCommit: String = "4d1aa8a"  // Injected by build-sign-install.sh
+ private static let gitCommit: String = "BUILD_GIT_COMMIT" // Injected by build-sign-install.sh
     public static var versionString: String {
         "\(commandName) version \(version) (git: \(gitCommit))"
     }
