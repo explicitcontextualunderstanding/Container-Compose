@@ -43,6 +43,15 @@ public struct XAppleSecretsConfig: Codable, Hashable, Sendable {
     case manual
   }
 
+  enum CodingKeys: String, CodingKey {
+    case mount
+    case filter
+    case readOnly = "read_only"
+    case noexec
+    case nosuid
+    case cleanup
+  }
+
   public init(
     mount: String = "/run/secrets",
     filter: [String]? = nil,
