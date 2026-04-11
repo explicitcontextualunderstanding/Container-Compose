@@ -15,10 +15,12 @@ get_memory_stats() {
     local inactive_pages=$(vm_stat | grep "Pages inactive" | awk '{print $3}' | tr -d '.')
     local active_pages=$(vm_stat | grep "Pages active" | awk '{print $3}' | tr -d '.')
     local wired_pages=$(vm_stat | grep "Pages wired" | awk '{print $4}' | tr -d '.' 2>/dev/null || echo 0)
-    
-    local free_mb=$(( (free_pages + speculative_pages + inactive_pages) * 4096 / 1024 / 1024 ))
-    local active_mb=$(( (active_pages + wired_pages) * 4096 / 1024 / 1024 ))
-    
+
+    # Apple Silicon uses 16KB pages (16384 bytes), not 4KB
+    local page_size=16384
+    local free_mb=$(( (free_pages + speculative_pages + inactive_pages) * page_size / 1024 / 1024 ))
+    local active_mb=$(( (active_pages + wired_pages) * page_size / 1024 / 1024 ))
+
     echo "${free_mb},${active_mb}"
 }
 
