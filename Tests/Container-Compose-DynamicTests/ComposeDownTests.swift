@@ -23,7 +23,7 @@ import Testing
 
 import ContainerTesting
 
-@Suite("Compose Down Tests", .containerDependent, .serialized, .minMemory(800))
+@Suite("Compose Down Tests", .containerDependent, .serialized, .heavyContainer)
 struct ComposeDownTests {
     private let reliabilityHelper = ContainerReliabilityHelper()
 

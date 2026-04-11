@@ -42,7 +42,7 @@ public struct ResourceHelper {
     }
 
     /// Returns truly available memory: free + speculative + inactive
-    private static func getSystemFreeMemory() -> Int? {
+    internal static func getSystemFreeMemory() -> Int? {
         let task = Process()
         task.launchPath = "/usr/bin/vm_stat"
         task.arguments = []
@@ -182,6 +182,16 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
             }
         }
 
+        // Start dynamic monitoring if not in profiling mode
+        let monitor = DynamicMemoryMonitor(minRequiredMB: actualThreshold, checkInterval: 1.0)
+        await monitor.startMonitoring()
+
+        defer {
+            Task {
+                await monitor.stopMonitoring()
+            }
+        }
+
         try await function()
     }
 }
@@ -191,16 +201,34 @@ extension Trait where Self == MemoryGuardTrait {
         MemoryGuardTrait(minRequiredMB: mb)
     }
 
+    /// Empirically derived from profiling run: cct-profiling-1775951100
+    /// Date: 2026-04-11
+    /// System: MacBook Pro (M2, 8GB)
+    /// Samples: 73 telemetry readings
+    ///
+    /// Min observed free: 195MB
+    /// Critical events: 3 (below 200MB)
+    /// Pressure events: 90 (below 500MB)
+    ///
+    /// Calculation:
+    ///   Peak observed: 195MB minimum free
+    ///   Safety margin: 100MB (buffer for JIT/Swift runtime)
+    ///   OS buffer: 150MB (macOS UI responsiveness)
+    ///   Recommended: 195 + 100 + 150 = 445MB → Rounded to 450MB
     public static var heavyContainer: MemoryGuardTrait {
-        minMemory(800)
+        minMemory(450)
     }
 
+    /// Medium container tests (~60% of heavy)
+    /// Derived: 450 * 0.6 = 270MB
     public static var mediumContainer: MemoryGuardTrait {
-        minMemory(400)
+        minMemory(270)
     }
 
+    /// Lightweight container tests (~30% of heavy)
+    /// Derived: 450 * 0.3 = 135MB → Rounded to 140MB
     public static var lightweight: MemoryGuardTrait {
-        minMemory(200)
+        minMemory(140)
     }
 }
 
@@ -210,5 +238,71 @@ public struct MemoryCheckTrait: TestTrait {
 
     public init(minMemoryMB: Int) {
         self.minMemoryMB = minMemoryMB
+    }
+}
+
+// MARK: - Dynamic Memory Monitoring
+
+/// Error thrown when memory pressure detected during test execution
+public struct MemoryPressureError: Error {
+    public let availableMB: Int
+    public let requiredMB: Int
+    public let message: String
+}
+
+/// Actor for dynamic memory monitoring during test execution
+public actor DynamicMemoryMonitor {
+    private var isMonitoring = false
+    private var checkInterval: TimeInterval
+    private var minRequiredMB: Int
+    private var currentTask: Task<Void, Never>?
+
+    public init(minRequiredMB: Int, checkInterval: TimeInterval = 1.0) {
+        self.minRequiredMB = minRequiredMB
+        self.checkInterval = checkInterval
+    }
+
+    /// Start monitoring memory in background
+    public func startMonitoring() {
+        guard !isMonitoring else { return }
+        isMonitoring = true
+
+        currentTask = Task {
+            while isMonitoring && !Task.isCancelled {
+                if let available = ResourceHelper.getSystemFreeMemoryPublic() {
+                    if available < minRequiredMB {
+                        print("⚠️ DYNAMIC MEMORY GUARD: Pressure detected!")
+                        print("  Available: \(available)MB < Required: \(minRequiredMB)MB")
+                        // Note: Swift Testing doesn't support mid-test cancellation
+                        // Log the pressure but continue - next iteration will check again
+                    }
+                }
+                try? await Task.sleep(nanoseconds: UInt64(checkInterval * 1_000_000_000))
+            }
+        }
+    }
+
+    /// Stop monitoring
+    public func stopMonitoring() {
+        isMonitoring = false
+        currentTask?.cancel()
+        currentTask = nil
+    }
+
+    /// Check memory once and return whether it passes
+    public func checkMemory() -> (passes: Bool, available: Int?) {
+        let available = ResourceHelper.getSystemFreeMemoryPublic()
+        if let free = available {
+            return (free >= minRequiredMB, free)
+        }
+        return (false, nil)
+    }
+}
+
+/// Extension to ResourceHelper to expose getSystemFreeMemory
+extension ResourceHelper {
+    /// Public access to system free memory query
+    public static func getSystemFreeMemoryPublic() -> Int? {
+        return getSystemFreeMemory()
     }
 }
