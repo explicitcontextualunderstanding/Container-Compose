@@ -18,10 +18,13 @@ import Testing
 import Foundation
 import ContainerCommands
 import ContainerAPIClient
+import ContainerCommands
+import ContainerTesting
+import Foundation
 import TestHelpers
 @testable import ContainerComposeCore
 
-@Suite("Compose Up Tests - Real-World Compose Files", .containerDependent, .serialized)
+@Suite("Compose Up Tests - Real-World Compose Files", .containerDependent, .serialized, .minMemory(800))
 struct ComposeUpTests {
   private let reliabilityHelper = ContainerReliabilityHelper()
 

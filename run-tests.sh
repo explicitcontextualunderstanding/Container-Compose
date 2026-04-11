@@ -221,10 +221,39 @@ if [ -f "$RESOURCE_LOG" ] && [ -s "$RESOURCE_LOG" ]; then
         echo ""
     fi
     
-    echo " Full resource log: $RESOURCE_LOG"
+echo " Full resource log: $RESOURCE_LOG"
 else
-    echo " Resource monitoring data not available"
+  echo " Resource monitoring data not available"
 fi
 echo ""
+
+# ============================================================================
+# PERFORMANCE DASHBOARD (Sustainability Scorecard)
+# Generates human-readable analysis of test performance and resource usage
+# ============================================================================
+if command -v python3 &> /dev/null; then
+  echo "=========================================="
+  echo "Generating Performance Dashboard..."
+  echo "=========================================="
+  echo ""
+  
+  # Run performance analyzer
+  TEST_LOG="$LOG_DIR/test_output_$TIMESTAMP.txt"
+  BASELINE="$SCRIPT_DIR/scripts/baseline.json"
+  
+  if [ -f "$TEST_LOG" ]; then
+    python3 "$SCRIPT_DIR/scripts/analyze-performance.py" \
+      "$TEST_LOG" \
+      "$RESOURCE_LOG" \
+      --baseline "$BASELINE" 2>/dev/null || \
+    python3 "$SCRIPT_DIR/scripts/analyze-performance.py" \
+      "$TEST_LOG" \
+      "$RESOURCE_LOG" 2>/dev/null || \
+    echo "Performance analysis unavailable (Python script error)"
+  else
+    echo "Performance analysis unavailable (test log not found)"
+  fi
+  echo ""
+fi
 
 exit $TEST_EXIT_CODE
