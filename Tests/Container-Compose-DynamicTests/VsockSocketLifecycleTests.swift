@@ -15,7 +15,7 @@ import TestHelpers
 /// Vsock socket lifecycle tests with real containers
 /// Uses CCT_* pattern withContainerPollingHelpers.withProjectCleanup
 /// Uses pgmicro for faster startup (2-5s vs 30s) - socket behavior is identical
-@Suite("Vsock Socket Lifecycle Tests", .containerDependent, .serialized)
+@Suite("Vsock Socket Lifecycle Tests", .containerDependent)
 struct VsockSocketLifecycleTests {
 
   /// Returns registry URL from environment, with docker.io fallback

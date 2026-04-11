@@ -155,13 +155,76 @@ if [ "$FORCE_NO_SUDO" = true ]; then
     echo ""
 fi
 
-# Run swift tests and capture output
-# Export OCI_REGISTRY_URL so tests can access private registry
+# Run swift tests with parallel execution (optimized for 8GB M2)
+# Use 2 workers for container tests to balance memory usage
+# Lightweight tests (pgmicro, nginx, redis) can run in parallel
+# Heavy tests (wordpress, mysql) use .serialized attribute to prevent parallel execution
+
 export OCI_REGISTRY_URL
-swift test "${FILTERED_ARGS[@]}" 2>&1 | tee "$LOG_DIR/test_output_$TIMESTAMP.txt"
+
+# ============================================================================
+# RESOURCE TELEMETRY (Industry Best Practice)
+# Background monitoring to distinguish logic bugs from OOM/resource exhaustion
+# ============================================================================
+RESOURCE_LOG="$LOG_DIR/resource_usage_$TIMESTAMP.csv"
+echo "=========================================="
+echo "Resource Telemetry Enabled"
+echo "=========================================="
+echo "Monitoring memory and CPU during test run"
+echo "Log: $RESOURCE_LOG"
+echo ""
+
+# Start resource monitor in background
+"$(dirname "$0")/scripts/resource-monitor.sh" "$RESOURCE_LOG" &
+MONITOR_PID=$!
+
+# Ensure monitor is stopped when tests complete
+cleanup_monitor() {
+    if kill -0 $MONITOR_PID 2>/dev/null; then
+        kill $MONITOR_PID 2>/dev/null
+        wait $MONITOR_PID 2>/dev/null
+    fi
+}
+trap cleanup_monitor EXIT
+
+# Run tests
+swift test --parallel --num-workers 2 "${FILTERED_ARGS[@]}" 2>&1 | tee "$LOG_DIR/test_output_$TIMESTAMP.txt"
 TEST_EXIT_CODE=${PIPESTATUS[0]}
+
+# Stop resource monitor
+cleanup_monitor
 
 # Parse and display test results
 parse_test_results "$LOG_DIR/test_output_$TIMESTAMP.txt"
+
+# Resource Analysis Summary
+echo ""
+echo "=========================================="
+echo "Resource Usage Summary"
+echo "=========================================="
+if [ -f "$RESOURCE_LOG" ] && [ -s "$RESOURCE_LOG" ]; then
+    # Calculate stats from log
+    MIN_FREE=$(tail -n +2 "$RESOURCE_LOG" | cut -d',' -f2 | sort -n | head -1)
+    MAX_CPU=$(tail -n +2 "$RESOURCE_LOG" | cut -d',' -f4 | grep -v "N/A" | sort -n | tail -1)
+    AVG_CONTAINERS=$(tail -n +2 "$RESOURCE_LOG" | cut -d',' -f5 | awk '{sum+=$1; count++} END {if(count>0) printf "%.1f", sum/count; else print 0}')
+    
+    echo " Minimum Free Memory: ${MIN_FREE:-N/A} MB"
+    echo " Peak CPU Usage: ${MAX_CPU:-N/A}%"
+    echo " Avg Container Count: $AVG_CONTAINERS"
+    echo ""
+    
+    # OOM Warning Detection
+    if [ -n "$MIN_FREE" ] && [ "$MIN_FREE" -lt 500 ]; then
+        echo "⚠️  WARNING: Memory pressure detected during tests"
+        echo "    Minimum free memory was only ${MIN_FREE}MB"
+        echo "    Test failures may be due to memory exhaustion, not logic bugs"
+        echo ""
+    fi
+    
+    echo " Full resource log: $RESOURCE_LOG"
+else
+    echo " Resource monitoring data not available"
+fi
+echo ""
 
 exit $TEST_EXIT_CODE

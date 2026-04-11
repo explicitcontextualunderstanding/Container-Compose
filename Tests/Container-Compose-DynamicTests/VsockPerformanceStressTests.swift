@@ -13,7 +13,7 @@ import TestHelpers
 
 /// Performance and stress tests for vsock relay (STUBS)
 /// Designed for development MacBook - reasonable durations and loads
-@Suite("Vsock Performance & Stress Tests", .containerDependent, .serialized)
+@Suite("Vsock Performance & Stress Tests", .containerDependent)
 struct VsockPerformanceStressTests {
 
   // MARK: - Performance Tests

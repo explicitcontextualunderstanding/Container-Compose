@@ -22,7 +22,7 @@ import Testing
 
 @testable import ContainerComposeCore
 
-@Suite("Compose Ps Tests", .containerDependent, .serialized)
+@Suite("Compose Ps Tests", .containerDependent)
 struct ComposePsTests {
 
     @Test("Shows running containers from compose up")

@@ -21,7 +21,9 @@ import Foundation
 import TestHelpers
 import Testing
 
-@Suite("Compose Down Tests", .containerDependent, .serialized)
+import ContainerTesting
+
+@Suite("Compose Down Tests", .containerDependent, .serialized, .minMemory(800))
 struct ComposeDownTests {
     private let reliabilityHelper = ContainerReliabilityHelper()
 

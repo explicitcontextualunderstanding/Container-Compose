@@ -11,7 +11,7 @@ import ContainerAPIClient
 import TestHelpers
 @testable import ContainerComposeCore
 
-@Suite("UDS Performance & Stress Tests", .containerDependent, .serialized)
+@Suite("UDS Performance & Stress Tests", .containerDependent)
 struct UDSPerformanceStressTests {
 
     private func getRegistryURL() -> String {

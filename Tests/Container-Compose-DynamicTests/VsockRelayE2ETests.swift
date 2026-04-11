@@ -13,7 +13,7 @@ import ContainerAPIClient
 import TestHelpers
 @testable import ContainerComposeCore
 
-@Suite("Vsock Relay E2E Tests", .containerDependent, .serialized)
+@Suite("Vsock Relay E2E Tests", .containerDependent)
 struct VsockRelayE2ETests {
 
   @Test("E2E: vsock-db relay with real PostgreSQL container")
@@ -161,7 +161,7 @@ struct VsockRelayE2ETests {
     }
 }
 
-@Suite("Vsock Relay Performance Tests", .containerDependent, .serialized)
+@Suite("Vsock Relay Performance Tests", .containerDependent)
 struct VsockRelayPerformanceTests {
 
     @Test("Performance: Relay startup time < 5s target")

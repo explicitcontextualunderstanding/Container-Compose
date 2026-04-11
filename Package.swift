@@ -60,6 +60,14 @@ let package = Package(
       path: "Tests/TestHelpers",
       exclude: ["test_helpers.sh"]
     ),
+    
+    // Container Testing utilities (Memory Governor Trait, etc.)
+    // Note: Uses Swift Testing framework (built into Swift 6+)
+    .target(
+      name: "ContainerTesting",
+      dependencies: [],
+      path: "Sources/ContainerTesting"
+    ),
         
         // Tests
         .testTarget(

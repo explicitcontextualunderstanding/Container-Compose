@@ -5,7 +5,7 @@ import ContainerAPIClient
 import TestHelpers
 @testable import ContainerComposeCore
 
-@Suite("Compose Advanced Tests", .containerDependent, .serialized)
+@Suite("Compose Advanced Tests", .containerDependent)
 final class ComposeAdvancedTests {
 
     enum Errors: Error {
