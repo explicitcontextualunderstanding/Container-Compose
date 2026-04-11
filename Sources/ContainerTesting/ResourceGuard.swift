@@ -11,12 +11,19 @@ import Testing
 /// Provides real-time memory monitoring for Swift Testing
 public struct ResourceHelper {
     
+    /// Gets the default telemetry path
+    /// - Returns: Path to the telemetry file
+    public static func getTelemetryPath() -> String {
+        return ProcessInfo.processInfo.environment["RESOURCE_LOG_PATH"]
+            ?? ProcessInfo.processInfo.environment["TELEMETRY_FILE"]
+            ?? "/tmp/resource_monitor.log"
+    }
+
     /// Reads the latest free memory from telemetry CSV
     /// - Parameter logPath: Path to the resource monitor CSV
     /// - Returns: Free memory in MB, or nil if not available
     public static func getLatestFreeMemory(logPath: String? = nil) -> Int? {
-        let path = logPath ?? ProcessInfo.processInfo.environment["RESOURCE_LOG_PATH"] 
-            ?? "/tmp/resource_monitor.csv"
+        let path = logPath ?? getTelemetryPath()
         
         guard FileManager.default.fileExists(atPath: path),
               let contents = try? String(contentsOfFile: path, encoding: .utf8) else {

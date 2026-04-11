@@ -130,11 +130,13 @@ check_stale_lock_files() {
         echo " These can cause 'invalid access' errors during build."
         echo ""
 
-        if [ "$AUTO_CLEAN" = true ]; then
+        if [ "$AUTO_CLEAN" = true ] || [ -n "${CI:-}" ] || [ ! -t 0 ]; then
+            # Auto-clean in CI or when stdin is not a terminal
             should_clean=true
+            echo "Auto-removing stale lock files (non-interactive mode)..."
         else
             echo "Remove stale lock files? [Y/n] "
-            read -r -n 1 -r
+            read -r -n 1 REPLY
             echo ""
             if [[ ! $REPLY =~ ^[Nn]$ ]]; then
                 should_clean=true

@@ -69,29 +69,32 @@ let package = Package(
       path: "Sources/ContainerTesting"
     ),
         
-        // Tests
-        .testTarget(
-            name: "Container-Compose-StaticTests",
-            dependencies: [
-                "ContainerComposeCore",
-                "TestHelpers"
-            ]
-        ),
-        
-.testTarget(
-    name: "Container-Compose-DynamicTests",
-    dependencies: [
-      "ContainerComposeCore",
-      "TestHelpers"
-    ]
-  ),
+    // Tests
+    .testTarget(
+      name: "Container-Compose-StaticTests",
+      dependencies: [
+        "ContainerComposeCore",
+        "TestHelpers",
+        "ContainerTesting"
+      ]
+    ),
 
-.testTarget(
+    .testTarget(
+      name: "Container-Compose-DynamicTests",
+      dependencies: [
+        "ContainerComposeCore",
+        "TestHelpers",
+        "ContainerTesting"
+      ]
+    ),
+
+    .testTarget(
       name: "Container-Compose-Tests",
       dependencies: [
         "ContainerComposeCore",
         "TestHelpers",
-        "Yams"
+        "Yams",
+        "ContainerTesting"
       ]
     ),
 

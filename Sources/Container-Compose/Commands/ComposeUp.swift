@@ -1788,11 +1788,13 @@ public static func makeRunArgs(service: Service, serviceName: String, image: Str
         }
 
         // Determine container name
+        // VICTORIA PROTOCOL: Prefix with CCT_ and include RUN_ID for surgical cleanup
+        let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] ?? "orphan"
         let containerName: String
         if let explicit = service.container_name {
-            containerName = explicit
+            containerName = "CCT_\(runId)_\(explicit)"
         } else {
-            containerName = "\(projectName)-\(serviceName)"
+            containerName = "CCT_\(runId)_\(projectName)-\(serviceName)"
         }
         runArgs.append("--name")
         runArgs.append(containerName)
@@ -1993,13 +1995,20 @@ for (key, value) in environmentVariables {
     runArgs.append("\(key)=\(value)")
 }
 
-// Map secrets from x-apple-secrets filter (injected via --env, not volume mount)
-for (key, value) in secretsEnv {
-    runArgs.append("--env")
-    runArgs.append("\(key)=\(value)")
-}
+        // Map secrets from x-apple-secrets filter (injected via --env, not volume mount)
+        for (key, value) in secretsEnv {
+            runArgs.append("--env")
+            runArgs.append("\(key)=\(value)")
+        }
 
-// Map port mappings if present (resolve environment variables in port specs)
+        // VICTORIA PROTOCOL: Label containers with RUN_ID for surgical cleanup
+        // This enables cleanup-orchestrator.sh to target only this test session's containers
+        if let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] {
+            runArgs.append("--label")
+            runArgs.append("com.container-compose.test-run-id=\(runId)")
+        }
+
+        // Map port mappings if present (resolve environment variables in port specs)
         if let ports = service.ports {
             for portMapping in ports {
                 runArgs.append("--publish")

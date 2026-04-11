@@ -12,6 +12,17 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# ============================================================================
+# VICTORIA PROTOCOL: Initialize RUN_ID for surgical container tracking
+# This enables label-based cleanup that only targets this test session's containers
+# ============================================================================
+export RUN_ID="cct-$(date +%s)-$$"
+echo "=========================================="
+echo "Container-Compose Test Runner"
+echo "=========================================="
+echo "RUN_ID: $RUN_ID"
+echo ""
+
 # Load library modules
 source "$SCRIPT_DIR/scripts/lib/container-cleanup.sh"
 source "$SCRIPT_DIR/scripts/lib/test-runner.sh"
@@ -20,16 +31,39 @@ source "$SCRIPT_DIR/scripts/env-setup.sh"
 # Setup logging (pass SCRIPT_DIR to use project root, not library directory)
 setup_test_logging "$SCRIPT_DIR"
 
-# Register cleanup function to run on exit (POST-TEST)
-trap cleanup_test_containers EXIT
+# ============================================================================
+# VICTORIA PROTOCOL: Surgical cleanup function
+# Replaces legacy broad cleanup with label-based surgical removal
+# ============================================================================
+victoria_cleanup() {
+    local exit_code=$?
+    echo ""
+    echo "=========================================="
+    echo "VICTORIA PROTOCOL: Surgical Cleanup"
+    echo "=========================================="
 
-# Aggressive PRE-TEST cleanup - ALWAYS run before tests
-# This ensures a clean state and prevents resource exhaustion
+    if [ -f "$SCRIPT_DIR/scripts/cleanup-orchestrator.sh" ]; then
+        echo "Executing surgical cleanup for RUN_ID: $RUN_ID"
+        bash "$SCRIPT_DIR/scripts/cleanup-orchestrator.sh" "$RUN_ID" --graceful
+    else
+        echo "Cleanup orchestrator not found, falling back to legacy cleanup"
+        cleanup_test_containers
+    fi
+
+    echo "=========================================="
+    exit $exit_code
+}
+
+# Register Victoria Protocol cleanup function to run on exit
+trap victoria_cleanup EXIT
+
+# Also ensure SIGINT triggers graceful cleanup
+trap 'echo ""; echo "[Victoria Protocol] SIGINT received, triggering graceful cleanup..."; victoria_cleanup' INT
+
+# Aggressive PRE-TEST cleanup - purge any orphaned containers from previous crashed sessions
+# This uses legacy cleanup for cross-session orphans, then Victoria Protocol for this session
+echo "Pre-flight: Purging orphaned containers from previous sessions..."
 aggressive_cleanup_before_tests
-
-echo "=========================================="
-echo "Container-Compose Test Runner"
-echo "=========================================="
 echo ""
 
 # Neutralize conda environment contamination (shared with build-sign-install.sh)
@@ -58,12 +92,22 @@ export TEST_PORT_APP="${TEST_PORT_APP:-13000}"
 export TEST_PORT_WEB2="${TEST_PORT_WEB2:-18084}"
 
 echo "Test ports configured:"
-echo "  WordPress: $TEST_PORT_WORDPRESS"
-echo "  Web/Nginx: $TEST_PORT_WEB"
-echo "  API Gateway: $TEST_PORT_GATEWAY"
-echo "  API Service: $TEST_PORT_API"
-echo "  App/Node.js: $TEST_PORT_APP"
-echo "  Web Service 2: $TEST_PORT_WEB2"
+echo " WordPress: $TEST_PORT_WORDPRESS"
+echo " Web/Nginx: $TEST_PORT_WEB"
+echo " API Gateway: $TEST_PORT_GATEWAY"
+echo " API Service: $TEST_PORT_API"
+echo " App/Node.js: $TEST_PORT_APP"
+echo " Web Service 2: $TEST_PORT_WEB2"
+echo ""
+
+# ============================================================================
+# VICTORIA PROTOCOL: Export RUN_ID for Swift ResourceArbiter
+# This enables signal-handled graceful cleanup and label-based container tracking
+# ============================================================================
+export CCT_RUN_ID="$RUN_ID"
+export TELEMETRY_RUN_ID="$RUN_ID"
+echo "Victoria Protocol: RUN_ID exported to Swift environment"
+echo "  CCT_RUN_ID=$CCT_RUN_ID"
 echo ""
 
 # Parse --auto-clean flag early (needed before prune step)
@@ -165,13 +209,15 @@ export OCI_REGISTRY_URL
 # ============================================================================
 # RESOURCE TELEMETRY (Industry Best Practice)
 # Background monitoring to distinguish logic bugs from OOM/resource exhaustion
+# Log file includes RUN_ID for Victoria Protocol traceability
 # ============================================================================
-RESOURCE_LOG="$LOG_DIR/resource_usage_$TIMESTAMP.csv"
+RESOURCE_LOG="$LOG_DIR/resource_usage_${RUN_ID}_$TIMESTAMP.csv"
 echo "=========================================="
 echo "Resource Telemetry Enabled"
 echo "=========================================="
 echo "Monitoring memory and CPU during test run"
 echo "Log: $RESOURCE_LOG"
+echo "RUN_ID: $RUN_ID"
 echo ""
 
 # Start resource monitor in background
@@ -241,18 +287,21 @@ if command -v python3 &> /dev/null; then
   TEST_LOG="$LOG_DIR/test_output_$TIMESTAMP.txt"
   BASELINE="$SCRIPT_DIR/scripts/baseline.json"
   
-  if [ -f "$TEST_LOG" ]; then
-    python3 "$SCRIPT_DIR/scripts/analyze-performance.py" \
-      "$TEST_LOG" \
-      "$RESOURCE_LOG" \
-      --baseline "$BASELINE" 2>/dev/null || \
-    python3 "$SCRIPT_DIR/scripts/analyze-performance.py" \
-      "$TEST_LOG" \
-      "$RESOURCE_LOG" 2>/dev/null || \
-    echo "Performance analysis unavailable (Python script error)"
-  else
-    echo "Performance analysis unavailable (test log not found)"
-  fi
+    if [ -f "$TEST_LOG" ]; then
+        # VICTORIA PROTOCOL: Pass RUN_ID for traceability
+        python3 "$SCRIPT_DIR/scripts/analyze-performance.py" \
+            "$TEST_LOG" \
+            "$RESOURCE_LOG" \
+            --baseline "$BASELINE" \
+            --run-id "$RUN_ID" 2>/dev/null || \
+            python3 "$SCRIPT_DIR/scripts/analyze-performance.py" \
+            "$TEST_LOG" \
+            "$RESOURCE_LOG" \
+            --run-id "$RUN_ID" 2>/dev/null || \
+            echo "Performance analysis unavailable (Python script error)"
+    else
+        echo "Performance analysis unavailable (test log not found)"
+    fi
   echo ""
 fi
 
