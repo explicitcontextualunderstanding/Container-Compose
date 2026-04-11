@@ -284,13 +284,6 @@ public actor ContainerPool {
     }
     
     public func getStats() -> PoolStats { stats }
-    
-    // MARK: - Reaper Integration
-    
-    func importPooledContainer(_ container: PooledContainer, key: String) {
-        if pool[key] == nil { pool[key] = [] }
-        pool[key]?.append(container)
-    }
 }
 
 // MARK: - Presets
