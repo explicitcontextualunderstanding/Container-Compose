@@ -156,15 +156,20 @@ public actor ContainerPool {
         }
         
         let startTime = Date()
-        let containerName = "pool_\(key.hashValue)_\(UUID().uuidString.prefix(8))"
-        
+
+        // Get RUN_ID from environment (set by run-tests.sh Victoria Protocol)
+        let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] ?? "orphan"
+        let containerName = "CCT_\(runId)_pool_\(key.hashValue)_\(UUID().uuidString.prefix(8))"
+
         var args = [
             "run", "-d",
             "--name", containerName,
             "--memory", "\(config.memoryLimitMB)m",
             "--cpus", "\(config.cpuLimit)",
             "--label", "com.container-compose.pool=true",
-            "--label", "com.container-compose.pool-key=\(key)"
+            "--label", "com.container-compose.pool-key=\(key)",
+            // VICTORIA PROTOCOL: Label containers with RUN_ID for surgical cleanup
+            "--label", "com.container-compose.test-run-id=\(runId)"
         ]
         
         for (k, v) in config.envVars {
