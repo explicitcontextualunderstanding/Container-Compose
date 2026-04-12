@@ -7,6 +7,7 @@
 
 import Foundation
 import Testing
+import TestHelpers
 
 /// Provides real-time memory monitoring for Swift Testing
 public struct ResourceHelper {
@@ -120,10 +121,13 @@ public struct ResourceHelper {
 public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
     public let minRequiredMB: Int
     public let telemetryPath: String?
+    /// Optional image reference for empirical profile lookup
+    public let image: String?
 
-    public init(minRequiredMB: Int, telemetryPath: String? = nil) {
+    public init(minRequiredMB: Int, telemetryPath: String? = nil, image: String? = nil) {
         self.minRequiredMB = minRequiredMB
         self.telemetryPath = telemetryPath
+        self.image = image
     }
 
     public func provideScope(
@@ -137,6 +141,9 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
 
         let profilingMode = ProcessInfo.processInfo.environment["MEMORY_GUARD_MODE"] == "LOG_ONLY"
 
+        // Resolve threshold: empirical profile > static fallback
+        let baseThreshold = resolveThreshold()
+
         // Dynamic threshold adjustment based on memory pressure
         let actualThreshold: Int
         switch pressureLevel {
@@ -145,7 +152,7 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
         case 1:
             actualThreshold = Int(Double(totalMemory) * 0.25)
         default:
-            actualThreshold = minRequiredMB
+            actualThreshold = baseThreshold
         }
 
         if let free = freeMemory {
@@ -154,7 +161,7 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
                     print("[PROFILE] Would skip '\(test.name)' (\(free)MB < \(actualThreshold)MB)")
                 } else {
                     print("MEMORY GUARD: Skipping '\(test.name)'")
-                    print("  Required: \(actualThreshold)MB (dynamic)")
+                    print("  Required: \(actualThreshold)MB (\(image != nil ? "empirical" : "static"))")
                     print("  Available: \(free)MB")
                     print("  Total: \(totalMemory)MB")
                     return
@@ -176,6 +183,23 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
 
         try await function()
     }
+
+    /// Look up empirical profile for the image, fall back to static minRequiredMB
+    private func resolveThreshold() -> Int {
+        guard let image else { return minRequiredMB }
+
+        let profiles = ContainerTelemetry.shared.loadProfiles()
+        guard let profile = profiles.first(where: { $0.image.contains(image) }) else {
+            return minRequiredMB // No profile yet — use static fallback
+        }
+
+        let empirical = Int(profile.memoryGateMB)
+        if empirical < minRequiredMB {
+            // Empirical gate is lower than static — safe to use the tighter bound
+            return empirical
+        }
+        return minRequiredMB
+    }
 }
 
 extension Trait where Self == MemoryGuardTrait {
@@ -183,10 +207,15 @@ extension Trait where Self == MemoryGuardTrait {
         MemoryGuardTrait(minRequiredMB: mb)
     }
 
-    /// Empirically derived thresholds from Victoria Protocol
+    /// Empirical gate: looks up ContainerProfile for the image, uses peak * 1.10.
+    /// Falls back to static minRequiredMB when no profile exists (first run).
+    public static func empiricalMemory(image: String, fallbackMB: Int = 450) -> MemoryGuardTrait {
+        MemoryGuardTrait(minRequiredMB: fallbackMB, image: image)
+    }
+
+    /// Static fallback thresholds (used when no telemetry profile exists)
     /// Based on profiling run: cct-profiling-1775951100
     /// Peak observed: 195MB | Safety margin: 25% | OS buffer: 150MB
-    /// Calculated: 195 + 100 + 150 = 445MB -> Rounded to 450MB
     public static var heavyContainer: MemoryGuardTrait {
         minMemory(450) // Heavy: WordPress + MySQL
     }

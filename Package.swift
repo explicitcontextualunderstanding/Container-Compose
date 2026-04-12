@@ -66,7 +66,7 @@ let package = Package(
     // Note: Uses Swift Testing framework (built into Swift 6+)
     .target(
       name: "ContainerTesting",
-      dependencies: [],
+      dependencies: ["TestHelpers"],
       path: "Sources/ContainerTesting"
     ),
         

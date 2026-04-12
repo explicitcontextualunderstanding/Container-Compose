@@ -11,7 +11,8 @@ import ContainerAPIClient
 import TestHelpers
 @testable import ContainerComposeCore
 
-@Suite("UDS Relay E2E Tests", .containerDependent, .mediumContainer)
+@Suite("UDS Relay E2E Tests", .containerDependent,
+       .empiricalMemory(image: "pgmicro", fallbackMB: 270))
 struct UDSRelayE2ETests {
 
     @Test("E2E: UDS relay with real PostgreSQL container")

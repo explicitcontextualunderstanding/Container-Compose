@@ -24,7 +24,8 @@ import Foundation
 import TestHelpers
 @testable import ContainerComposeCore
 
-@Suite("Compose Up Tests - Real-World Compose Files", .containerDependent, .serialized, .heavyContainer)
+@Suite("Compose Up Tests - Real-World Compose Files", .containerDependent, .serialized,
+       .empiricalMemory(image: "wordpress", fallbackMB: 450))
 struct ComposeUpTests {
   private let reliabilityHelper = ContainerReliabilityHelper()
 

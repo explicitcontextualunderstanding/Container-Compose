@@ -239,7 +239,7 @@ public actor ContainerTelemetry {
     }
 
     /// Load previously saved profiles from disk.
-    public func loadProfiles() -> [ContainerProfile] {
+    nonisolated public func loadProfiles() -> [ContainerProfile] {
         let url = URL(fileURLWithPath: Self.profilesFileName)
         guard let data = try? Data(contentsOf: url) else { return [] }
         return (try? JSONDecoder().decode([ContainerProfile].self, from: data)) ?? []
