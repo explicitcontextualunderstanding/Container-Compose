@@ -267,12 +267,44 @@ trap cleanup_monitor EXIT
 TEST_EXIT_CODE=0
 TIER_LOG="$LOG_DIR/tiered_output_$TIMESTAMP.txt"
 
+# Memory gating function - checks if enough memory available
+check_memory_for_tier() {
+    local tier_name="$1"
+    local required_mb="$2"
+    
+    # Calculate available memory
+    local free_pages=$(vm_stat | grep "Pages free" | awk '{print $3}' | tr -d '.')
+    local spec_pages=$(vm_stat | grep "Pages speculative" | awk '{print $3}' | tr -d '.' 2>/dev/null || echo 0)
+    local inactive_pages=$(vm_stat | grep "Pages inactive" | awk '{print $3}' | tr -d '.')
+    local available_mb=$(( (free_pages + spec_pages + inactive_pages) * 16384 / 1024 / 1024 ))
+    
+    echo ""
+    echo "Memory Check for $tier_name:"
+    echo "  Required: ${required_mb}MB"
+    echo "  Available: ${available_mb}MB"
+    
+    if [ "$available_mb" -lt "$required_mb" ]; then
+        echo "  ⚠️  INSUFFICIENT MEMORY - Skipping tier"
+        return 1
+    fi
+    
+    echo "  ✓ Memory OK"
+    return 0
+}
+
 # Function to run a test tier
 run_test_tier() {
     local tier_name="$1"
     local filter="$2"
-    shift 2
+    local required_mb="$3"
+    shift 3
     local extra_args=("$@")
+    
+    # Gate on memory
+    if ! check_memory_for_tier "$tier_name" "$required_mb"; then
+        echo "  (Skipped due to low memory)"
+        return 0
+    fi
     
     echo ""
     echo "=========================================="
@@ -290,19 +322,19 @@ run_test_tier() {
 }
 
 # Tier 1: Ultra-lightweight (static tests) - ~50MB
-run_test_tier "1-Static" "Container-Compose-StaticTests" || TEST_EXIT_CODE=1
+run_test_tier "1-Static" "Container-Compose-StaticTests" 50 || TEST_EXIT_CODE=1
 
 # Tier 2: Security tests (no containers) - ~100MB  
-run_test_tier "2-Security" "SecurityHardeningTests" || TEST_EXIT_CODE=1
+run_test_tier "2-Security" "SecurityHardeningTests" 100 || TEST_EXIT_CODE=1
 
 # Tier 3: Dynamic tests excluding heavy containers - ~200MB
-run_test_tier "3-Dynamic-Medium" "Container-Compose-DynamicTests" "--skip" "ComposeUpTests" "--skip" "ComposeDownTests" || TEST_EXIT_CODE=1
+run_test_tier "3-Dynamic-Medium" "Container-Compose-DynamicTests" 200 "--skip" "ComposeUpTests" "--skip" "ComposeDownTests" || TEST_EXIT_CODE=1
 
 # Tier 4: Heavy container tests (run last when memory is freest) - ~400MB
-run_test_tier "4-Heavy" "ComposeDownTests" || TEST_EXIT_CODE=1
+run_test_tier "4-Heavy" "ComposeDownTests" 400 || TEST_EXIT_CODE=1
 
 # Tier 5: Critical (WordPress + MySQL) - ~800MB, run absolute last
-run_test_tier "5-Critical-WordPress" "ComposeUpTests" || TEST_EXIT_CODE=1
+run_test_tier "5-Critical-WordPress" "ComposeUpTests" 800 || TEST_EXIT_CODE=1
 
 cp "$TIER_LOG" "$LOG_DIR/test_output_$TIMESTAMP.txt"
 

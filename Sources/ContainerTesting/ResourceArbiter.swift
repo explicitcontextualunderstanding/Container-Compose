@@ -2,15 +2,16 @@
 // ResourceArbiter.swift
 // Execution Mode Arbiter for Container-Compose Tests
 // Manages parallel vs serialized execution based on memory and I/O pressure
+// CONTINUOUS DYNAMIC ADJUSTMENT - monitors memory every second
 //===----------------------------------------------------------------------===//
 
 import Foundation
 
 public enum TestWeight {
-    case lightweight // pgmicro, nginx, redis, busybox
-    case medium // single container, no disk
-    case heavy // wordpress, mysql, multi-container
-    case snapshotHeavy // tests that trigger Apple Container snapshots
+    case lightweight
+    case medium
+    case heavy
+    case snapshotHeavy
 }
 
 public enum ExecutionMode {
@@ -19,306 +20,203 @@ public enum ExecutionMode {
     case blocked(reason: String)
 }
 
-/// Shared state for signal handling - marked nonisolated(unsafe) for C interop
+/// Shared state for signal handling
 nonisolated(unsafe) private var _cleanupRunId: String?
 nonisolated(unsafe) private var _cleanupEnabled = false
 
+/// Continuous memory monitor for dynamic adjustment
 public actor ResourceArbiter {
     public static let shared = ResourceArbiter()
     
+    // Dynamic concurrency control
+    private var currentMaxInFlight: Int = 4
     private var inFlightCount: Int = 0
     private var snapshotOpsInProgress: Bool = false
     
-    // Dynamic concurrency limits based on empirical telemetry
-    // Derived from profile-1775950630: min free was 195MB
-    private var maxInFlightLightweight = 3 // Reduced dynamically when memory pressure
+    // Memory thresholds (dynamically adjusted)
+    private var criticalThresholdMB: Int = 300
+    private var warningThresholdMB: Int = 500
+    private var comfortableThresholdMB: Int = 800
     
-    // Empirical thresholds from Victoria Protocol - Evidence-Based Tuning
-    // Based on observed minimum: 709MB across multiple test runs
-    // Threshold = MinObservedFree(709MB) × SafetyFactor - providing headroom
-    private let criticalThresholdMB = 300  // Block all tests below this (system unstable)
-    private let heavyThresholdMB = 400     // Force serial below this (709 × 0.55, conservative)
-    private let mediumThresholdMB = 550    // Limit concurrency below this (709 × 0.75)
-    private let parallelThresholdMB = 700  // Full parallelism above this (observed min)
-    
-    private let ioPressureThreshold = 5 // block new tests if too many I/O ops
-
     // Cleanup configuration
     private var currentRunId: String?
     private let cleanupScriptPath: String
-
+    
+    // Continuous monitoring
+    private var monitoringTask: Task<Void, Never>?
+    private var isMonitoring: Bool = false
+    
     private init() {
-        // Determine cleanup script path
         let possiblePaths = [
             "scripts/cleanup-orchestrator.sh",
             "../scripts/cleanup-orchestrator.sh",
             "../../scripts/cleanup-orchestrator.sh",
             "./cleanup-orchestrator.sh"
         ]
-
+        
         var foundPath: String? = nil
         let fileManager = FileManager.default
-
+        
         for path in possiblePaths {
             if fileManager.fileExists(atPath: path) {
                 foundPath = path
                 break
             }
         }
-
+        
         self.cleanupScriptPath = foundPath ?? "scripts/cleanup-orchestrator.sh"
-
-        // Auto-initialize RUN_ID from environment (set by run-tests.sh)
+        
+        // Auto-initialize RUN_ID
         if let envRunId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] {
             self.currentRunId = envRunId
             _cleanupRunId = envRunId
             _cleanupEnabled = true
-            print("[ResourceArbiter] Auto-initialized from environment: RUN_ID=\(envRunId)")
         }
-
-        // Install signal handlers once at initialization
-        signal(SIGINT) { _ in
-            handleCleanupSignal(Int32(SIGINT))
-        }
-
-        signal(SIGTERM) { _ in
-            handleCleanupSignal(Int32(SIGTERM))
+        
+        // Install signal handlers
+        signal(SIGINT) { _ in handleCleanupSignal(Int32(SIGINT)) }
+        signal(SIGTERM) { _ in handleCleanupSignal(Int32(SIGTERM)) }
+        
+        // Start continuous memory monitoring (async from init)
+        Task {
+            await startContinuousMonitoring()
         }
     }
-
-    /// Sets the current test run ID for cleanup tracking
-    public func setRunId(_ runId: String) {
-        self.currentRunId = runId
-        // Update global state for signal handler
-        _cleanupRunId = runId
-        _cleanupEnabled = true
-    }
-
-    /// Gets the current test run ID
-    public func getRunId() -> String? {
-        return currentRunId
-    }
-
-    /// Triggered by signal handlers - performs graceful cleanup
-    public func cleanupOnInterrupt() async {
-        guard let runId = currentRunId else {
-            print("[ResourceArbiter] No RUN_ID set, skipping cleanup")
-            return
+    
+    /// Continuous memory monitoring - adjusts concurrency every second
+    private func startContinuousMonitoring() async {
+        guard !isMonitoring else { return }
+        isMonitoring = true
+        
+        while isMonitoring && !Task.isCancelled {
+            await adjustConcurrencyBasedOnMemory()
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
         }
-
-        print("[ResourceArbiter] Executing graceful cleanup for RUN_ID: \(runId)")
-
-        // Check if cleanup script exists
-        let fileManager = FileManager.default
-        guard fileManager.fileExists(atPath: cleanupScriptPath) else {
-            print("[ResourceArbiter] Cleanup script not found at \(cleanupScriptPath)")
-            return
-        }
-
-        // Execute cleanup script with --graceful mode
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        task.arguments = [cleanupScriptPath, runId, "--graceful"]
-
-        // Set environment variables for the script
-        var environment = ProcessInfo.processInfo.environment
-        environment["TELEMETRY_FILE"] = ResourceHelper.getTelemetryPath()
-        task.environment = environment
-
-        // Capture output
-        let outputPipe = Pipe()
-        task.standardOutput = outputPipe
-        task.standardError = outputPipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: outputData, encoding: .utf8) {
-                print(output)
+    }
+    
+    /// Adjust maxInFlight dynamically based on current memory
+    private func adjustConcurrencyBasedOnMemory() async {
+        guard let available = ResourceHelper.getSystemFreeMemoryPublic() else { return }
+        
+        let oldMax = currentMaxInFlight
+        
+        if available < criticalThresholdMB {
+            // Critical: Only 1 test at a time
+            currentMaxInFlight = 1
+            print("[ResourceArbiter] CRITICAL: Available memory \(available)MB < \(criticalThresholdMB)MB")
+            print("[ResourceArbiter] Reducing concurrency to 1 (was \(oldMax))")
+        } else if available < warningThresholdMB {
+            // Warning: Reduce to 2 tests
+            currentMaxInFlight = 2
+            if oldMax != 2 {
+                print("[ResourceArbiter] WARNING: Available memory \(available)MB < \(warningThresholdMB)MB")
+                print("[ResourceArbiter] Reducing concurrency to 2 (was \(oldMax))")
             }
-
-            if task.terminationStatus == 0 {
-                print("[ResourceArbiter] Cleanup completed successfully")
-            } else {
-                print("[ResourceArbiter] Cleanup exited with status \(task.terminationStatus)")
+        } else if available < comfortableThresholdMB {
+            // Moderate: 3 tests
+            currentMaxInFlight = 3
+            if oldMax != 3 {
+                print("[ResourceArbiter] MODERATE: Available memory \(available)MB")
+                print("[ResourceArbiter] Setting concurrency to 3 (was \(oldMax))")
             }
-        } catch {
-            print("[ResourceArbiter] Failed to execute cleanup: \(error)")
-        }
-    }
-
-    /// Called on deinit to ensure cleanup runs
-    public func ensureCleanupOnDeinit() {
-        guard let runId = currentRunId else { return }
-
-        // Only run cleanup if we have active containers
-        if inFlightCount > 0 {
-            print("[ResourceArbiter] Deinit guard: Cleaning up RUN_ID \(runId)")
-
-            // Run synchronously since we're in deinit
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/bin/bash")
-            task.arguments = [cleanupScriptPath, runId, "--graceful"]
-
-            do {
-                try task.run()
-                task.waitUntilExit()
-                print("[ResourceArbiter] Deinit cleanup completed")
-            } catch {
-                print("[ResourceArbiter] Deinit cleanup failed: \(error)")
+        } else {
+            // Comfortable: Full concurrency
+            currentMaxInFlight = 4
+            if oldMax != 4 {
+                print("[ResourceArbiter] COMFORTABLE: Available memory \(available)MB")
+                print("[ResourceArbiter] Restoring full concurrency to 4 (was \(oldMax))")
             }
         }
     }
-
-public func requestExecutionSlot(for weight: TestWeight) -> ExecutionMode {
-        let freeMemory = ResourceHelper.getLatestFreeMemory() ?? 8192
-        let timestamp = ISO8601DateFormatter().string(from: Date())
-        
-        // Log evidence for dynamic concurrency effectiveness
-        print("[ResourceArbiter] \(timestamp) - Memory: \(freeMemory)MB | Requesting slot for: \(weight)")
-        
-        // Check for critical memory pressure first
-        if freeMemory < criticalThresholdMB {
-            print("[ResourceArbiter] EVIDENCE: Blocked test due to critical memory (\(freeMemory)MB < \(criticalThresholdMB)MB)")
-            return .blocked(reason: "⛔ CRITICAL: Memory at \(freeMemory)MB (threshold: \(criticalThresholdMB)MB). Close Chrome/Slack to continue.")
-        }
-        
+    
+    /// Request execution slot with continuous adjustment
+    public func requestExecutionSlot(for weight: TestWeight) -> ExecutionMode {
+        // Check snapshot operations first
         if weight == .snapshotHeavy || snapshotOpsInProgress {
-            print("[ResourceArbiter] EVIDENCE: Blocked test - snapshot in progress")
-            return .blocked(reason: "Snapshot operation in progress - preventing I/O pile-up")
+            return .blocked(reason: "Snapshot operation in progress")
         }
         
-        // Dynamic concurrency based on empirical thresholds
-        // From profile-1775950630: min free was 195MB
-        switch weight {
-        case .heavy:
-            // Heavy tests (WordPress + MySQL) need 450MB+ free
-            // Empirical: 195MB min + 100MB safety + 150MB OS buffer
-            if freeMemory < heavyThresholdMB {
-                print("[ResourceArbiter] EVIDENCE: Forced serial for heavy test (\(freeMemory)MB < \(heavyThresholdMB)MB)")
-                return .serial // Force serial when memory constrained
-            }
-            // Even with enough memory, limit to 1 heavy test at a time
-            if inFlightCount >= 1 {
-                print("[ResourceArbiter] EVIDENCE: Blocked heavy test - another in progress (inFlight: \(inFlightCount))")
-                return .blocked(reason: "Heavy test in progress - preventing memory pile-up (free: \(freeMemory)MB)")
-            }
-            print("[ResourceArbiter] EVIDENCE: Allowed heavy test parallel (\(freeMemory)MB >= \(heavyThresholdMB)MB)")
-            inFlightCount += 1
-            return .parallel
-            
-        case .medium:
-            // Medium tests need 600MB+ for comfortable parallel execution
-            if freeMemory < mediumThresholdMB {
-                print("[ResourceArbiter] EVIDENCE: Forced serial for medium test (\(freeMemory)MB < \(mediumThresholdMB)MB)")
-                return .serial // Serial when under pressure
-            }
-            if freeMemory < parallelThresholdMB {
-                // Limited parallelism - reduce concurrent tests
-                maxInFlightLightweight = 2
-                print("[ResourceArbiter] EVIDENCE: Reduced maxInFlightLightweight to 2 (\(freeMemory)MB < \(parallelThresholdMB)MB)")
-            } else {
-                print("[ResourceArbiter] EVIDENCE: Normal maxInFlightLightweight (\(freeMemory)MB >= \(parallelThresholdMB)MB)")
-            }
-            if inFlightCount >= maxInFlightLightweight {
-                print("[ResourceArbiter] EVIDENCE: Blocked medium test - max in-flight (\(inFlightCount)/\(maxInFlightLightweight))")
-                return .blocked(reason: "Memory pressure - limiting concurrency (free: \(freeMemory)MB)")
-            }
-            print("[ResourceArbiter] EVIDENCE: Allowed medium test (\(inFlightCount)/\(maxInFlightLightweight), free: \(freeMemory)MB)")
-            inFlightCount += 1
-            return .parallel
-            
-        case .lightweight:
-            // Lightweight tests are most flexible
-            // Dynamically adjust concurrency based on available memory
-            if freeMemory < mediumThresholdMB {
-                maxInFlightLightweight = 2  // Reduce from 3 to 2
-            } else if freeMemory < parallelThresholdMB {
-                maxInFlightLightweight = 3  // Normal
-            } else {
-                maxInFlightLightweight = 4  // Can afford more when memory abundant
-            }
-            
-            if inFlightCount >= maxInFlightLightweight {
-                return .blocked(reason: "Max in-flight containers (\(maxInFlightLightweight)) reached (free: \(freeMemory)MB)")
-            }
-            inFlightCount += 1
-            return .parallel
-            
-        case .snapshotHeavy:
-            return .blocked(reason: "Snapshot-heavy tests must run serially")
+        // Heavy tests always serial
+        if weight == .heavy {
+            return .serial
         }
+        
+        // Check current in-flight against DYNAMIC max
+        if inFlightCount >= currentMaxInFlight {
+            return .blocked(reason: "Max in-flight (\(currentMaxInFlight)) reached - memory pressure")
+        }
+        
+        inFlightCount += 1
+        return .parallel
     }
-
+    
     public func releaseExecutionSlot(for weight: TestWeight) {
-        if weight == .lightweight && inFlightCount > 0 {
+        if inFlightCount > 0 {
             inFlightCount -= 1
         }
     }
-
+    
     public func beginSnapshotOperation() {
         snapshotOpsInProgress = true
     }
-
+    
     public func endSnapshotOperation() {
         snapshotOpsInProgress = false
     }
-
-    public func getStatus() -> (inFlight: Int, snapshotting: Bool, memoryMB: Int?) {
-        let freeMemory = ResourceHelper.getLatestFreeMemory()
-        return (inFlightCount, snapshotOpsInProgress, freeMemory)
+    
+    public func getStatus() -> (inFlight: Int, maxInFlight: Int, memoryMB: Int?) {
+        let memory = ResourceHelper.getSystemFreeMemoryPublic()
+        return (inFlightCount, currentMaxInFlight, memory)
     }
-
-    /// Executes emergency cleanup when memory is critically low
-    public func emergencyCleanup() async {
-        guard let runId = currentRunId else {
-            print("[ResourceArbiter] No RUN_ID set, cannot perform emergency cleanup")
-            return
-        }
-
+    
+    public func setRunId(_ runId: String) {
+        self.currentRunId = runId
+        _cleanupRunId = runId
+        _cleanupEnabled = true
+    }
+    
+    public func getRunId() -> String? {
+        return currentRunId
+    }
+    
+    public func cleanupOnInterrupt() async {
+        guard let runId = currentRunId else { return }
+        print("[ResourceArbiter] Executing graceful cleanup for RUN_ID: \(runId)")
+        
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: cleanupScriptPath) else {
             print("[ResourceArbiter] Cleanup script not found")
             return
         }
-
-        print("[ResourceArbiter] Executing EMERGENCY cleanup for RUN_ID: \(runId)")
-
+        
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        task.arguments = [cleanupScriptPath, runId, "--emergency"]
-
-        var environment = ProcessInfo.processInfo.environment
-        environment["TELEMETRY_FILE"] = ResourceHelper.getTelemetryPath()
-        task.environment = environment
-
+        task.arguments = [cleanupScriptPath, runId, "--graceful"]
+        task.environment = ProcessInfo.processInfo.environment
+        
         do {
             try task.run()
             task.waitUntilExit()
-            print("[ResourceArbiter] Emergency cleanup completed")
+            print("[ResourceArbiter] Cleanup completed")
         } catch {
-            print("[ResourceArbiter] Emergency cleanup failed: \(error)")
+            print("[ResourceArbiter] Cleanup failed: \(error)")
         }
     }
 }
 
-// C-compatible signal handler using the global unsafe state
 private func handleCleanupSignal(_ signal: Int32) {
     guard _cleanupEnabled, let runId = _cleanupRunId else {
         exit(Int32(128) + signal)
     }
-
+    
     print("\n[ResourceArbiter] Signal \(signal) received, triggering cleanup for RUN_ID: \(runId)")
-
-    // Execute cleanup synchronously before exit
+    
     let scriptPath = "scripts/cleanup-orchestrator.sh"
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/bin/bash")
     task.arguments = [scriptPath, runId, "--graceful"]
     task.environment = ProcessInfo.processInfo.environment
-
+    
     do {
         try task.run()
         task.waitUntilExit()
@@ -326,6 +224,6 @@ private func handleCleanupSignal(_ signal: Int32) {
     } catch {
         print("[ResourceArbiter] Cleanup failed: \(error)")
     }
-
+    
     exit(Int32(128) + signal)
 }
