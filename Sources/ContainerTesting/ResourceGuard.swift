@@ -154,24 +154,42 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
             actualThreshold = minRequiredMB
         }
 
+
         if let free = freeMemory {
             let enabled = free >= actualThreshold
-
+            
             if !enabled {
                 if profilingMode {
                     print("[PROFILE] Memory Guard would skip '\(test.name)' (\(free)MB < \(actualThreshold)MB)")
                     print("[PROFILE] But running anyway to capture peak usage")
                 } else {
-                    print("MEMORY GUARD: Skipping '\(test.name)'")
-                    print("  Required: \(actualThreshold)MB (dynamic)")
-                    print("  Available: \(free)MB")
-                    print("  Total: \(totalMemory)MB")
+                    // ALWAYS log for verification
+                    print("⛔ MEMORY GUARD: Skipping '\(test.name)'")
+                    print("   Required: \(actualThreshold)MB (dynamic threshold)")
+                    print("   Available: \(free)MB free")
+                    print("   Total: \(totalMemory)MB")
+                    print("   Reason: Insufficient memory - test would cause swap pressure")
+                    // Debug info
+                    if ProcessInfo.processInfo.environment["MEMORY_GUARD_DEBUG"] == "1" {
+                        print("   [DEBUG] Pressure level: \(pressureLevel)")
+                        print("   [DEBUG] Original threshold: \(minRequiredMB)MB")
+                    }
                     return
                 }
             } else {
-                print("Memory Guard: '\(test.name)' OK (\(free)MB >= \(actualThreshold)MB)")
+                print("✅ Memory Guard: '\(test.name)' OK (\(free)MB >= \(actualThreshold)MB)")
             }
         } else {
+            if pressureLevel >= 2 && !profilingMode {
+                print("MEMORY GUARD: Skipping (critical pressure)")
+                return
+            }
+            if profilingMode && pressureLevel >= 2 {
+                print("[PROFILE] Critical pressure but running anyway for profiling")
+            } else {
+                print("Memory Guard: Allowing (pressure OK)")
+            }
+        }
             if pressureLevel >= 2 && !profilingMode {
                 print("MEMORY GUARD: Skipping (critical pressure)")
                 return

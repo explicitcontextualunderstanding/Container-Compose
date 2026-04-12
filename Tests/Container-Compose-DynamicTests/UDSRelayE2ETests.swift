@@ -11,7 +11,7 @@ import ContainerAPIClient
 import TestHelpers
 @testable import ContainerComposeCore
 
-@Suite("UDS Relay E2E Tests", .containerDependent)
+@Suite("UDS Relay E2E Tests", .containerDependent, .mediumContainer)
 struct UDSRelayE2ETests {
 
     @Test("E2E: UDS relay with real PostgreSQL container")
