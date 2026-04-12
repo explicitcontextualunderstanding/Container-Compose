@@ -252,9 +252,9 @@ cleanup_monitor() {
 trap cleanup_monitor EXIT
 
 # ============================================================================
-# TIERED TEST EXECUTION (Memory-Weighted)
-# Runs lightweight tests first, heavy container tests last
-# Ensures WordPress/MySQL (heaviest) run when memory is most stable
+# SPLIT EXECUTION (Parallel-Safe / Serial-Safe)
+# Phase 1: Swift Testing + lightweight XCTest → --parallel (fast)
+# Phase 2: Network/framework XCTest targets → --no-parallel (no GCD deadlocks)
 # ============================================================================
 
 TEST_EXIT_CODE=0
@@ -264,57 +264,69 @@ TIER_LOG="$LOG_DIR/tiered_output_$TIMESTAMP.txt"
 check_memory_for_tier() {
     local tier_name="$1"
     local required_mb="$2"
-    
+
     # Calculate available memory
     local free_pages spec_pages inactive_pages available_mb
     free_pages=$(vm_stat | grep "Pages free" | awk '{print $3}' | tr -d '.') || free_pages=0
     spec_pages=$(vm_stat | grep "Pages speculative" | awk '{print $3}' | tr -d '.' 2>/dev/null) || spec_pages=0
     inactive_pages=$(vm_stat | grep "Pages inactive" | awk '{print $3}' | tr -d '.') || inactive_pages=0
     available_mb=$(( (free_pages + spec_pages + inactive_pages) * 16384 / 1024 / 1024 ))
-    
+
     echo ""
     echo "Memory Check for $tier_name:"
     echo "  Required: ${required_mb}MB"
     echo "  Available: ${available_mb}MB"
-    
+
     if [ "$available_mb" -lt "$required_mb" ]; then
         echo "  ⚠️  INSUFFICIENT MEMORY - Skipping tier"
         return 1
     fi
-    
+
     echo "  ✓ Memory OK"
     return 0
 }
 
-# Function to run all tests (XCTest requires no filter to run properly)
-run_all_tests() {
+# Run a test phase with given parallel mode and filter
+run_phase() {
     local tier_name="$1"
     local required_mb="$2"
-    
-    # Gate on memory
+    local parallel_mode="$3"
+    local filter="$4"
+
     if ! check_memory_for_tier "$tier_name" "$required_mb"; then
         echo "  (Skipped due to low memory)"
         return 0
     fi
-    
+
     echo ""
     echo "=========================================="
-    echo "TIER: $tier_name"
+    echo "PHASE: $tier_name"
+    echo "Mode: $parallel_mode | Filter: $filter"
     echo "=========================================="
-    
-    # Run swift test (testSocketPermissions migrated to Swift Testing to fix parallel deadlock)
-    stdbuf -oL swift test --parallel --num-workers 2 "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
+
+    stdbuf -oL swift test $parallel_mode --filter "$filter" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
     local exit_code=${PIPESTATUS[0]}
-    
+
     if [ $exit_code -ne 0 ]; then
-        echo "⚠️ Tier '$tier_name' had failures (exit: $exit_code)"
+        echo "⚠️ Phase '$tier_name' had failures (exit: $exit_code)"
     fi
-    
+
     return $exit_code
 }
 
-# Run all tests in a single pass, skipping the known hanging test
-run_all_tests "All Tests (excluding known hanging test)" 50 || TEST_EXIT_CODE=1
+# Phase 1: Parallel-safe targets (Swift Testing + lightweight XCTest, no GCD state)
+# SecurityHardeningTests: all Swift Testing, respects .minMemory/.heavyContainer traits
+# Container-Compose-StaticTests: pure XCTest, no network/async
+run_phase "Parallel-Safe Targets" 50 \
+    "--parallel --num-workers 2" \
+    "SecurityHardeningTests|Container-Compose-StaticTests" || TEST_EXIT_CODE=1
+
+# Phase 2: Serial-safe targets (XCTest with Network.framework, async, containers)
+# Container-Compose-Tests: has NWConnection, async relay tests, mixed XCTest/Swift Testing
+# Container-Compose-DynamicTests: container-dependent, async, WordPress/MySQL
+run_phase "Serial-Safe Targets (GCD-safe)" 200 \
+    "--no-parallel" \
+    "Container-Compose-Tests|Container-Compose-DynamicTests" || TEST_EXIT_CODE=1
 
 cp "$TIER_LOG" "$LOG_DIR/test_output_$TIMESTAMP.txt"
 
