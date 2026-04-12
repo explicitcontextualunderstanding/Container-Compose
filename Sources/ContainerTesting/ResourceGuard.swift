@@ -1,8 +1,7 @@
 //===----------------------------------------------------------------------===//
 // ResourceGuard.swift
 // Memory Governor Trait for Swift Testing
-// Prevents tests from launching when memory is constrained
-// Critical for 8GB M2 environments to avoid swap death
+// WARN MODE: Records telemetry, runs tests, only skips at critical levels
 //===----------------------------------------------------------------------===//
 
 import Foundation
@@ -117,11 +116,10 @@ public struct ResourceHelper {
     }
 }
 
-/// Custom trait that guards tests based on available memory
+/// Custom trait that warns about memory but runs tests to collect telemetry
 public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
     public let minRequiredMB: Int
     public let telemetryPath: String?
-    /// Optional image reference for empirical profile lookup
     public let image: String?
 
     public init(minRequiredMB: Int, telemetryPath: String? = nil, image: String? = nil) {
@@ -136,41 +134,34 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
         performing function: () async throws -> Void
     ) async throws {
         let freeMemory = ResourceHelper.getLatestFreeMemory(logPath: telemetryPath)
-        let totalMemory = ResourceHelper.getTotalMemory()
-        let pressureLevel = ResourceHelper.getMemoryPressureLevel()
+        let estimatedThreshold = resolveThreshold()
 
-        let profilingMode = ProcessInfo.processInfo.environment["MEMORY_GUARD_MODE"] == "LOG_ONLY"
-
-        // Resolve threshold: empirical profile > static fallback
-        let actualThreshold = resolveThreshold()
-
+        // WARN MODE: Log memory state, run test, only skip at critical levels
         if let free = freeMemory {
-            if free < actualThreshold {
-                if profilingMode {
-                    print("[PROFILE] Would skip '\(test.name)' (\(free)MB < \(actualThreshold)MB)")
-                } else {
-                    print("MEMORY GUARD: Skipping '\(test.name)'")
-                    print("  Required: \(actualThreshold)MB (\(image != nil ? "empirical" : "static"))")
-                    print("  Available: \(free)MB")
-                    print("  Total: \(totalMemory)MB")
-                    return
-                }
+            if free < 200 {
+                // Critical: < 200MB is genuinely dangerous, skip
+                print("⚠️  MEMORY WARNING: '\(test.name)' SKIPPED - Critical (< 200MB)")
+                print(" Available: \(free)MB | Estimated need: \(estimatedThreshold)MB")
+                return
+            } else if free < estimatedThreshold {
+                // Tight but runnable: warn and run
+                print("⚠️  MEMORY WARNING: '\(test.name)' running tight (\(free)MB < \(estimatedThreshold)MB)")
             } else {
-                print("Memory Guard: '\(test.name)' OK (\(free)MB >= \(actualThreshold)MB)")
+                // Comfortable
+                print("✓ '\(test.name)' OK (\(free)MB >= \(estimatedThreshold)MB)")
             }
         } else {
-            if pressureLevel >= 2 && !profilingMode {
-                print("MEMORY GUARD: Skipping (critical pressure)")
-                return
-            }
-            if profilingMode && pressureLevel >= 2 {
-                print("[PROFILE] Critical pressure but running anyway for profiling")
-            } else {
-                print("Memory Guard: Allowing (pressure OK)")
-            }
+            // Unknown memory state - warn but attempt
+            print("⚠️  MEMORY WARNING: Unknown state for '\(test.name)', attempting anyway")
         }
 
+        // ALWAYS run the test to collect empirical data
         try await function()
+
+        // Post-test: log actual usage if we can get it
+        if let free = freeMemory {
+            print("📊 TELEMETRY: '\(test.name)' started with \(free)MB, estimated \(estimatedThreshold)MB")
+        }
     }
 
     /// Look up empirical profile for the image, fall back to static minRequiredMB
@@ -184,7 +175,6 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
 
         let empirical = Int(profile.memoryGateMB)
         if empirical < minRequiredMB {
-            // Empirical gate is lower than static — safe to use the tighter bound
             return empirical
         }
         return minRequiredMB
@@ -196,25 +186,20 @@ extension Trait where Self == MemoryGuardTrait {
         MemoryGuardTrait(minRequiredMB: mb)
     }
 
-    /// Empirical gate: looks up ContainerProfile for the image, uses peak * 1.10.
-    /// Falls back to static minRequiredMB when no profile exists (first run).
+    /// Empirical gate: looks up ContainerProfile for the image
     public static func empiricalMemory(image: String, fallbackMB: Int = 450) -> MemoryGuardTrait {
         MemoryGuardTrait(minRequiredMB: fallbackMB, image: image)
     }
 
-    /// Static fallback thresholds (used when no telemetry profile exists)
-    /// Based on profiling run: cct-profiling-1775951100
-    /// Peak observed: 195MB | Safety margin: 25% | OS buffer: 150MB
+    /// Static fallback thresholds
     public static var heavyContainer: MemoryGuardTrait {
-        minMemory(450) // Heavy: WordPress + MySQL
+        minMemory(450)
     }
 
-    /// Medium: ~60% of heavy
     public static var mediumContainer: MemoryGuardTrait {
         minMemory(270)
     }
 
-    /// Light: ~30% of heavy
     public static var lightweight: MemoryGuardTrait {
         minMemory(140)
     }
@@ -249,8 +234,7 @@ public actor DynamicMemoryMonitor {
             while isMonitoring && !Task.isCancelled {
                 if let available = ResourceHelper.getSystemFreeMemoryPublic() {
                     if available < minRequiredMB {
-                        print("⚠️ DYNAMIC MEMORY GUARD: Pressure detected!")
-                        print("  Available: \(available)MB < Required: \(minRequiredMB)MB")
+                        print("⚠️  DYNAMIC MEMORY WARNING: \(available)MB < \(minRequiredMB)MB")
                     }
                 }
                 try? await Task.sleep(nanoseconds: UInt64(checkInterval * 1_000_000_000))
