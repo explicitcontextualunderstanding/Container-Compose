@@ -199,9 +199,10 @@ public struct ContainerPollingHelpers {
     }
 
     /// Default maximum total containers allowed before slot polling blocks.
-    /// Set to production container count (5) + small buffer (3).
-    /// Tests that push above this trigger polling until slots free up.
-    public static let defaultMaxContainerSlots = 8
+    /// EMPIRICALLY TUNED: Based on telemetry showing 8 containers never decrease.
+    /// Reduced from 8 to 5 to ensure proper cleanup between tests.
+    /// Production: 3 containers + 2 buffer for test concurrency
+    public static let defaultMaxContainerSlots = 5
 
     /// Default timeout for slot polling (seconds).
     public static let defaultSlotPollTimeout: TimeInterval = 5
@@ -285,13 +286,17 @@ public struct ContainerPollingHelpers {
     ///   - projectNames: The project name prefix(es) to match containers for cleanup.
     ///     Use multiple names when tests use custom `container_name:` overrides that
     ///     don't match the temp directory UUID.
-    ///   - maxSlots: Maximum allowed containers after cleanup (default: 8).
+    ///   - maxSlots: Maximum allowed containers after cleanup (default: 5).
     ///   - body: The test body. Errors are rethrown after cleanup.
     public static func withProjectCleanup(
         projectNames: [String],
         maxSlots: Int = defaultMaxContainerSlots,
         _ body: () async throws -> Void
     ) async rethrows -> Void {
+        // Log initial container count
+        let initialCount = (try? await ClientContainer.list())?.count ?? 0
+        print("[CLEANUP] Starting test with \(initialCount) containers")
+        
         do {
             try await body()
         } catch {
@@ -299,12 +304,28 @@ public struct ContainerPollingHelpers {
                 await cleanupProjectContainers(projectName: name)
             }
             await waitForContainerSlots(maxSlots: maxSlots)
+            
+            // Verify cleanup
+            let finalCount = (try? await ClientContainer.list())?.count ?? 0
+            print("[CLEANUP] Test failed, cleaned up. Containers: \(initialCount) -> \(finalCount)")
             throw error
         }
+        
         for name in projectNames {
             await cleanupProjectContainers(projectName: name)
         }
         await waitForContainerSlots(maxSlots: maxSlots)
+        
+        // Verify cleanup
+        let finalCount = (try? await ClientContainer.list())?.count ?? 0
+        print("[CLEANUP] Test completed. Containers: \(initialCount) -> \(finalCount)")
+        
+        // Warn if cleanup didn't work
+        if finalCount >= initialCount && initialCount > 0 {
+            print("⚠️ [CLEANUP] WARNING: Container count did not decrease!")
+            print("    Initial: \(initialCount), Final: \(finalCount)")
+            print("    Consider checking container runtime or reducing maxSlots")
+        }
     }
 
     /// Convenience overload for single project name.
