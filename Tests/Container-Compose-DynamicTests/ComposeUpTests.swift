@@ -24,8 +24,7 @@ import Foundation
 import TestHelpers
 @testable import ContainerComposeCore
 
-@Suite("Compose Up Tests - Real-World Compose Files", .containerDependent, .serialized,
-       .empiricalMemory(image: "wordpress", fallbackMB: 200))
+@Suite("Compose Up Tests - Real-World Compose Files", .containerDependent, .serialized)
 struct ComposeUpTests {
   private let reliabilityHelper = ContainerReliabilityHelper()
 
@@ -34,7 +33,8 @@ struct ComposeUpTests {
     ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "docker.io"
   }
     
-    @Test("Test WordPress with MySQL compose file")
+    @Test("Test WordPress with MySQL compose file",
+        .empiricalMemory(image: "wordpress", fallbackMB: 200))
     func testWordPressCompose() async throws {
         let yaml = DockerComposeYamlFiles.dockerComposeYaml1
             .replacingOccurrences(of: "${TEST_PORT_WORDPRESS:-18080}", with: "18080")
