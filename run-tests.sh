@@ -269,28 +269,59 @@ TEST_EXIT_CODE=0
 TIER_LOG="$LOG_DIR/tiered_output_$TIMESTAMP.txt"
 
 # Memory gating function - checks if enough memory available
+# Uses memory_pressure for accurate available memory (not misleading 'free')
 check_memory_for_tier() {
     local tier_name="$1"
     local required_mb="$2"
 
-    # Calculate available memory
-    local free_pages spec_pages inactive_pages available_mb
-    free_pages=$(vm_stat | grep "Pages free" | awk '{print $3}' | tr -d '.') || free_pages=0
-    spec_pages=$(vm_stat | grep "Pages speculative" | awk '{print $3}' | tr -d '.' 2>/dev/null) || spec_pages=0
-    inactive_pages=$(vm_stat | grep "Pages inactive" | awk '{print $3}' | tr -d '.') || inactive_pages=0
-    available_mb=$(( (free_pages + spec_pages + inactive_pages) * 16384 / 1024 / 1024 ))
+    # Get available memory percentage from memory_pressure
+    local pressure_output=$(memory_pressure -Q 2>/dev/null)
+    local available_mb
+    local pressure_level="unknown"
+
+    if echo "$pressure_output" | grep -q "percent free"; then
+        # Parse percent free from memory_pressure
+        local percent_free=$(echo "$pressure_output" | grep -oE "[0-9]+\.?[0-9]* percent free" | grep -oE "[0-9]+\.?[0-9]*" | head -1)
+        local total_mb=$(sysctl -n hw.memsize 2>/dev/null | awk '{print int($1/1024/1024)}')
+        available_mb=$(echo "scale=0; $total_mb * $percent_free / 100" | bc 2>/dev/null || echo "0")
+
+        # Determine pressure level
+        if [ "${percent_free%.*}" -gt 85 ]; then
+            pressure_level="GREEN"
+        elif [ "${percent_free%.*}" -gt 50 ]; then
+            pressure_level="YELLOW"
+        else
+            pressure_level="RED"
+        fi
+    else
+        # Fallback to vm_stat with all reclaimable pages
+        local free_pages spec_pages inactive_pages purgeable_pages compressed_pages
+        free_pages=$(vm_stat | grep "Pages free" | awk '{print $3}' | tr -d '.') || free_pages=0
+        spec_pages=$(vm_stat | grep "Pages speculative" | awk '{print $3}' | tr -d '.' 2>/dev/null) || spec_pages=0
+        inactive_pages=$(vm_stat | grep "Pages inactive" | awk '{print $3}' | tr -d '.') || inactive_pages=0
+        purgeable_pages=$(vm_stat | grep "Pages purgeable" | awk '{print $3}' | tr -d '.' 2>/dev/null) || purgeable_pages=0
+        compressed_pages=$(vm_stat | grep "Pages occupied by compressor" | awk '{print $5}' | tr -d '.' 2>/dev/null) || compressed_pages=0
+        available_mb=$(( (free_pages + spec_pages + inactive_pages + purgeable_pages + compressed_pages) * 16384 / 1024 / 1024 ))
+    fi
 
     echo ""
     echo "Memory Check for $tier_name:"
-    echo "  Required: ${required_mb}MB"
-    echo "  Available: ${available_mb}MB"
+    echo " Required: ${required_mb}MB"
+    echo " Available: ${available_mb}MB (Pressure: $pressure_level)"
 
-    if [ "$available_mb" -lt "$required_mb" ]; then
-        echo "  ⚠️  INSUFFICIENT MEMORY - Skipping tier"
+    # Only skip at critical levels (< 500MB available + high pressure)
+    if [ "$available_mb" -lt 500 ] && [ "$pressure_level" = "RED" ]; then
+        echo " 🛑 CRITICAL MEMORY - Skipping tier (RED pressure + < 500MB)"
         return 1
     fi
 
-    echo "  ✓ Memory OK"
+    # Warn if tight but still run
+    if [ "$available_mb" -lt "$required_mb" ]; then
+        echo " 🟡 MEMORY TIGHT - Running anyway (\$available_mb MB < \$required_mb MB estimated)"
+        return 0
+    fi
+
+    echo " 🟢 Memory OK"
     return 0
 }
 
