@@ -23,6 +23,31 @@ echo "=========================================="
 echo "RUN_ID: $RUN_ID"
 echo ""
 
+# Agent overhead check (critical for 8GB M2)
+if [ -f "$SCRIPT_DIR/scripts/check-agent-overhead.sh" ]; then
+    echo "=== AGENT OVERHEAD CHECK ==="
+    bash "$SCRIPT_DIR/scripts/check-agent-overhead.sh"
+    AGENT_STATUS=$?
+    echo ""
+    
+    case $AGENT_STATUS in
+        1)
+            echo "⚠️  CRITICAL: Cannot run any tests (insufficient memory)"
+            echo "    Close applications or agents to free memory"
+            ;;
+        2)
+            echo "⚠️  LIMITED: Lightweight tests only (<270MB free)"
+            ;;
+        3)
+            echo "ℹ️  MEDIUM: Medium tests available (<450MB free)"
+            ;;
+        0)
+            echo "✅ OK: Heavy tests can run (≥450MB free)"
+            ;;
+    esac
+    echo ""
+fi
+
 # Load library modules
 source "$SCRIPT_DIR/scripts/lib/container-cleanup.sh"
 source "$SCRIPT_DIR/scripts/lib/test-runner.sh"
