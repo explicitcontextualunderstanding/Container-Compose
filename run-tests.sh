@@ -258,9 +258,53 @@ cleanup_monitor() {
 }
 trap cleanup_monitor EXIT
 
-# Run tests
-swift test --parallel --num-workers 2 "${FILTERED_ARGS[@]}" 2>&1 | tee "$LOG_DIR/test_output_$TIMESTAMP.txt"
-TEST_EXIT_CODE=${PIPESTATUS[0]}
+# ============================================================================
+# TIERED TEST EXECUTION (Memory-Weighted)
+# Runs lightweight tests first, heavy container tests last
+# Ensures WordPress/MySQL (heaviest) run when memory is most stable
+# ============================================================================
+
+TEST_EXIT_CODE=0
+TIER_LOG="$LOG_DIR/tiered_output_$TIMESTAMP.txt"
+
+# Function to run a test tier
+run_test_tier() {
+    local tier_name="$1"
+    local filter="$2"
+    shift 2
+    local extra_args=("$@")
+    
+    echo ""
+    echo "=========================================="
+    echo "TIER: $tier_name"
+    echo "=========================================="
+    
+    swift test --parallel --num-workers 2 --filter "$filter" "${extra_args[@]}" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
+    local exit_code=${PIPESTATUS[0]}
+    
+    if [ $exit_code -ne 0 ]; then
+        echo "⚠️ Tier '$tier_name' had failures (exit: $exit_code)"
+    fi
+    
+    return $exit_code
+}
+
+# Tier 1: Ultra-lightweight (static tests) - ~50MB
+run_test_tier "1-Static" "Container-Compose-StaticTests" || TEST_EXIT_CODE=1
+
+# Tier 2: Security tests (no containers) - ~100MB  
+run_test_tier "2-Security" "SecurityHardeningTests" || TEST_EXIT_CODE=1
+
+# Tier 3: Dynamic tests excluding heavy containers - ~200MB
+run_test_tier "3-Dynamic-Medium" "Container-Compose-DynamicTests" "--skip" "ComposeUpTests" "--skip" "ComposeDownTests" || TEST_EXIT_CODE=1
+
+# Tier 4: Heavy container tests (run last when memory is freest) - ~400MB
+run_test_tier "4-Heavy" "ComposeDownTests" || TEST_EXIT_CODE=1
+
+# Tier 5: Critical (WordPress + MySQL) - ~800MB, run absolute last
+run_test_tier "5-Critical-WordPress" "ComposeUpTests" || TEST_EXIT_CODE=1
+
+cp "$TIER_LOG" "$LOG_DIR/test_output_$TIMESTAMP.txt"
 
 # Stop resource monitor
 cleanup_monitor
