@@ -142,18 +142,7 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
         let profilingMode = ProcessInfo.processInfo.environment["MEMORY_GUARD_MODE"] == "LOG_ONLY"
 
         // Resolve threshold: empirical profile > static fallback
-        let baseThreshold = resolveThreshold()
-
-        // Dynamic threshold adjustment based on memory pressure
-        let actualThreshold: Int
-        switch pressureLevel {
-        case 2:
-            actualThreshold = Int(Double(totalMemory) * 0.15)
-        case 1:
-            actualThreshold = Int(Double(totalMemory) * 0.25)
-        default:
-            actualThreshold = baseThreshold
-        }
+        let actualThreshold = resolveThreshold()
 
         if let free = freeMemory {
             if free < actualThreshold {
