@@ -25,12 +25,21 @@ nonisolated(unsafe) private var _cleanupEnabled = false
 
 public actor ResourceArbiter {
     public static let shared = ResourceArbiter()
-
+    
     private var inFlightCount: Int = 0
     private var snapshotOpsInProgress: Bool = false
-    private let maxInFlightLightweight = 3
-
-    private let memoryThresholdMB = 1024 // 1GB - force serial below this
+    
+    // Dynamic concurrency limits based on empirical telemetry
+    // Derived from profile-1775950630: min free was 195MB
+    private var maxInFlightLightweight = 3 // Reduced dynamically when memory pressure
+    
+    // Empirical thresholds from Victoria Protocol
+    // Threshold = MinObservedFree(195MB) + SafetyMargin(100MB) + OS_Buffer(150MB)
+    private let criticalThresholdMB = 300  // Block all tests below this (system unstable)
+    private let heavyThresholdMB = 450     // Force serial below this (empirical: 195+100+150)
+    private let mediumThresholdMB = 600    // Limit concurrency below this
+    private let parallelThresholdMB = 800  // Full parallelism above this
+    
     private let ioPressureThreshold = 5 // block new tests if too many I/O ops
 
     // Cleanup configuration
@@ -162,30 +171,69 @@ public actor ResourceArbiter {
         }
     }
 
-    public func requestExecutionSlot(for weight: TestWeight) -> ExecutionMode {
+public func requestExecutionSlot(for weight: TestWeight) -> ExecutionMode {
         let freeMemory = ResourceHelper.getLatestFreeMemory() ?? 8192
-
+        
+        // Check for critical memory pressure first
+        if freeMemory < criticalThresholdMB {
+            return .blocked(reason: "⛔ CRITICAL: Memory at \(freeMemory)MB (threshold: \(criticalThresholdMB)MB). Close Chrome/Slack to continue.")
+        }
+        
         if weight == .snapshotHeavy || snapshotOpsInProgress {
             return .blocked(reason: "Snapshot operation in progress - preventing I/O pile-up")
         }
-
-        if freeMemory < memoryThresholdMB {
-            return .serial
-        }
-
-        if weight == .heavy {
-            return .serial
-        }
-
-        if weight == .lightweight {
-            if inFlightCount >= maxInFlightLightweight {
-                return .blocked(reason: "Max in-flight containers (\(maxInFlightLightweight)) reached")
+        
+        // Dynamic concurrency based on empirical thresholds
+        // From profile-1775950630: min free was 195MB
+        switch weight {
+        case .heavy:
+            // Heavy tests (WordPress + MySQL) need 450MB+ free
+            // Empirical: 195MB min + 100MB safety + 150MB OS buffer
+            if freeMemory < heavyThresholdMB {
+                return .serial // Force serial when memory constrained
+            }
+            // Even with enough memory, limit to 1 heavy test at a time
+            if inFlightCount >= 1 {
+                return .blocked(reason: "Heavy test in progress - preventing memory pile-up (free: \(freeMemory)MB)")
             }
             inFlightCount += 1
             return .parallel
+            
+        case .medium:
+            // Medium tests need 600MB+ for comfortable parallel execution
+            if freeMemory < mediumThresholdMB {
+                return .serial // Serial when under pressure
+            }
+            if freeMemory < parallelThresholdMB {
+                // Limited parallelism - reduce concurrent tests
+                maxInFlightLightweight = 2
+            }
+            if inFlightCount >= maxInFlightLightweight {
+                return .blocked(reason: "Memory pressure - limiting concurrency (free: \(freeMemory)MB)")
+            }
+            inFlightCount += 1
+            return .parallel
+            
+        case .lightweight:
+            // Lightweight tests are most flexible
+            // Dynamically adjust concurrency based on available memory
+            if freeMemory < mediumThresholdMB {
+                maxInFlightLightweight = 2  // Reduce from 3 to 2
+            } else if freeMemory < parallelThresholdMB {
+                maxInFlightLightweight = 3  // Normal
+            } else {
+                maxInFlightLightweight = 4  // Can afford more when memory abundant
+            }
+            
+            if inFlightCount >= maxInFlightLightweight {
+                return .blocked(reason: "Max in-flight containers (\(maxInFlightLightweight)) reached (free: \(freeMemory)MB)")
+            }
+            inFlightCount += 1
+            return .parallel
+            
+        case .snapshotHeavy:
+            return .blocked(reason: "Snapshot-heavy tests must run serially")
         }
-
-        return .parallel
     }
 
     public func releaseExecutionSlot(for weight: TestWeight) {
