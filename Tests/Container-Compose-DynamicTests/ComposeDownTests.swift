@@ -24,7 +24,7 @@ import Testing
 import ContainerTesting
 
 @Suite("Compose Down Tests", .containerDependent, .serialized,
-       .empiricalMemory(image: "wordpress", fallbackMB: 450))
+       .empiricalMemory(image: "wordpress", fallbackMB: 200))
 struct ComposeDownTests {
     private let reliabilityHelper = ContainerReliabilityHelper()
 
