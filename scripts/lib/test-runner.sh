@@ -10,10 +10,10 @@
 #   - check_stale_lock_files()   Detect and optionally clean stale lock files
 #   - check_root_owned_files()   Detect root-owned files in .build directory
 
-# Setup logging to timestamped file with console mirroring
+# Setup logging to timestamped file
 # Globals: LOG_DIR, TIMESTAMP, LOG_FILE (set by this function)
 # Usage: setup_test_logging [script_dir]
-#   If script_dir not provided, uses parent directory of the calling script
+# If script_dir not provided, uses parent directory of the calling script
 setup_test_logging() {
     if [ -n "$1" ]; then
         SCRIPT_DIR="$1"
@@ -21,14 +21,14 @@ setup_test_logging() {
         # Default: use parent directory of the script that sourced this library
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[1]}")/.." && pwd)"
     fi
-    
+
     LOG_DIR="$SCRIPT_DIR/logs"
     mkdir -p "$LOG_DIR"
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
     LOG_FILE="$LOG_DIR/test_run_$TIMESTAMP.log"
 
-    # Redirect stdout and stderr to both console and log file
-    exec > >(tee -a "$LOG_FILE") 2>&1
+    # Note: Not using exec redirect to avoid hangs with process substitution
+    # Tests will write to LOG_FILE via explicit tee in run_test_tier
 
     echo "Logging to: $LOG_FILE"
     echo ""

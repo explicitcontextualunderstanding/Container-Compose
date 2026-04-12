@@ -16,35 +16,27 @@ cd "$SCRIPT_DIR"
 # VICTORIA PROTOCOL: Initialize RUN_ID for surgical container tracking
 # This enables label-based cleanup that only targets this test session's containers
 # ============================================================================
-export RUN_ID="cct-$(date +%s)-$$"
+RUN_ID="cct-$(date +%s)-$$"
+export RUN_ID
 echo "=========================================="
 echo "Container-Compose Test Runner"
 echo "=========================================="
 echo "RUN_ID: $RUN_ID"
 echo ""
 
-# Agent overhead check (critical for 8GB M2)
+# Agent overhead check (critical for 8GB M2) - run in background to not block
 if [ -f "$SCRIPT_DIR/scripts/check-agent-overhead.sh" ]; then
     echo "=== AGENT OVERHEAD CHECK ==="
-    bash "$SCRIPT_DIR/scripts/check-agent-overhead.sh"
-    AGENT_STATUS=$?
-    echo ""
-    
-    case $AGENT_STATUS in
-        1)
-            echo "⚠️  CRITICAL: Cannot run any tests (insufficient memory)"
-            echo "    Close applications or agents to free memory"
-            ;;
-        2)
-            echo "⚠️  LIMITED: Lightweight tests only (<270MB free)"
-            ;;
-        3)
-            echo "ℹ️  MEDIUM: Medium tests available (<450MB free)"
-            ;;
-        0)
-            echo "✅ OK: Heavy tests can run (≥450MB free)"
-            ;;
-    esac
+    # Run in subshell to avoid blocking main execution
+    (
+        bash "$SCRIPT_DIR/scripts/check-agent-overhead.sh" &
+        CHECK_PID=$!
+        sleep 2
+        if ps -p $CHECK_PID > /dev/null 2>&1; then
+            kill $CHECK_PID 2>/dev/null
+            wait $CHECK_PID 2>/dev/null
+        fi
+    ) 2>/dev/null || true
     echo ""
 fi
 
@@ -140,6 +132,7 @@ AUTO_CLEAN=false
 for arg in "$@"; do
     if [[ "$arg" == "--auto-clean" ]]; then
         AUTO_CLEAN=true
+        export AUTO_CLEAN
         break
     fi
 done
@@ -272,11 +265,12 @@ check_memory_for_tier() {
     local tier_name="$1"
     local required_mb="$2"
     
-    # Calculate available memory
-    local free_pages=$(vm_stat | grep "Pages free" | awk '{print $3}' | tr -d '.')
-    local spec_pages=$(vm_stat | grep "Pages speculative" | awk '{print $3}' | tr -d '.' 2>/dev/null || echo 0)
-    local inactive_pages=$(vm_stat | grep "Pages inactive" | awk '{print $3}' | tr -d '.')
-    local available_mb=$(( (free_pages + spec_pages + inactive_pages) * 16384 / 1024 / 1024 ))
+    # Calculate available memory (separate declare from assignment to avoid masking return values)
+    local free_pages spec_pages inactive_pages available_mb
+    free_pages=$(vm_stat | grep "Pages free" | awk '{print $3}' | tr -d '.') || free_pages=0
+    spec_pages=$(vm_stat | grep "Pages speculative" | awk '{print $3}' | tr -d '.' 2>/dev/null) || spec_pages=0
+    inactive_pages=$(vm_stat | grep "Pages inactive" | awk '{print $3}' | tr -d '.') || inactive_pages=0
+    available_mb=$(( (free_pages + spec_pages + inactive_pages) * 16384 / 1024 / 1024 ))
     
     echo ""
     echo "Memory Check for $tier_name:"
@@ -311,7 +305,9 @@ run_test_tier() {
     echo "TIER: $tier_name"
     echo "=========================================="
     
-    swift test --parallel --num-workers 2 --filter "$filter" "${extra_args[@]}" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
+    # Run swift test and tee to both console and log
+    # Using stdbuf to ensure output is not buffered
+    stdbuf -oL swift test --parallel --num-workers 2 --filter "$filter" "${extra_args[@]}" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
     local exit_code=${PIPESTATUS[0]}
     
     if [ $exit_code -ne 0 ]; then
