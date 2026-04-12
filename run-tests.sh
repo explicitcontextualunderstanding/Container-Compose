@@ -378,8 +378,9 @@ run_phase_with_container_telemetry() {
     ) &
     local stats_pid=$!
     
-    # Run the heavy tests
-    stdbuf -oL swift test --no-parallel --filter "Container-Compose-Tests|Container-Compose-DynamicTests" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
+    # Run the heavy tests (XCTest targets - filter doesn't work well with XCTest class names)
+    # Use --skip to exclude Phase 1 targets instead of --filter to include Phase 2
+    stdbuf -oL swift test --no-parallel --skip "SecurityHardeningTests" --skip "Container-Compose-StaticTests" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
     local exit_code=${PIPESTATUS[0]}
     
     # Stop container stats
