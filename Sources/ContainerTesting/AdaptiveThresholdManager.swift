@@ -5,6 +5,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import Testing
 
 /// Manages adaptive thresholds that change based on available memory
 public actor AdaptiveThresholdManager {
