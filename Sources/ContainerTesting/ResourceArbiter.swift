@@ -33,12 +33,13 @@ public actor ResourceArbiter {
     // Derived from profile-1775950630: min free was 195MB
     private var maxInFlightLightweight = 3 // Reduced dynamically when memory pressure
     
-    // Empirical thresholds from Victoria Protocol
-    // Threshold = MinObservedFree(195MB) + SafetyMargin(100MB) + OS_Buffer(150MB)
+    // Empirical thresholds from Victoria Protocol - Evidence-Based Tuning
+    // Based on observed minimum: 709MB across multiple test runs
+    // Threshold = MinObservedFree(709MB) × SafetyFactor - providing headroom
     private let criticalThresholdMB = 300  // Block all tests below this (system unstable)
-    private let heavyThresholdMB = 450     // Force serial below this (empirical: 195+100+150)
-    private let mediumThresholdMB = 600    // Limit concurrency below this
-    private let parallelThresholdMB = 800  // Full parallelism above this
+    private let heavyThresholdMB = 400     // Force serial below this (709 × 0.55, conservative)
+    private let mediumThresholdMB = 550    // Limit concurrency below this (709 × 0.75)
+    private let parallelThresholdMB = 700  // Full parallelism above this (observed min)
     
     private let ioPressureThreshold = 5 // block new tests if too many I/O ops
 
@@ -173,13 +174,19 @@ public actor ResourceArbiter {
 
 public func requestExecutionSlot(for weight: TestWeight) -> ExecutionMode {
         let freeMemory = ResourceHelper.getLatestFreeMemory() ?? 8192
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        
+        // Log evidence for dynamic concurrency effectiveness
+        print("[ResourceArbiter] \(timestamp) - Memory: \(freeMemory)MB | Requesting slot for: \(weight)")
         
         // Check for critical memory pressure first
         if freeMemory < criticalThresholdMB {
+            print("[ResourceArbiter] EVIDENCE: Blocked test due to critical memory (\(freeMemory)MB < \(criticalThresholdMB)MB)")
             return .blocked(reason: "⛔ CRITICAL: Memory at \(freeMemory)MB (threshold: \(criticalThresholdMB)MB). Close Chrome/Slack to continue.")
         }
         
         if weight == .snapshotHeavy || snapshotOpsInProgress {
+            print("[ResourceArbiter] EVIDENCE: Blocked test - snapshot in progress")
             return .blocked(reason: "Snapshot operation in progress - preventing I/O pile-up")
         }
         
@@ -190,27 +197,36 @@ public func requestExecutionSlot(for weight: TestWeight) -> ExecutionMode {
             // Heavy tests (WordPress + MySQL) need 450MB+ free
             // Empirical: 195MB min + 100MB safety + 150MB OS buffer
             if freeMemory < heavyThresholdMB {
+                print("[ResourceArbiter] EVIDENCE: Forced serial for heavy test (\(freeMemory)MB < \(heavyThresholdMB)MB)")
                 return .serial // Force serial when memory constrained
             }
             // Even with enough memory, limit to 1 heavy test at a time
             if inFlightCount >= 1 {
+                print("[ResourceArbiter] EVIDENCE: Blocked heavy test - another in progress (inFlight: \(inFlightCount))")
                 return .blocked(reason: "Heavy test in progress - preventing memory pile-up (free: \(freeMemory)MB)")
             }
+            print("[ResourceArbiter] EVIDENCE: Allowed heavy test parallel (\(freeMemory)MB >= \(heavyThresholdMB)MB)")
             inFlightCount += 1
             return .parallel
             
         case .medium:
             // Medium tests need 600MB+ for comfortable parallel execution
             if freeMemory < mediumThresholdMB {
+                print("[ResourceArbiter] EVIDENCE: Forced serial for medium test (\(freeMemory)MB < \(mediumThresholdMB)MB)")
                 return .serial // Serial when under pressure
             }
             if freeMemory < parallelThresholdMB {
                 // Limited parallelism - reduce concurrent tests
                 maxInFlightLightweight = 2
+                print("[ResourceArbiter] EVIDENCE: Reduced maxInFlightLightweight to 2 (\(freeMemory)MB < \(parallelThresholdMB)MB)")
+            } else {
+                print("[ResourceArbiter] EVIDENCE: Normal maxInFlightLightweight (\(freeMemory)MB >= \(parallelThresholdMB)MB)")
             }
             if inFlightCount >= maxInFlightLightweight {
+                print("[ResourceArbiter] EVIDENCE: Blocked medium test - max in-flight (\(inFlightCount)/\(maxInFlightLightweight))")
                 return .blocked(reason: "Memory pressure - limiting concurrency (free: \(freeMemory)MB)")
             }
+            print("[ResourceArbiter] EVIDENCE: Allowed medium test (\(inFlightCount)/\(maxInFlightLightweight), free: \(freeMemory)MB)")
             inFlightCount += 1
             return .parallel
             

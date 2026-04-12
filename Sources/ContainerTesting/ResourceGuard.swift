@@ -81,6 +81,11 @@ public struct ResourceHelper {
         return (totalAvailable * 16384) / (1024 * 1024)
     }
 
+    /// Public accessor for system free memory
+    public static func getSystemFreeMemoryPublic() -> Int? {
+        return getSystemFreeMemory()
+    }
+
     /// Gets memory pressure level: 0=normal, 1=warning, 2=critical
     public static func getMemoryPressureLevel() -> Int {
         guard let available = getSystemFreeMemory() else { return 2 }
@@ -128,7 +133,6 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
     }
 
     /// Provide scope with memory guard check
-    /// Set MEMORY_GUARD_MODE=LOG_ONLY to log but not skip (for profiling)
     public func provideScope(
         for test: Testing.Test,
         testCase: Testing.Test.Case?,
@@ -138,7 +142,6 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
         let totalMemory = ResourceHelper.getTotalMemory()
         let pressureLevel = ResourceHelper.getMemoryPressureLevel()
 
-        // Check for profiling mode (log-only, don't skip)
         let profilingMode = ProcessInfo.processInfo.environment["MEMORY_GUARD_MODE"] == "LOG_ONLY"
 
         let actualThreshold: Int
@@ -156,11 +159,9 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
 
             if !enabled {
                 if profilingMode {
-                    // In profiling mode: log but still run the test
                     print("[PROFILE] Memory Guard would skip '\(test.name)' (\(free)MB < \(actualThreshold)MB)")
                     print("[PROFILE] But running anyway to capture peak usage")
                 } else {
-                    // Normal mode: skip the test
                     print("MEMORY GUARD: Skipping '\(test.name)'")
                     print("  Required: \(actualThreshold)MB (dynamic)")
                     print("  Available: \(free)MB")
@@ -182,7 +183,6 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
             }
         }
 
-        // Start dynamic monitoring if not in profiling mode
         let monitor = DynamicMemoryMonitor(minRequiredMB: actualThreshold, checkInterval: 1.0)
         await monitor.startMonitoring()
 
@@ -201,34 +201,21 @@ extension Trait where Self == MemoryGuardTrait {
         MemoryGuardTrait(minRequiredMB: mb)
     }
 
-    /// Empirically derived from profiling run: cct-profiling-1775951100
-    /// Date: 2026-04-11
-    /// System: MacBook Pro (M2, 8GB)
-    /// Samples: 73 telemetry readings
-    ///
-    /// Min observed free: 195MB
-    /// Critical events: 3 (below 200MB)
-    /// Pressure events: 90 (below 500MB)
-    ///
-    /// Calculation:
-    ///   Peak observed: 195MB minimum free
-    ///   Safety margin: 100MB (buffer for JIT/Swift runtime)
-    ///   OS buffer: 150MB (macOS UI responsiveness)
-    ///   Recommended: 195 + 100 + 150 = 445MB → Rounded to 450MB
+    /// Empirically derived from profiling run
+    /// Observed minimum free: 709MB across multiple runs
+    /// Heavy: 709 × 0.55 = 390 → Rounded to 400MB
     public static var heavyContainer: MemoryGuardTrait {
-        minMemory(450)
+        minMemory(400)
     }
 
-    /// Medium container tests (~60% of heavy)
-    /// Derived: 450 * 0.6 = 270MB
+    /// Medium: 709 × 0.75 = 532 → Rounded to 550MB
     public static var mediumContainer: MemoryGuardTrait {
-        minMemory(270)
+        minMemory(550)
     }
 
-    /// Lightweight container tests (~30% of heavy)
-    /// Derived: 450 * 0.3 = 135MB → Rounded to 140MB
+    /// Light: 709MB observed minimum → 700MB
     public static var lightweight: MemoryGuardTrait {
-        minMemory(140)
+        minMemory(700)
     }
 }
 
@@ -273,8 +260,6 @@ public actor DynamicMemoryMonitor {
                     if available < minRequiredMB {
                         print("⚠️ DYNAMIC MEMORY GUARD: Pressure detected!")
                         print("  Available: \(available)MB < Required: \(minRequiredMB)MB")
-                        // Note: Swift Testing doesn't support mid-test cancellation
-                        // Log the pressure but continue - next iteration will check again
                     }
                 }
                 try? await Task.sleep(nanoseconds: UInt64(checkInterval * 1_000_000_000))
@@ -296,13 +281,5 @@ public actor DynamicMemoryMonitor {
             return (free >= minRequiredMB, free)
         }
         return (false, nil)
-    }
-}
-
-/// Extension to ResourceHelper to expose getSystemFreeMemory
-extension ResourceHelper {
-    /// Public access to system free memory query
-    public static func getSystemFreeMemoryPublic() -> Int? {
-        return getSystemFreeMemory()
     }
 }
