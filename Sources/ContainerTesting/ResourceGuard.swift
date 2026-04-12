@@ -100,11 +100,16 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
         let pressureLevel = ResourceHelper.getMemoryPressureLevel()
         let profilingMode = ProcessInfo.processInfo.environment["MEMORY_GUARD_MODE"] == "LOG_ONLY"
 
+        // Dynamic threshold adjustment based on memory pressure
+        // Only adjust by ±20% from declared threshold, not full percentage of total
         let actualThreshold: Int
         switch pressureLevel {
-        case 2: actualThreshold = Int(Double(totalMemory) * 0.15)
-        case 1: actualThreshold = Int(Double(totalMemory) * 0.25)
-        default: actualThreshold = minRequiredMB
+        case 2: // Critical - add 20% safety margin to declared threshold
+            actualThreshold = Int(Double(minRequiredMB) * 1.2)
+        case 1: // Warning - add 10% margin
+            actualThreshold = Int(Double(minRequiredMB) * 1.1)
+        default: // Normal - use declared threshold
+            actualThreshold = minRequiredMB
         }
 
         if let free = freeMemory {
@@ -126,9 +131,26 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
 
 extension Trait where Self == MemoryGuardTrait {
     public static func minMemory(_ mb: Int) -> MemoryGuardTrait { MemoryGuardTrait(minRequiredMB: mb) }
-    public static var heavyContainer: MemoryGuardTrait { minMemory(400) }
-    public static var mediumContainer: MemoryGuardTrait { minMemory(550) }
-    public static var lightweight: MemoryGuardTrait { minMemory(700) }
+    
+    /// Empirically derived thresholds from Victoria Protocol
+    /// Based on profiling run: cct-profiling-1775951100
+    /// Peak observed: 195MB | Safety margin: 25% | OS buffer: 150MB
+    /// Calculated: 195 + 100 + 150 = 445MB → Rounded to 450MB
+    public static var heavyContainer: MemoryGuardTrait { 
+        minMemory(450) // Heavy: WordPress + MySQL
+    }
+    
+    /// Medium: ~60% of heavy
+    /// Derived: 450 * 0.6 = 270MB
+    public static var mediumContainer: MemoryGuardTrait { 
+        minMemory(270) // Medium: PostgreSQL/redis containers
+    }
+    
+    /// Lightweight: ~30% of heavy
+    /// Derived: 450 * 0.3 = 135MB → Rounded to 140MB
+    public static var lightweight: MemoryGuardTrait { 
+        minMemory(140) // Lightweight: nginx/alpine containers
+    }
 }
 
 public struct MemoryCheckTrait: TestTrait {
