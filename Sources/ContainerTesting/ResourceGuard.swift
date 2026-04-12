@@ -40,6 +40,35 @@ public struct ResourceHelper {
     }
 
     internal static func getSystemFreeMemory() -> Int? {
+        // Use 'memory_pressure' for more accurate available memory
+        // vm_stat's "free" is misleading on macOS - much more is available
+        let task = Process()
+        task.launchPath = "/usr/bin/memory_pressure"
+        task.arguments = ["-Q"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.launch()
+        task.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8) else {
+            return getFallbackMemory()
+        }
+
+        // Parse: "The system has X percent free memory"
+        if let match = output.range(of: #"(\d+)(\.\d+)? percent free"#, options: .regularExpression),
+           let percentStr = output[match].components(separatedBy: CharacterSet.letters).first,
+           let percent = Double(percentStr.trimmingCharacters(in: .whitespaces)) {
+            let total = getTotalMemory()
+            return Int(Double(total) * (percent / 100.0))
+        }
+
+        return getFallbackMemory()
+    }
+
+    private static func getFallbackMemory() -> Int? {
+        // Fallback: Use vm_stat but add compressed + purgeable
         let task = Process()
         task.launchPath = "/usr/bin/vm_stat"
         task.arguments = []
@@ -49,33 +78,25 @@ public struct ResourceHelper {
         task.launch()
         task.waitUntilExit()
 
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let output = String(data: data, encoding: .utf8) else { return nil }
+        guard let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) else {
+            return nil
+        }
 
-        var freePages: Int = 0
-        var speculativePages: Int = 0
-        var inactivePages: Int = 0
+        var availablePages: Int = 0
 
         for line in output.components(separatedBy: .newlines) {
-            if line.contains("Pages free"),
-               let value = line.components(separatedBy: ":").last?.trimmingCharacters(in: .whitespaces),
-               let num = Int(value.trimmingCharacters(in: CharacterSet(charactersIn: "."))) {
-                freePages = num
-            }
-            if line.contains("Pages speculative"),
-               let value = line.components(separatedBy: ":").last?.trimmingCharacters(in: .whitespaces),
-               let num = Int(value.trimmingCharacters(in: CharacterSet(charactersIn: "."))) {
-                speculativePages = num
-            }
-            if line.contains("Pages inactive"),
-               let value = line.components(separatedBy: ":").last?.trimmingCharacters(in: .whitespaces),
-               let num = Int(value.trimmingCharacters(in: CharacterSet(charactersIn: "."))) {
-                inactivePages = num
+            // Count ALL reclaimable memory
+            for key in ["Pages free", "Pages speculative", "Pages inactive",
+                       "Pages purgeable", "Pages occupied by compressor"] {
+                if line.contains(key),
+                   let value = line.components(separatedBy: ":").last?.trimmingCharacters(in: .whitespaces),
+                   let num = Int(value.trimmingCharacters(in: CharacterSet(charactersIn: "."))) {
+                    availablePages += num
+                }
             }
         }
 
-        let totalAvailable = freePages + speculativePages + inactivePages
-        return (totalAvailable * 16384) / (1024 * 1024)
+        return (availablePages * 16384) / (1024 * 1024)
     }
 
     public static func getSystemFreeMemoryPublic() -> Int? {
