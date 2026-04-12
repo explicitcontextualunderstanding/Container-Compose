@@ -265,7 +265,7 @@ check_memory_for_tier() {
     local tier_name="$1"
     local required_mb="$2"
     
-    # Calculate available memory (separate declare from assignment to avoid masking return values)
+    # Calculate available memory
     local free_pages spec_pages inactive_pages available_mb
     free_pages=$(vm_stat | grep "Pages free" | awk '{print $3}' | tr -d '.') || free_pages=0
     spec_pages=$(vm_stat | grep "Pages speculative" | awk '{print $3}' | tr -d '.' 2>/dev/null) || spec_pages=0
@@ -286,13 +286,10 @@ check_memory_for_tier() {
     return 0
 }
 
-# Function to run a test tier
-run_test_tier() {
+# Function to run all tests (XCTest requires no filter to run properly)
+run_all_tests() {
     local tier_name="$1"
-    local filter="$2"
-    local required_mb="$3"
-    shift 3
-    local extra_args=("$@")
+    local required_mb="$2"
     
     # Gate on memory
     if ! check_memory_for_tier "$tier_name" "$required_mb"; then
@@ -305,9 +302,8 @@ run_test_tier() {
     echo "TIER: $tier_name"
     echo "=========================================="
     
-    # Run swift test and tee to both console and log
-    # Using stdbuf to ensure output is not buffered
-    stdbuf -oL swift test --parallel --num-workers 2 --filter "$filter" "${extra_args[@]}" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
+    # Run swift test without filters (XCTest requires this)
+    stdbuf -oL swift test --parallel --num-workers 2 "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
     local exit_code=${PIPESTATUS[0]}
     
     if [ $exit_code -ne 0 ]; then
@@ -317,20 +313,8 @@ run_test_tier() {
     return $exit_code
 }
 
-# Tier 1: Ultra-lightweight (static tests) - ~50MB
-run_test_tier "1-Static" "Container-Compose-StaticTests" 50 || TEST_EXIT_CODE=1
-
-# Tier 2: Security tests (no containers) - ~100MB  
-run_test_tier "2-Security" "SecurityHardeningTests" 100 || TEST_EXIT_CODE=1
-
-# Tier 3: Dynamic tests excluding heavy containers - ~200MB
-run_test_tier "3-Dynamic-Medium" "Container-Compose-DynamicTests" 200 "--skip" "ComposeUpTests" "--skip" "ComposeDownTests" || TEST_EXIT_CODE=1
-
-# Tier 4: Heavy container tests (run last when memory is freest) - ~400MB
-run_test_tier "4-Heavy" "ComposeDownTests" 400 || TEST_EXIT_CODE=1
-
-# Tier 5: Critical (WordPress + MySQL) - ~800MB, run absolute last
-run_test_tier "5-Critical-WordPress" "ComposeUpTests" 800 || TEST_EXIT_CODE=1
+# Run all tests in a single pass (XCTest doesn't work well with filters)
+run_all_tests "All Tests" 50 || TEST_EXIT_CODE=1
 
 cp "$TIER_LOG" "$LOG_DIR/test_output_$TIMESTAMP.txt"
 
