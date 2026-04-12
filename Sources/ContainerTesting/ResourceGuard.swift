@@ -104,17 +104,57 @@ public struct ResourceHelper {
     }
 
     public static func getMemoryPressureLevel() -> Int {
-        guard let available = getSystemFreeMemory() else { return 2 }
+        // Use actual memory_pressure command for accurate system pressure
+        let task = Process()
+        task.launchPath = "/usr/bin/memory_pressure"
+        task.arguments = ["-Q"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.launch()
+        task.waitUntilExit()
+
+        guard let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8),
+              let match = output.range(of: #"(\d+)(\.\d+)? percent free"#, options: .regularExpression),
+              let percentStr = output[match].components(separatedBy: CharacterSet.letters).first,
+              let percentFree = Double(percentStr.trimmingCharacters(in: .whitespaces)) else {
+            // Fallback: use available memory calculation
+            guard let available = getSystemFreeMemory() else { return 2 }
+            let total = getTotalMemory()
+            let availablePercent = Double(available) / Double(total) * 100
+            return availablePercent < 15 ? 2 : availablePercent < 50 ? 1 : 0
+        }
+
+        // Convert percent free to pressure level
+        // >85% free = Green (0), 50-85% = Yellow (1), <50% = Red (2)
+        if percentFree > 85 {
+            return 0  // Green - plenty available
+        } else if percentFree > 50 {
+            return 1  // Yellow - some pressure
+        }
+        return 2  // Red - high pressure
+    }
+
+    /// Get available memory using macOS memory_pressure (state-of-the-art)
+    public static func getAvailableMemoryMB() -> Int? {
+        let task = Process()
+        task.launchPath = "/usr/bin/memory_pressure"
+        task.arguments = ["-Q"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.launch()
+        task.waitUntilExit()
+
+        guard let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8),
+              let match = output.range(of: #"(\d+)(\.\d+)? percent free"#, options: .regularExpression),
+              let percentStr = output[match].components(separatedBy: CharacterSet.letters).first,
+              let percentFree = Double(percentStr.trimmingCharacters(in: .whitespaces)) else {
+            return getSystemFreeMemory()  // Fallback
+        }
 
         let total = getTotalMemory()
-        let availablePercent = Double(available) / Double(total)
-
-        if availablePercent < 0.125 {
-            return 2
-        } else if availablePercent < 0.375 {
-            return 1
-        }
-        return 0
+        return Int(Double(total) * (percentFree / 100.0))
     }
 
     public static func getTotalMemory() -> Int {
@@ -154,34 +194,39 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
         testCase: Testing.Test.Case?,
         performing function: () async throws -> Void
     ) async throws {
-        let freeMemory = ResourceHelper.getLatestFreeMemory(logPath: telemetryPath)
+        // Use accurate available memory (not misleading "free")
+        let availableMemory = ResourceHelper.getAvailableMemoryMB()
+        let pressureLevel = ResourceHelper.getMemoryPressureLevel()
         let estimatedThreshold = resolveThreshold()
 
-        // WARN MODE: Log memory state, run test, only skip at critical levels
-        if let free = freeMemory {
-            if free < 200 {
-                // Critical: < 200MB is genuinely dangerous, skip
-                print("⚠️  MEMORY WARNING: '\(test.name)' SKIPPED - Critical (< 200MB)")
-                print(" Available: \(free)MB | Estimated need: \(estimatedThreshold)MB")
+        // WARN MODE: Log memory state, run test, only skip at critical pressure
+        // Critical: Red pressure (< 50% free) + very low absolute memory (< 500MB)
+        if let available = availableMemory {
+            if pressureLevel >= 2 && available < 500 {
+                // Critical: High pressure AND low absolute memory
+                print("🛑 MEMORY CRITICAL: '\(test.name)' SKIPPED")
+                print(" Available: \(available)MB (< 500MB) | Pressure: RED")
+                print(" Estimated need: \(estimatedThreshold)MB")
                 return
-            } else if free < estimatedThreshold {
-                // Tight but runnable: warn and run
-                print("⚠️  MEMORY WARNING: '\(test.name)' running tight (\(free)MB < \(estimatedThreshold)MB)")
+            } else if pressureLevel >= 1 {
+                // Yellow/Red pressure but sufficient absolute: warn and run
+                let color = pressureLevel == 2 ? "🔴" : "🟡"
+                print("\(color) MEMORY PRESSURE: '\(test.name)' running (\(available)MB available)")
             } else {
-                // Comfortable
-                print("✓ '\(test.name)' OK (\(free)MB >= \(estimatedThreshold)MB)")
+                // Green pressure: comfortable
+                print("🟢 '\(test.name)' OK (\(available)MB available, pressure: GREEN)")
             }
         } else {
-            // Unknown memory state - warn but attempt
-            print("⚠️  MEMORY WARNING: Unknown state for '\(test.name)', attempting anyway")
+            // Unknown memory state - assume OK and attempt
+            print("⚠️  MEMORY UNKNOWN: '\(test.name)' attempting anyway")
         }
 
         // ALWAYS run the test to collect empirical data
         try await function()
 
         // Post-test: log actual usage if we can get it
-        if let free = freeMemory {
-            print("📊 TELEMETRY: '\(test.name)' started with \(free)MB, estimated \(estimatedThreshold)MB")
+        if let available = availableMemory {
+            print("📊 TELEMETRY: '\(test.name)' - Available: \(available)MB, Estimated: \(estimatedThreshold)MB")
         }
     }
 
