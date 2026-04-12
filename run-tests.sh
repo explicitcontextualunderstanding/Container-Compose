@@ -324,89 +324,107 @@ run_phase "Parallel-Safe Targets" 50 \
 # Phase 2: Serial-safe targets (XCTest with Network.framework, async, containers)
 # Container-Compose-Tests: has NWConnection, async relay tests, mixed XCTest/Swift Testing
 # Container-Compose-DynamicTests: container-dependent, async, WordPress/MySQL
-# 
-# CONTAINER STATS TELEMETRY: Heavy container tests monitored for actual vs allocated memory
+#
+# CONTAINER STATS TELEMETRY: Uses Python-based telemetry for accurate CCT_* container stats
 # Prevents over-provisioning waste (e.g., 1024MB allocated, 565MB used = 459MB waste)
 run_phase_with_container_telemetry() {
     local tier_name="Heavy Container Tests (with telemetry)"
     local required_mb="200"
-    
+
     if ! check_memory_for_tier "$tier_name" "$required_mb"; then
-        echo "  (Skipped due to low memory)"
+        echo " (Skipped due to low memory)"
         return 0
     fi
-    
+
     echo ""
     echo "=========================================="
     echo "PHASE: $tier_name"
-    echo "Container Stats: Tracking allocated vs actual usage"
+    echo "Container Stats: Using accurate telemetry collector"
     echo "=========================================="
-    
-    # Start container stats monitoring for TEST CONTAINERS only (CCT_*)
-    local container_stats_log="$LOG_DIR/container_stats_$(date +%Y%m%d_%H%M%S).log"
-    echo "timestamp,container_name,allocated_mb,actual_mb,waste_mb,test_phase" > "$container_stats_log"
-    
-    (
-        while true; do
-            sleep 2
-            # Get container stats for TEST CONTAINERS only (CCT_* prefix)
-            if command -v container &> /dev/null; then
-                # Only track CCT_ containers created by this test run
-                container list --all 2>/dev/null | grep "CCT_" | while read -r container_line; do
-                    container_id=$(echo "$container_line" | awk '{print $1}')
-                    container_name=$(echo "$container_line" | awk '{print $2}')
-                    
-                    # Get detailed stats for this test container
-                    container stats --no-stream "$container_id" 2>/dev/null | tail -1 | while read -r stats_line; do
-                        # Parse memory stats from container stats output
-                        # Format: CONTAINER ID  NAME  CPU %  MEM USAGE / LIMIT  MEM %  NET I/O  BLOCK I/O  PIDS
-                        mem_usage=$(echo "$stats_line" | awk '{print $7}')
-                        mem_limit=$(echo "$stats_line" | awk '{print $9}')
-                        
-                        # Convert to MB (handles MiB/GiB suffixes)
-                        actual_mb=$(echo "$mem_usage" | sed 's/MiB//' | sed 's/GiB/*1024/' | bc -l 2>/dev/null | cut -d. -f1)
-                        allocated_mb=$(echo "$mem_limit" | sed 's/MiB//' | sed 's/GiB/*1024/' | bc -l 2>/dev/null | cut -d. -f1)
-                        
-                        if [ -n "$actual_mb" ] && [ -n "$allocated_mb" ] && [ "$allocated_mb" -gt 0 ]; then
-                            waste_mb=$((allocated_mb - actual_mb))
-                            echo "$(date +%s),$container_name,$allocated_mb,$actual_mb,$waste_mb,phase2" >> "$container_stats_log"
-                        fi
-                    done
-                done
-            fi
-        done
-    ) &
-    local stats_pid=$!
-    
+
+    # Start the new Python-based telemetry collector
+    local telemetry_log="$LOG_DIR/container_telemetry_$(date +%Y%m%d_%H%M%S).csv"
+    if [ -f "$SCRIPT_DIR/scripts/container-stats-telemetry.sh" ]; then
+        echo "[Telemetry] Starting Python-based collector..."
+        "$SCRIPT_DIR/scripts/container-stats-telemetry.sh" --output "$telemetry_log" --interval 1 &
+        local stats_pid=$!
+        echo "[Telemetry] Collector PID: $stats_pid"
+    else
+        echo "[Telemetry] Warning: container-stats-telemetry.sh not found, skipping telemetry"
+    fi
+
     # Run the heavy tests (XCTest targets - filter doesn't work well with XCTest class names)
     # Use --skip to exclude Phase 1 targets instead of --filter to include Phase 2
     stdbuf -oL swift test --no-parallel --skip "SecurityHardeningTests" --skip "Container-Compose-StaticTests" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
     local exit_code=${PIPESTATUS[0]}
-    
+
     # Stop container stats
-    kill $stats_pid 2>/dev/null || true
-    
-    # Display container stats summary
+    if [ -n "${stats_pid:-}" ]; then
+        kill $stats_pid 2>/dev/null || true
+        wait $stats_pid 2>/dev/null || true
+    fi
+
+    # Display container stats summary using Python analysis
     echo ""
     echo "--- Container Stats Summary ---"
-    if [ -f "$container_stats_log" ] && [ -s "$container_stats_log" ]; then
-        echo "Container | Allocated | Actual | Waste"
-        echo "----------|-----------|--------|------"
-        tail -n +2 "$container_stats_log" | sort -t',' -k2,2 -k1,1n | awk -F',' '
-            {
-                if (NR==1 || $2!=last) {
-                    if (NR>1) printf "%-10s| %7sMB | %6sMB | %6sMB\n", last, max_alloc, max_actual, max_alloc-max_actual
-                    last=$2; max_alloc=$3; max_actual=$4
-                }
-                if ($3>max_alloc) max_alloc=$3
-                if ($4>max_actual) max_actual=$4
-            }
-            END { if (NR>0) printf "%-10s| %7sMB | %6sMB | %6sMB\n", last, max_alloc, max_actual, max_alloc-max_actual }
-        '
-        echo ""
-        echo "Stats log: $container_stats_log"
+    if [ -f "$telemetry_log" ] && [ -s "$telemetry_log" ]; then
+        # Check if file has data beyond header
+        local line_count=$(wc -l < "$telemetry_log")
+        if [ "$line_count" -gt 1 ]; then
+            python3 << PYTHON
+import csv
+from collections import defaultdict
+
+stats = defaultdict(lambda: {'limit': 0, 'peak': 0, 'samples': 0})
+
+try:
+    with open('$telemetry_log', 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            name = row.get('container_name', 'unknown')
+            try:
+                limit = float(row.get('memory_limit_mb', 0))
+                usage = float(row.get('memory_usage_mb', 0))
+            except:
+                continue
+            stats[name]['limit'] = max(stats[name]['limit'], limit)
+            stats[name]['peak'] = max(stats[name]['peak'], usage)
+            stats[name]['samples'] += 1
+
+    print("")
+    print(f"{'Container':<35} {'Limit(MB)':>10} {'Peak(MB)':>10} {'Waste(MB)':>10} {'Waste%':>8}")
+    print("─" * 75)
+
+    total_limit = 0
+    total_peak = 0
+
+    for name, data in sorted(stats.items(), key=lambda x: x[1]['peak'], reverse=True):
+        limit = data['limit']
+        peak = data['peak']
+        waste = limit - peak
+        waste_pct = (waste / limit * 100) if limit > 0 else 0
+        indicator = '🚨' if waste_pct > 50 else '⚠️' if waste_pct > 25 else '✅'
+        print(f"{name[:35]:<35} {limit:>10.1f} {peak:>10.1f} {waste:>10.1f} {waste_pct:>7.1f}% {indicator}")
+        total_limit += limit
+        total_peak += peak
+
+    print("─" * 75)
+    total_waste = total_limit - total_peak
+    waste_pct = (total_waste / total_limit * 100) if total_limit > 0 else 0
+    print(f"{'TOTAL':<35} {total_limit:>10.1f} {total_peak:>10.1f} {total_waste:>10.1f} {waste_pct:>7.1f}%")
+    print("")
+    print(f"Containers tracked: {len(stats)}")
+    print(f"Telemetry file: $telemetry_log")
+except Exception as e:
+    print(f"Error analyzing telemetry: {e}")
+PYTHON
+        else
+            echo "[Telemetry] No data collected (CCT_ containers may not have been running)"
+        fi
+    else
+        echo "[Telemetry] No telemetry file generated"
     fi
-    
+
     return $exit_code
 }
 

@@ -55,7 +55,8 @@ let package = Package(
     .target(
       name: "TestHelpers",
       dependencies: [
-        .product(name: "ContainerAPIClient", package: "container")
+        .product(name: "ContainerAPIClient", package: "container"),
+        .product(name: "ContainerResource", package: "container")
       ],
       path: "Tests/TestHelpers",
       exclude: ["test_helpers.sh"]
