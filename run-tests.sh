@@ -368,13 +368,16 @@ run_phase_with_container_telemetry() {
     fi
 
     # Run the heavy tests
-    # If user provided a filter, use it directly. Otherwise use --skip to exclude Phase 1
+    # If user provided a filter, use it directly. Otherwise run DynamicTests explicitly
     if [[ -n "$USER_FILTER" ]]; then
         echo "[Telemetry] Running with user filter: $USER_FILTER"
         stdbuf -oL swift test --no-parallel --filter "$USER_FILTER" 2>&1 | tee -a "$TIER_LOG"
     else
-        # Use --skip to exclude Phase 1 targets
-        stdbuf -oL swift test --no-parallel --skip "SecurityHardeningTests" --skip "Container-Compose-StaticTests" 2>&1 | tee -a "$TIER_LOG"
+        # Run Container-Compose-DynamicTests and Container-Compose-Tests explicitly
+        # (Phase 1 already ran SecurityHardeningTests|Container-Compose-StaticTests)
+        echo "[Telemetry] Running dynamic tests..."
+        stdbuf -oL swift test --no-parallel \
+            --filter "Container-Compose-DynamicTests|Container-Compose-Tests" 2>&1 | tee -a "$TIER_LOG"
     fi
     local exit_code=${PIPESTATUS[0]}
 
