@@ -324,9 +324,79 @@ run_phase "Parallel-Safe Targets" 50 \
 # Phase 2: Serial-safe targets (XCTest with Network.framework, async, containers)
 # Container-Compose-Tests: has NWConnection, async relay tests, mixed XCTest/Swift Testing
 # Container-Compose-DynamicTests: container-dependent, async, WordPress/MySQL
-run_phase "Serial-Safe Targets (GCD-safe)" 200 \
-    "--no-parallel" \
-    "Container-Compose-Tests|Container-Compose-DynamicTests" || TEST_EXIT_CODE=1
+# 
+# CONTAINER STATS TELEMETRY: Heavy container tests monitored for actual vs allocated memory
+# Prevents over-provisioning waste (e.g., 1024MB allocated, 565MB used = 459MB waste)
+run_phase_with_container_telemetry() {
+    local tier_name="Heavy Container Tests (with telemetry)"
+    local required_mb="200"
+    
+    if ! check_memory_for_tier "$tier_name" "$required_mb"; then
+        echo "  (Skipped due to low memory)"
+        return 0
+    fi
+    
+    echo ""
+    echo "=========================================="
+    echo "PHASE: $tier_name"
+    echo "Container Stats: Tracking allocated vs actual usage"
+    echo "=========================================="
+    
+    # Start container stats monitoring in background
+    local container_stats_log="$LOG_DIR/container_stats_$(date +%Y%m%d_%H%M%S).log"
+    echo "timestamp,container_name,allocated_mb,actual_mb,waste_mb" > "$container_stats_log"
+    
+    (
+        while true; do
+            sleep 5
+            # Get container stats if available
+            if command -v container &> /dev/null; then
+                container stats --no-stream 2>/dev/null | grep -E "CCT_|honcho|code-graph|hermes" | while read -r line; do
+                    container_name=$(echo "$line" | awk '{print $1}')
+                    allocated=$(echo "$line" | awk '{print $6}' | grep -oE '[0-9.]+' | head -1)
+                    actual=$(echo "$line" | awk '{print $7}' | grep -oE '[0-9.]+' | head -1)
+                    if [ -n "$allocated" ] && [ -n "$actual" ]; then
+                        waste=$(echo "$allocated - $actual" | bc -l 2>/dev/null || echo "0")
+                        echo "$(date +%s),$container_name,$allocated,$actual,$waste" >> "$container_stats_log"
+                    fi
+                done
+            fi
+        done
+    ) &
+    local stats_pid=$!
+    
+    # Run the heavy tests
+    stdbuf -oL swift test --no-parallel --filter "Container-Compose-Tests|Container-Compose-DynamicTests" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
+    local exit_code=${PIPESTATUS[0]}
+    
+    # Stop container stats
+    kill $stats_pid 2>/dev/null || true
+    
+    # Display container stats summary
+    echo ""
+    echo "--- Container Stats Summary ---"
+    if [ -f "$container_stats_log" ] && [ -s "$container_stats_log" ]; then
+        echo "Container | Allocated | Actual | Waste"
+        echo "----------|-----------|--------|------"
+        tail -n +2 "$container_stats_log" | sort -t',' -k2,2 -k1,1n | awk -F',' '
+            {
+                if (NR==1 || $2!=last) {
+                    if (NR>1) printf "%-10s| %7sMB | %6sMB | %6sMB\n", last, max_alloc, max_actual, max_alloc-max_actual
+                    last=$2; max_alloc=$3; max_actual=$4
+                }
+                if ($3>max_alloc) max_alloc=$3
+                if ($4>max_actual) max_actual=$4
+            }
+            END { if (NR>0) printf "%-10s| %7sMB | %6sMB | %6sMB\n", last, max_alloc, max_actual, max_alloc-max_actual }
+        '
+        echo ""
+        echo "Stats log: $container_stats_log"
+    fi
+    
+    return $exit_code
+}
+
+run_phase_with_container_telemetry || TEST_EXIT_CODE=1
 
 cp "$TIER_LOG" "$LOG_DIR/test_output_$TIMESTAMP.txt"
 
