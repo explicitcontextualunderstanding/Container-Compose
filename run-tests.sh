@@ -364,7 +364,7 @@ run_phase() {
 # Container-Compose-StaticTests: pure XCTest, no network/async
 run_phase "Parallel-Safe Targets" 50 \
     "--parallel --num-workers 2" \
-    "SecurityHardeningTests|Container-Compose-StaticTests" || TEST_EXIT_CODE=1
+    "SecurityHardeningTests|Container_Compose_StaticTests" || TEST_EXIT_CODE=1
 
 # Phase 2: Serial-safe targets (XCTest with Network.framework, async, containers)
 # Container-Compose-Tests: has NWConnection, async relay tests, mixed XCTest/Swift Testing
@@ -404,11 +404,11 @@ run_phase_with_container_telemetry() {
         echo "[Telemetry] Running with user filter: $USER_FILTER"
         stdbuf -oL swift test --no-parallel --filter "$USER_FILTER" 2>&1 | tee -a "$TIER_LOG"
     else
-        # Run Container-Compose-DynamicTests and Container-Compose-Tests explicitly
-        # (Phase 1 already ran SecurityHardeningTests|Container-Compose-StaticTests)
+        # Run Container_Compose_DynamicTests and Container_Compose_Tests explicitly
+        # (Phase 1 already ran SecurityHardeningTests|Container_Compose_StaticTests)
         echo "[Telemetry] Running dynamic tests..."
         stdbuf -oL swift test --no-parallel \
-            --filter "Container-Compose-DynamicTests|Container-Compose-Tests" 2>&1 | tee -a "$TIER_LOG"
+            --filter "Container_Compose_DynamicTests|Container_Compose_Tests" 2>&1 | tee -a "$TIER_LOG"
     fi
     local exit_code=${PIPESTATUS[0]}
 
