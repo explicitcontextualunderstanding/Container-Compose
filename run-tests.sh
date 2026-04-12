@@ -342,23 +342,36 @@ run_phase_with_container_telemetry() {
     echo "Container Stats: Tracking allocated vs actual usage"
     echo "=========================================="
     
-    # Start container stats monitoring in background
+    # Start container stats monitoring for TEST CONTAINERS only (CCT_*)
     local container_stats_log="$LOG_DIR/container_stats_$(date +%Y%m%d_%H%M%S).log"
-    echo "timestamp,container_name,allocated_mb,actual_mb,waste_mb" > "$container_stats_log"
+    echo "timestamp,container_name,allocated_mb,actual_mb,waste_mb,test_phase" > "$container_stats_log"
     
     (
         while true; do
-            sleep 5
-            # Get container stats if available
+            sleep 2
+            # Get container stats for TEST CONTAINERS only (CCT_* prefix)
             if command -v container &> /dev/null; then
-                container stats --no-stream 2>/dev/null | grep -E "CCT_|honcho|code-graph|hermes" | while read -r line; do
-                    container_name=$(echo "$line" | awk '{print $1}')
-                    allocated=$(echo "$line" | awk '{print $6}' | grep -oE '[0-9.]+' | head -1)
-                    actual=$(echo "$line" | awk '{print $7}' | grep -oE '[0-9.]+' | head -1)
-                    if [ -n "$allocated" ] && [ -n "$actual" ]; then
-                        waste=$(echo "$allocated - $actual" | bc -l 2>/dev/null || echo "0")
-                        echo "$(date +%s),$container_name,$allocated,$actual,$waste" >> "$container_stats_log"
-                    fi
+                # Only track CCT_ containers created by this test run
+                container list --all 2>/dev/null | grep "CCT_" | while read -r container_line; do
+                    container_id=$(echo "$container_line" | awk '{print $1}')
+                    container_name=$(echo "$container_line" | awk '{print $2}')
+                    
+                    # Get detailed stats for this test container
+                    container stats --no-stream "$container_id" 2>/dev/null | tail -1 | while read -r stats_line; do
+                        # Parse memory stats from container stats output
+                        # Format: CONTAINER ID  NAME  CPU %  MEM USAGE / LIMIT  MEM %  NET I/O  BLOCK I/O  PIDS
+                        mem_usage=$(echo "$stats_line" | awk '{print $7}')
+                        mem_limit=$(echo "$stats_line" | awk '{print $9}')
+                        
+                        # Convert to MB (handles MiB/GiB suffixes)
+                        actual_mb=$(echo "$mem_usage" | sed 's/MiB//' | sed 's/GiB/*1024/' | bc -l 2>/dev/null | cut -d. -f1)
+                        allocated_mb=$(echo "$mem_limit" | sed 's/MiB//' | sed 's/GiB/*1024/' | bc -l 2>/dev/null | cut -d. -f1)
+                        
+                        if [ -n "$actual_mb" ] && [ -n "$allocated_mb" ] && [ "$allocated_mb" -gt 0 ]; then
+                            waste_mb=$((allocated_mb - actual_mb))
+                            echo "$(date +%s),$container_name,$allocated_mb,$actual_mb,$waste_mb,phase2" >> "$container_stats_log"
+                        fi
+                    done
                 done
             fi
         done
