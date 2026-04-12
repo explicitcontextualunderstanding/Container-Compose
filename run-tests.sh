@@ -13,6 +13,60 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # ============================================================================
+# BUILD MUTEX: Prevent concurrent Swift builds using flock
+# Multiple simultaneous swift builds corrupt the .build cache
+# ============================================================================
+BUILD_LOCK_FILE="/tmp/container-compose-test.lock"
+
+acquire_build_lock() {
+    local lock_fd
+    # Try to acquire exclusive lock (non-blocking)
+    if ! exec 200>"$BUILD_LOCK_FILE" 2>/dev/null; then
+        echo "⚠️  Cannot create lock file: $BUILD_LOCK_FILE"
+        return 0  # Continue without lock
+    fi
+
+    # Try flock (may not be available on all systems)
+    if command -v flock &> /dev/null; then
+        if flock -n 200 2>/dev/null; then
+            echo "✓ Build lock acquired (flock)"
+            return 0
+        else
+            echo "🔒 Waiting for another build to complete..."
+            flock 200 2>/dev/null || true
+            echo "✓ Build lock acquired after wait"
+            return 0
+        fi
+    fi
+
+    # Fallback: PID-based lock if flock not available
+    if [ -f "$BUILD_LOCK_FILE" ]; then
+        local old_pid=$(cat "$BUILD_LOCK_FILE" 2>/dev/null)
+        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+            echo "🔒 Another test run is building (PID: $old_pid)"
+            echo "   Waiting..."
+            while kill -0 "$old_pid" 2>/dev/null; do
+                sleep 1
+            done
+            echo "✓ Other build completed"
+        fi
+    fi
+    echo $$ > "$BUILD_LOCK_FILE"
+    echo "✓ Build lock acquired (PID-based)"
+}
+
+release_build_lock() {
+    exec 200>&- 2>/dev/null || true
+    rm -f "$BUILD_LOCK_FILE" 2>/dev/null || true
+}
+
+# Acquire lock at script start
+acquire_build_lock
+
+# Ensure lock is released on exit
+trap 'release_build_lock' EXIT
+
+# ============================================================================
 # VICTORIA PROTOCOL: Initialize RUN_ID for surgical container tracking
 # This enables label-based cleanup that only targets this test session's containers
 # ============================================================================
@@ -81,6 +135,30 @@ trap 'echo ""; echo "[Victoria Protocol] SIGINT received, triggering graceful cl
 # This uses legacy cleanup for cross-session orphans, then Victoria Protocol for this session
 echo "Pre-flight: Purging orphaned containers from previous sessions..."
 aggressive_cleanup_before_tests
+echo ""
+
+# SwiftPM Lock Cleanup - prevent "Planning build" hangs
+echo "Pre-flight: Checking for stale SwiftPM build locks..."
+SWIFT_BUILD_LOCKS=(".build/.lock" ".build/index-build/.lock")
+STALE_LOCKS=0
+for lock in "${SWIFT_BUILD_LOCKS[@]}"; do
+    if [ -f "$SCRIPT_DIR/$lock" ]; then
+        echo "  Found: $lock"
+        # Check if any swift-build process is running
+        if ! pgrep -x "swift-build" > /dev/null 2>&1 && ! pgrep -x "swift-frontend" > /dev/null 2>&1; then
+            echo "  No swift processes running - removing stale lock"
+            rm -f "$SCRIPT_DIR/$lock" 2>/dev/null || true
+            STALE_LOCKS=$((STALE_LOCKS + 1))
+        else
+            echo "  ⚠️ Swift build appears to be running - leaving lock in place"
+        fi
+    fi
+done
+if [ "$STALE_LOCKS" -gt 0 ]; then
+    echo "✓ Removed $STALE_LOCKS stale SwiftPM lock(s)"
+else
+    echo "✓ No stale SwiftPM locks found"
+fi
 echo ""
 
 # Neutralize conda environment contamination (shared with build-sign-install.sh)
