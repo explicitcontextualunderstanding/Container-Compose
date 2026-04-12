@@ -2,7 +2,6 @@
 #===----------------------------------------------------------------------===//
 # run-tests-ordered.sh
 # Execute tests in optimal order: lightweight first, then heavy container tests
-# Skips known hanging tests (RelayConstantsTests/testSocketPermissions)
 # Usage: ./scripts/run-tests-ordered.sh
 #===----------------------------------------------------------------------===//
 
@@ -31,7 +30,7 @@ echo "=========================================="
 echo "PHASE 1: Static Tests (Lightweight)"
 echo "=========================================="
 echo ""
-swift test --filter "Container-Compose-StaticTests" --skip "testSocketPermissions" 2>&1 | tee logs/phase1-static.log
+swift test --filter "Container-Compose-StaticTests" 2>&1 | tee logs/phase1-static.log
 echo ""
 
 # Phase 2: Security tests (no containers)
@@ -39,7 +38,7 @@ echo "=========================================="
 echo "PHASE 2: Security Tests"
 echo "=========================================="
 echo ""
-swift test --filter "SecurityHardeningTests" --skip "testSocketPermissions" 2>&1 | tee logs/phase2-security.log
+swift test --filter "SecurityHardeningTests" 2>&1 | tee logs/phase2-security.log
 echo ""
 
 # Phase 3: Dynamic tests - excluding heavy container tests
@@ -67,8 +66,8 @@ if [ "$AVAILABLE_MB" -lt 400 ]; then
 fi
 echo ""
 
-swift test --filter "ComposeUpTests" --skip "testSocketPermissions" 2>&1 | tee logs/phase4-heavy.log
-swift test --filter "ComposeDownTests" --skip "testSocketPermissions" 2>&1 | tee logs/phase4-heavy.log
+swift test --filter "ComposeUpTests" 2>&1 | tee logs/phase4-heavy.log
+swift test --filter "ComposeDownTests" 2>&1 | tee logs/phase4-heavy.log
 echo ""
 
 # Summary

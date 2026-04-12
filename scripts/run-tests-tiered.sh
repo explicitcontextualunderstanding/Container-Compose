@@ -40,8 +40,7 @@ check_memory() {
 run_phase() {
     local phase_name="$1"
     local filter="$2"
-    local skip="${3:-}"
-    local mem_required="${4:-0}"
+    local mem_required="${3:-0}"
     local log_file="logs/tiered-${phase_name}.log"
     
     echo ""
@@ -58,10 +57,9 @@ run_phase() {
     fi
     
     local skip_args=""
-    [ -n "$skip" ] && skip_args="--skip '$skip'"
-    
+
     echo "Running: $filter"
-    swift test --filter "$filter" $skip_args 2>&1 | tee "$log_file"
+    swift test --filter "$filter" 2>&1 | tee "$log_file"
     
     local passed=$(grep -c "passed" "$log_file" 2>/dev/null || echo 0)
     echo ""
@@ -76,25 +74,25 @@ echo ""
 # Tier 1: Ultra-lightweight (static tests, no containers) - ~50MB
 echo "TIER 1: Ultra-lightweight (50MB)"
 echo "Tests: Static parsing, configuration, mapping"
-run_phase "tier1-static" "Container-Compose-StaticTests" "testSocketPermissions" 50
+run_phase "tier1-static" "Container-Compose-StaticTests" 50
 
 # Tier 2: Lightweight (unit tests, no containers) - ~100MB
 echo ""
 echo "TIER 2: Lightweight (100MB)"
 echo "Tests: Security, validation"
-run_phase "tier2-security" "SecurityHardeningTests" "testSocketPermissions" 100
+run_phase "tier2-security" "SecurityHardeningTests" 100
 
 # Tier 3: Medium (dynamic tests, single containers) - ~200MB
 echo ""
 echo "TIER 3: Medium (200MB)"
 echo "Tests: Single container operations, networking"
-run_phase "tier3-dynamic" "Container-Compose-DynamicTests" "ComposeUpTests|ComposeDownTests" 200
+run_phase "tier3-dynamic" "Container-Compose-DynamicTests" 200
 
 # Tier 4: Heavy (multi-container, no databases) - ~400MB
 echo ""
 echo "TIER 4: Heavy (400MB)"
 echo "Tests: Multi-service orchestration"
-run_phase "tier4-heavy" "ComposeDownTests" "testSocketPermissions" 400
+run_phase "tier4-heavy" "ComposeDownTests" 400
 
 # Tier 5: Critical (WordPress/MySQL, three-tier) - ~800MB
 echo ""
@@ -107,7 +105,7 @@ if [ "$AVAILABLE" -lt 800 ]; then
     echo -e "${YELLOW}⚠️ Skipping critical tier: ${AVAILABLE}MB < 800MB required${NC}"
     echo "Tip: Close Chrome, Slack, or other memory-heavy apps"
 else
-    run_phase "tier5-critical" "ComposeUpTests" "testSocketPermissions" 800
+    run_phase "tier5-critical" "ComposeUpTests" 800
 fi
 
 # Summary

@@ -662,55 +662,53 @@ final class NWConnectionWrapperTests: XCTestCase {
     }
 }
 
-// MARK: - RelayConstants Tests
+// MARK: - RelayConstants Tests (Swift Testing — avoids XCTest parallel deadlock)
 
-@available(macOS 12.0, *)
-final class RelayConstantsTests: XCTestCase {
+import Testing
 
-  func testSocketPathSanitization() {
-    // Test that paths with dangerous characters are sanitized
+@Suite("RelayConstants Tests", .serialized)
+struct RelayConstantsTests {
+
+  @Test("Socket path sanitizes dangerous characters")
+  func socketPathSanitization() {
     let path1 = RelayConstants.socketPath(for: "service/db:main")
     let filename1 = path1.lastPathComponent
-    XCTAssertTrue(filename1.contains("service-db-main"), "Path should sanitize / and : to -, got: \(filename1)")
+    #expect(filename1.contains("service-db-main"), "Path should sanitize / and : to -, got: \(filename1)")
 
-    // Test with project prefix
     let path2 = RelayConstants.socketPath(for: "my_service", project: "my-project")
     let filename2 = path2.lastPathComponent
-    XCTAssertEqual(filename2, "my-project-my_service.sock", "Should include project prefix, got: \(filename2)")
+    #expect(filename2 == "my-project-my_service.sock", "Should include project prefix, got: \(filename2)")
   }
 
-  func testSocketPathExtension() {
+  @Test("Socket path has .sock extension")
+  func socketPathExtension() {
     let path = RelayConstants.socketPath(for: "db")
-    XCTAssertTrue(path.path.hasSuffix(".sock"), "Socket path should have .sock extension")
+    #expect(path.path.hasSuffix(".sock"), "Socket path should have .sock extension")
   }
 
-  func testDirectoryPermissions() {
-    // Verify directory permissions constant
-    XCTAssertEqual(RelayConstants.directoryPermissions, 0o700, "Directory should have 0700 permissions")
+  @Test("Directory permissions are 0700")
+  func directoryPermissions() {
+    #expect(RelayConstants.directoryPermissions == 0o700, "Directory should have 0700 permissions")
   }
 
-func testSocketPermissions() {
-    // Verify socket permissions constant
-    XCTAssertEqual(RelayConstants.socketPermissions, 0o600, "Socket should have 0600 permissions")
-}
+  @Test("Socket permissions are 0600")
+  func socketPermissions() {
+    #expect(RelayConstants.socketPermissions == 0o600, "Socket should have 0600 permissions")
+  }
 
-    func testRelayRootDefaultPath() {
-        // Verify default relay root is in user's home directory
-        let expectedHome = FileManager.default.homeDirectoryForCurrentUser
-        XCTAssertTrue(RelayConstants.relayRoot.path.hasPrefix(expectedHome.path),
-                     "Relay root should be in user's home directory")
-        XCTAssertTrue(RelayConstants.relayRoot.path.contains(".container-compose"),
-                     "Relay root should contain .container-compose")
-    }
+  @Test("Relay root is in user home directory")
+  func relayRootDefaultPath() {
+    let expectedHome = FileManager.default.homeDirectoryForCurrentUser
+    #expect(RelayConstants.relayRoot.path.hasPrefix(expectedHome.path),
+            "Relay root should be in user's home directory")
+    #expect(RelayConstants.relayRoot.path.contains(".container-compose"),
+            "Relay root should contain .container-compose")
+  }
 
-func testEnsureRelayRootCreatesDirectory() throws {
-    // Create a test directory
-    let testDir = FileManager.default.temporaryDirectory.appendingPathComponent("test-relay-\(UUID().uuidString)")
-    defer { try? FileManager.default.removeItem(at: testDir) }
-
-    // Note: This tests the pattern, not the actual call since we can't override static in tests easily
-    XCTAssertTrue(RelayConstants.relayRoot.path.count > 0, "Relay root should be set")
-}
+  @Test("Relay root path is non-empty")
+  func relayRootPathIsSet() {
+    #expect(RelayConstants.relayRoot.path.count > 0, "Relay root should be set")
+  }
 }
 
 // MARK: - PeerVerification Tests
