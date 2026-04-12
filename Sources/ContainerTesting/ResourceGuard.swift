@@ -94,12 +94,13 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
         self.telemetryPath = telemetryPath
     }
 
-    public func provideScope(for test: Testing.Test, testCase: Testing.Test.Case?, performing function: () async throws -> Void) async throws {
+public func provideScope(for test: Testing.Test, testCase: Testing.Test.Case?, performing function: () async throws -> Void) async throws {
         let freeMemory = ResourceHelper.getLatestFreeMemory(logPath: telemetryPath)
         let totalMemory = ResourceHelper.getTotalMemory()
         let pressureLevel = ResourceHelper.getMemoryPressureLevel()
         let profilingMode = ProcessInfo.processInfo.environment["MEMORY_GUARD_MODE"] == "LOG_ONLY"
-
+        let adaptiveMode = ProcessInfo.processInfo.environment["ADAPTIVE_MEMORY"] == "1"
+        
         // Dynamic threshold adjustment based on memory pressure
         // Only adjust by ±20% from declared threshold, not full percentage of total
         let actualThreshold: Int
@@ -111,11 +112,36 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
         default: // Normal - use declared threshold
             actualThreshold = minRequiredMB
         }
-
-        if let free = freeMemory {
+        
+                } else if adaptiveMode {
+                    // Adaptive mode: wait for memory to become available
+                    print("⏳ ADAPTIVE: '\(test.name)' waiting for \(actualThreshold)MB (have \(free)MB)")
+                    let manager = AdaptiveThresholdManager.shared
+                    let weight = getTestWeight(from: minRequiredMB)
+                    let success = await manager.waitForMemory(testWeight: weight, timeout: 60.0)
+                    if !success {
+                        let currentFree = await manager.getCurrentState().freeMB
+                        print("⛔ ADAPTIVE TIMEOUT: '\(test.name)' - memory did not free up")
+                        print("   Current: \(currentFree)MB, Needed: \(actualThreshold)MB")
+                        return
+                    }
+                    print("✅ ADAPTIVE: '\(test.name)' can now run (memory freed up)")
+                } else {
             if free < actualThreshold {
                 if profilingMode {
                     print("[PROFILE] Would skip '\(test.name)' (\(free)MB < \(actualThreshold)MB)")
+                } else if adaptiveMode {
+                    // Adaptive mode: wait for memory to become available
+                    print("⏳ ADAPTIVE: '\(test.name)' waiting for \(actualThreshold)MB (have \(free)MB)")
+                    let manager = AdaptiveThresholdManager.shared
+                    let weight = getTestWeight(from: minRequiredMB)
+                    let success = await manager.waitForMemory(testWeight: weight, timeout: 60.0)
+                    if !success {
+                        print("⛔ ADAPTIVE TIMEOUT: '\(test.name)' - memory did not free up")
+                        print("   Current: \(manager.getCurrentState().freeMB)MB, Needed: \(actualThreshold)MB")
+                        return
+                    }
+                    print("✅ ADAPTIVE: '\(test.name)' can now run (memory freed up)")
                 } else {
                     print("MEMORY GUARD: Skipping '\(test.name)' - need \(actualThreshold)MB, have \(free)MB")
                     return
@@ -124,8 +150,28 @@ public struct MemoryGuardTrait: TestScoping, TestTrait, SuiteTrait {
                 print("Memory Guard: '\(test.name)' OK (\(free)MB >= \(actualThreshold)MB)")
             }
         }
-
+        
+        // Run test with continuous monitoring
+        let monitor = DynamicMemoryMonitor(minRequiredMB: actualThreshold, checkInterval: 1.0)
+        await monitor.startMonitoring()
+        
+        defer {
+            Task {
+                await monitor.stopMonitoring()
+            }
+        }
+        
         try await function()
+    }
+    
+    /// Map declared threshold to test weight for adaptive manager
+    private func getTestWeight(from threshold: Int) -> AdaptiveThresholdManager.TestWeight {
+        switch threshold {
+        case 450: return .heavy
+        case 270: return .medium
+        case 140: return .lightweight
+        default: return .medium
+        }
     }
 }
 
