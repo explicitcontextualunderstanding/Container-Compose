@@ -182,20 +182,28 @@ echo ""
 # Also handles test filter arguments - validates and adds --filter if needed
 FORCE_NO_SUDO=false
 FILTERED_ARGS=()
+USER_FILTER=""  # Track if user provided a specific filter
 for arg in "$@"; do
-  if [[ "$arg" == "--no-sudo" ]]; then
-    FORCE_NO_SUDO=true
-  elif [[ "$arg" == "--auto-clean" ]]; then
-    AUTO_CLEAN=true
-  elif [[ "$arg" == "--filter" ]]; then
-    FILTERED_ARGS+=("$arg") # keep --filter as-is
-  elif [[ "$arg" =~ ^[A-Za-z].*Tests?$ ]]; then
-    # Argument looks like a test name without --filter, add --filter prefix
-    FILTERED_ARGS+=("--filter" "$arg")
-  else
-    FILTERED_ARGS+=("$arg")
-  fi
+    if [[ "$arg" == "--no-sudo" ]]; then
+        FORCE_NO_SUDO=true
+    elif [[ "$arg" == "--auto-clean" ]]; then
+        AUTO_CLEAN=true
+    elif [[ "$arg" == "--filter" ]]; then
+        FILTERED_ARGS+=("$arg")  # keep --filter as-is
+    elif [[ "$arg" =~ ^[A-Za-z].*Tests?$ || "$arg" =~ ^test[A-Z] ]]; then
+        # Argument looks like a test name without --filter, add --filter prefix
+        FILTERED_ARGS+=("--filter" "$arg")
+        USER_FILTER="$arg"  # Remember user wants specific tests
+    else
+        FILTERED_ARGS+=("$arg")
+    fi
 done
+
+# If user provided a filter, run only that filter (skip phase logic)
+if [[ -n "$USER_FILTER" ]]; then
+    echo "User filter detected: $USER_FILTER"
+    echo "Running with user filter only (skipping phase filters)"
+fi
 
 # Check if already running as root/sudo
 if [ "$EUID" -eq 0 ]; then
@@ -294,7 +302,13 @@ run_phase() {
     local filter="$4"
 
     if ! check_memory_for_tier "$tier_name" "$required_mb"; then
-        echo "  (Skipped due to low memory)"
+        echo " (Skipped due to low memory)"
+        return 0
+    fi
+
+    # If user provided a filter, skip phase filters and use user's filter only
+    if [[ -n "$USER_FILTER" ]]; then
+        echo "User filter: $USER_FILTER — skipping phase '$tier_name'"
         return 0
     fi
 
@@ -304,7 +318,7 @@ run_phase() {
     echo "Mode: $parallel_mode | Filter: $filter"
     echo "=========================================="
 
-    stdbuf -oL swift test $parallel_mode --filter "$filter" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
+    stdbuf -oL swift test $parallel_mode --filter "$filter" 2>&1 | tee -a "$TIER_LOG"
     local exit_code=${PIPESTATUS[0]}
 
     if [ $exit_code -ne 0 ]; then
@@ -353,9 +367,15 @@ run_phase_with_container_telemetry() {
         echo "[Telemetry] Warning: container-stats-telemetry.sh not found, skipping telemetry"
     fi
 
-    # Run the heavy tests (XCTest targets - filter doesn't work well with XCTest class names)
-    # Use --skip to exclude Phase 1 targets instead of --filter to include Phase 2
-    stdbuf -oL swift test --no-parallel --skip "SecurityHardeningTests" --skip "Container-Compose-StaticTests" "${FILTERED_ARGS[@]}" 2>&1 | tee -a "$TIER_LOG"
+    # Run the heavy tests
+    # If user provided a filter, use it directly. Otherwise use --skip to exclude Phase 1
+    if [[ -n "$USER_FILTER" ]]; then
+        echo "[Telemetry] Running with user filter: $USER_FILTER"
+        stdbuf -oL swift test --no-parallel --filter "$USER_FILTER" 2>&1 | tee -a "$TIER_LOG"
+    else
+        # Use --skip to exclude Phase 1 targets
+        stdbuf -oL swift test --no-parallel --skip "SecurityHardeningTests" --skip "Container-Compose-StaticTests" 2>&1 | tee -a "$TIER_LOG"
+    fi
     local exit_code=${PIPESTATUS[0]}
 
     # Stop container stats
