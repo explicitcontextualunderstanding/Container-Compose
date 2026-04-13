@@ -11,10 +11,10 @@ import Foundation
 /// Error handling integration tests for RelayManager
 /// Validates error flows from VsockRelay through RelayManager
 @available(macOS 12.0, *)
-final class RelayManagerErrorHandlingTests: XCTestCase {
+final class RelayManagerErrorHandlingTests: XCTestCase, @unchecked Sendable {
 
-  var eventLog: RelayEventLog!
-  var relayManager: RelayManager!
+    var eventLog: RelayEventLog!
+    var relayManager: RelayManager!
 
 override func setUp() {
         super.setUp()
@@ -98,7 +98,7 @@ override func setUp() {
 /// Verify RelayManager cleans up resources when start fails
     /// Note: This test requires Apple Developer entitlements (TCC preflight)
     /// Skip if running in CI/test environment without proper signing
-    /// 
+    ///
     /// This test may hang indefinitely without proper entitlements because
     /// RelayManager operations require Apple Developer ID signing for TCC preflight
     func testCleanupOnStartFailure() async throws {
@@ -116,12 +116,15 @@ override func setUp() {
 
         // Try to start with XCTest expectation timeout
         // Using expectation pattern to prevent hanging indefinitely
+        // Use actor-isolated approach to avoid Sendable warnings
         let expectation = self.expectation(description: "Relay start completes")
         
-        Task {
+        // Create detached task to avoid capturing self
+        Task.detached { [weak self] in
             defer { expectation.fulfill() }
+            guard let strongSelf = self else { return }
             do {
-                try await relayManager.startRelay(config)
+                try await strongSelf.relayManager.startRelay(config)
             } catch {
                 print("Start failed (may be expected): \(error)")
             }
@@ -136,10 +139,11 @@ override func setUp() {
 
         // Verify can try again (with timeout)
         let expectation2 = self.expectation(description: "Second relay start completes")
-        Task {
+        Task.detached { [weak self] in
             defer { expectation2.fulfill() }
+            guard let strongSelf = self else { return }
             do {
-                try await relayManager.startRelay(config)
+                try await strongSelf.relayManager.startRelay(config)
                 print("✅ Second attempt succeeded or failed cleanly")
             } catch {
                 print("Second attempt failed: \(error)")
