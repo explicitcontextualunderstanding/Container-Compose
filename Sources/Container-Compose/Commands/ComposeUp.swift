@@ -1330,7 +1330,13 @@ let runCommandArgs = try Self.makeRunArgs(
 )
 
         // Extract container name for status checks (consistent with makeRunArgs logic)
-        let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
+        let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] ?? "orphan"
+        let containerName: String
+        if let explicit = service.container_name {
+            containerName = "CCT_\(runId)_\(explicit)"
+        } else {
+            containerName = "CCT_\(runId)_\(projectName)-\(serviceName)"
+        }
         if containerName.count > 63 {
             print("⚠️  Warning: Container name '\(containerName)' is \(containerName.count) characters long.".yellow)
             print("   macOS Virtualization.framework has a hard limit of 63 characters for container labels.".yellow)
