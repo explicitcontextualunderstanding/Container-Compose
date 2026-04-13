@@ -16,6 +16,26 @@
 
 import Foundation
 
+public enum YamlError: Error, CustomStringConvertible {
+  case missingRegistryURL
+
+  public var description: String {
+    switch self {
+    case .missingRegistryURL:
+      return """
+      OCI_REGISTRY_URL environment variable is not set.
+
+      E2E tests require OCI_REGISTRY_URL to be configured.
+      Run via ./run-tests.sh which loads OCI_REGISTRY_URL from ops.env.
+
+      To run E2E tests manually:
+      1. Ensure OCI_REGISTRY_URL is set (from ops.env or .env)
+      2. Run: swift test --filter <test_name>
+      """
+    }
+  }
+}
+
 public struct DockerComposeYamlFiles {
     /// Resolves environment variables in a YAML string
     /// - Parameter yaml: YAML string with ${VAR} placeholders
@@ -467,7 +487,9 @@ public struct DockerComposeYamlFiles {
     
     // Replace environment variable placeholders
     // ${OCI_REGISTRY_URL} -> actual value from environment
-    let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "docker.io"
+    guard let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] else {
+      throw YamlError.missingRegistryURL
+    }
     isolatedYaml = isolatedYaml.replacingOccurrences(
       of: "${OCI_REGISTRY_URL}",
       with: registryURL

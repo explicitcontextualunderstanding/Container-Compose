@@ -21,13 +21,12 @@ final class ComposeAdvancedTests {
             throw Errors.registryNotConfigured("""
                 OCI_REGISTRY_URL environment variable is not set.
 
-                Database tests require an OCI container registry accessible via HTTPS.
-                Apple Container does not support HTTP for RFC1918 private IPs.
+                E2E tests require OCI_REGISTRY_URL to be configured.
+                Run via ./run-tests.sh which loads OCI_REGISTRY_URL from ops.env.
 
-                Examples:
-                - OCI_REGISTRY_URL=registry.example.com swift test
-                - OCI_REGISTRY_URL=ghcr.io swift test
-                - OCI_REGISTRY_URL=docker.io swift test
+                To run E2E tests manually:
+                1. Ensure OCI_REGISTRY_URL is set (from ops.env or .env)
+                2. Run: swift test --filter <test_name>
                 """)
         }
         return registryURL
