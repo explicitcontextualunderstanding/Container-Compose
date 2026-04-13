@@ -101,10 +101,19 @@ override func setUp() {
     ///
     /// This test may hang indefinitely without proper entitlements because
     /// RelayManager operations require Apple Developer ID signing for TCC preflight
+    ///
+    /// TODO: Properly detect if Apple Developer entitlements are available
+    /// Currently checks for CI environment, but should check actual entitlement status
+    /// e.g., via codesign -d --entitlements or by attempting a privileged operation
     func testCleanupOnStartFailure() async throws {
         // Skip in environments without proper entitlements
+        // Quick toggle: SKIP_ENTITLEMENT_TESTS=1 to skip in development
+        // TODO: Replace with proper entitlement check via codesign or AMFIValidator
+        if ProcessInfo.processInfo.environment.keys.contains("SKIP_ENTITLEMENT_TESTS") {
+            throw XCTSkip("Skipped via SKIP_ENTITLEMENT_TESTS environment variable")
+        }
         guard !ProcessInfo.processInfo.environment.keys.contains("CI") else {
-            throw XCTSkip("Requires Apple Developer entitlements - skipping in CI")
+            throw XCTSkip("Requires Apple Developer entitlements - skipping in CI (TODO: proper entitlement detection)")
         }
 
         let config = RelayManager.RelayConfiguration(
