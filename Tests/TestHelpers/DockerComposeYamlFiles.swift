@@ -573,4 +573,66 @@ services:
 volumes:
   test-db-sockets:
 """
+
+  // MARK: - Socket Lifecycle Test Fixtures (VirtioFS Testing)
+
+  /// Minimal socket-creating container for testing VirtioFS socket propagation
+  /// Uses alpine + socat to create a real Unix Domain Socket without database overhead
+  /// ~5MB footprint, <1s startup vs 150MB/30s for PostgreSQL
+  public static let socketLifecycleYaml = """
+name: socket-lifecycle-test
+services:
+  socket-generator:
+    image: alpine:latest
+    command: >
+      sh -c "apk add --no-cache socat &&
+             mkdir -p /tmp/socket-test &&
+             rm -f /tmp/socket-test/test.sock &&
+             socat UNIX-LISTEN:/tmp/socket-test/test.sock,fork STDOUT"
+    volumes:
+      - socket-volume:/tmp/socket-test
+    init: true
+volumes:
+  socket-volume:
+"""
+
+  /// Socket lifecycle test with relay configuration
+  public static let socketRelayLifecycleYaml = """
+name: socket-relay-test
+services:
+  socket-generator:
+    image: alpine:latest
+    command: >
+      sh -c "apk add --no-cache socat &&
+             mkdir -p /tmp/socket-test &&
+             rm -f /tmp/socket-test/pg.sock &&
+             socat UNIX-LISTEN:/tmp/socket-test/pg.sock,fork STDOUT"
+    volumes:
+      - socket-volume:/tmp/socket-test
+    x-apple-relays:
+      - type: uds
+        port: 5432
+        socket_path: /tmp/.container-compose-test/sockets/pg.sock
+    init: true
+volumes:
+  socket-volume:
+"""
+
+  /// Echo server for testing bidirectional socket communication
+  public static let socketEchoYaml = """
+name: socket-echo-test
+services:
+  socket-echo:
+    image: alpine:latest
+    command: >
+      sh -c "apk add --no-cache socat &&
+             mkdir -p /tmp/socket-test &&
+             rm -f /tmp/socket-test/echo.sock &&
+             socat UNIX-LISTEN:/tmp/socket-test/echo.sock,fork EXEC:'cat',nofork"
+    volumes:
+      - socket-volume:/tmp/socket-test
+    init: true
+volumes:
+  socket-volume:
+"""
 }

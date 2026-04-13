@@ -13,41 +13,33 @@ import TestHelpers
 @testable import ContainerComposeCore
 
 /// Vsock socket lifecycle tests with real containers
-/// Uses CCT_* pattern withContainerPollingHelpers.withProjectCleanup
-/// Uses pgmicro for faster startup (2-5s vs 30s) - socket behavior is identical
+/// Uses CCT_* pattern with ContainerPollingHelpers.withProjectCleanup
+/// Uses alpine + socat for minimal socket testing (~5MB, <1s startup)
+/// Much faster than pgmicro (2s) or PostgreSQL (30s) for VirtioFS testing
 @Suite("Vsock Socket Lifecycle Tests", .containerDependent)
 struct VsockSocketLifecycleTests {
-
-  /// Returns registry URL from environment, with docker.io fallback
-  private func requireRegistryURL() -> String {
-    ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "docker.io"
-  }
 
   @Test("Socket created in Virtio-FS when container starts")
   func testSocketCreatedInVirtioFs() async throws {
     let projectName = "CCT_SocketCreate_\(UUID().uuidString.prefix(8))"
-    let registryURL = requireRegistryURL()
 
-    // Using pgmicro for faster startup (2-5s vs 30s)
-    // Socket behavior identical to PostgreSQL for vsock relay testing
+    // Using alpine + socat for minimal socket testing
+    // ~5MB footprint, <1s startup vs 150MB/30s for PostgreSQL
+    // Creates real Unix socket via socat, no database overhead
     let yaml = """
       name: \(projectName)
       services:
-        db:
-          image: \(registryURL)/pgmicro:latest
-          environment:
-            POSTGRES_DB: testdb
+        socket-generator:
+          image: docker.io/library/alpine:latest
+          command: >
+            sh -c "apk add --no-cache socat &&
+                   mkdir -p /tmp/socket-test &&
+                   rm -f /tmp/socket-test/test.sock &&
+                   socat UNIX-LISTEN:/tmp/socket-test/test.sock,fork EXEC:'cat',nofork"
           volumes:
-            - db-sockets:/var/run/postgresql/sockets
-          x-apple-relays:
-            - type: vsock-db
-              port: 5432
-              socket_path: ~/.containers/Volumes/\(projectName)/db-sockets/.s.PGSQL.5432
-          command:
-            - /pgmicro
-            - --unix-socket-dir=/var/run/postgresql/sockets
+            - socket-volume:/tmp/socket-test
       volumes:
-        db-sockets:
+        socket-volume:
       """
 
     let tempDir = URL.temporaryDirectory.appending(path: projectName)
@@ -63,17 +55,18 @@ struct VsockSocketLifecycleTests {
       try await composeUp.run()
 
       // Poll for container running
-      let dbContainer = try await ContainerPollingHelpers.pollForContainer(
+      let container = try await ContainerPollingHelpers.pollForContainer(
         projectName: projectName,
-        serviceName: "db",
-        timeout: 30
+        serviceName: "socket-generator",
+        timeout: 10
       )
-      #expect(dbContainer != nil, "Container should start")
-      #expect(dbContainer?.status == .running, "Container should be running")
+      #expect(container != nil, "Container should start")
+      #expect(container?.status == .running, "Container should be running")
 
-      // Poll for socket creation
+      // Poll for socket creation in volume mount
+      // VirtioFS mounts at ~/.containers/Volumes/<project>/<volume-name>/<container-path>
       let socketPath = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".containers/Volumes/\(projectName)/db-sockets/.s.PGSQL.5432")
+        .appendingPathComponent(".containers/Volumes/\(projectName)/socket-volume/test.sock")
 
       let socketExists = try await ContainerPollingHelpers.pollForFile(
         path: socketPath,
@@ -93,24 +86,22 @@ struct VsockSocketLifecycleTests {
   @Test("Socket removed when container stops")
   func testSocketRemovedOnStop() async throws {
     let projectName = "CCT_SocketRemove_\(UUID().uuidString.prefix(8))"
-    let registryURL = requireRegistryURL()
 
+    // Using alpine + socat for minimal socket testing
     let yaml = """
       name: \(projectName)
       services:
-        db:
-          image: \(registryURL)/pgmicro:latest
+        socket-generator:
+          image: docker.io/library/alpine:latest
+          command: >
+            sh -c "apk add --no-cache socat &&
+                   mkdir -p /tmp/socket-test &&
+                   rm -f /tmp/socket-test/test.sock &&
+                   socat UNIX-LISTEN:/tmp/socket-test/test.sock,fork EXEC:'cat',nofork"
           volumes:
-            - db-sockets:/var/run/postgresql/sockets
-          x-apple-relays:
-            - type: vsock-db
-              port: 5432
-              socket_path: ~/.containers/Volumes/\(projectName)/db-sockets/.s.PGSQL.5432
-          command:
-            - /pgmicro
-            - --unix-socket-dir=/var/run/postgresql/sockets
+            - socket-volume:/tmp/socket-test
       volumes:
-        db-sockets:
+        socket-volume:
       """
 
     let tempDir = URL.temporaryDirectory.appending(path: projectName)
@@ -124,8 +115,9 @@ struct VsockSocketLifecycleTests {
       try await composeUp.run()
 
       // Wait for socket
+      // VirtioFS mounts at ~/.containers/Volumes/<project>/<volume-name>/<container-path>
       let socketPath = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".containers/Volumes/\(projectName)/db-sockets/.s.PGSQL.5432")
+        .appendingPathComponent(".containers/Volumes/\(projectName)/socket-volume/test.sock")
 
       _ = try await ContainerPollingHelpers.pollForFile(path: socketPath, timeout: 10)
       #expect(socketPath.socketExists, "Socket should exist while container runs")
@@ -134,10 +126,10 @@ struct VsockSocketLifecycleTests {
       var composeDown = ComposeDown()
       try await composeDown.run()
 
-      // Wait for socket removal (may not happen if relay manages it)
+      // Wait for socket removal
       try await Task.sleep(nanoseconds: 2_000_000_000)
 
-      // Socket may still exist if relay hasn't cleaned up - that's OK for this test
+      // Socket may still exist if relay manages it - that's OK for this test
       // The important thing is container stopped
       let containers = try await ClientContainer.list()
         .filter { $0.configuration.id.contains(projectName) }
@@ -148,29 +140,32 @@ struct VsockSocketLifecycleTests {
   @Test("Multiple services with vsock-db relays")
   func testMultipleVsockRelays() async throws {
     let projectName = "CCT_MultiRelay_\(UUID().uuidString.prefix(8))"
-    let registryURL = requireRegistryURL()
+
+    // Multiple alpine + socat containers for testing multiple sockets
     let yaml = """
       name: \(projectName)
       services:
-        db1:
-          image: \(registryURL)/pgmicro:latest
+        socket1:
+          image: docker.io/library/alpine:latest
+          command: >
+            sh -c "apk add --no-cache socat &&
+                   mkdir -p /tmp/socket-test &&
+                   rm -f /tmp/socket-test/socket1.sock &&
+                   socat UNIX-LISTEN:/tmp/socket-test/socket1.sock,fork EXEC:'cat',nofork"
           volumes:
-            - db1-sockets:/var/run/postgresql/sockets
-          x-apple-relays:
-            - type: vsock-db
-              port: 5432
-              socket_path: ~/.containers/Volumes/\(projectName)/db1-sockets/.s.PGSQL.5432
-        db2:
-          image: \(registryURL)/pgmicro:latest
+            - socket1-volume:/tmp/socket-test
+        socket2:
+          image: docker.io/library/alpine:latest
+          command: >
+            sh -c "apk add --no-cache socat &&
+                   mkdir -p /tmp/socket-test &&
+                   rm -f /tmp/socket-test/socket2.sock &&
+                   socat UNIX-LISTEN:/tmp/socket-test/socket2.sock,fork EXEC:'cat',nofork"
           volumes:
-            - db2-sockets:/var/run/postgresql/sockets
-          x-apple-relays:
-            - type: vsock-db
-              port: 5433
-              socket_path: ~/.containers/Volumes/\(projectName)/db2-sockets/.s.PGSQL.5433
+            - socket2-volume:/tmp/socket-test
       volumes:
-        db1-sockets:
-        db2-sockets:
+        socket1-volume:
+        socket2-volume:
       """
 
     let tempDir = URL.temporaryDirectory.appending(path: projectName)
@@ -183,11 +178,12 @@ struct VsockSocketLifecycleTests {
       var composeUp = try ComposeUp.parse(["-d", "--cwd", tempDir.path])
       try await composeUp.run()
 
-      // Both sockets should exist
+      // Both sockets should exist in VirtioFS volumes
+      // VirtioFS path: ~/.containers/Volumes/<project>/<volume-name>/test.sock
       let socketPath1 = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".containers/Volumes/\(projectName)/db1-sockets/.s.PGSQL.5432")
+        .appendingPathComponent(".containers/Volumes/\(projectName)/socket1-volume/socket1.sock")
       let socketPath2 = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".containers/Volumes/\(projectName)/db2-sockets/.s.PGSQL.5433")
+        .appendingPathComponent(".containers/Volumes/\(projectName)/socket2-volume/socket2.sock")
 
       let sock1Exists = try await ContainerPollingHelpers.pollForFile(path: socketPath1, timeout: 15)
       let sock2Exists = try await ContainerPollingHelpers.pollForFile(path: socketPath2, timeout: 15)
@@ -203,20 +199,22 @@ struct VsockSocketLifecycleTests {
   @Test("Socket persists across relay restart")
   func testSocketPersistence() async throws {
     let projectName = "CCT_SocketPersist_\(UUID().uuidString.prefix(8))"
-    let registryURL = requireRegistryURL()
+
+    // Using alpine + socat for minimal socket testing
     let yaml = """
       name: \(projectName)
       services:
-        db:
-          image: \(registryURL)/pgmicro:latest
+        socket-generator:
+          image: docker.io/library/alpine:latest
+          command: >
+            sh -c "apk add --no-cache socat &&
+                   mkdir -p /tmp/socket-test &&
+                   rm -f /tmp/socket-test/test.sock &&
+                   socat UNIX-LISTEN:/tmp/socket-test/test.sock,fork EXEC:'cat',nofork"
           volumes:
-            - db-sockets:/var/run/postgresql/sockets
-          x-apple-relays:
-            - type: vsock-db
-              port: 5432
-              socket_path: ~/.containers/Volumes/\(projectName)/db-sockets/.s.PGSQL.5432
+            - socket-volume:/tmp/socket-test
       volumes:
-        db-sockets:
+        socket-volume:
       """
 
     let tempDir = URL.temporaryDirectory.appending(path: projectName)
@@ -229,8 +227,9 @@ struct VsockSocketLifecycleTests {
       var composeUp = try ComposeUp.parse(["-d", "--cwd", tempDir.path])
       try await composeUp.run()
 
+      // VirtioFS mounts at ~/.containers/Volumes/<project>/<volume-name>/<container-path>
       let socketPath = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".containers/Volumes/\(projectName)/db-sockets/.s.PGSQL.5432")
+        .appendingPathComponent(".containers/Volumes/\(projectName)/socket-volume/test.sock")
 
       // Initial socket
       let exists1 = try await ContainerPollingHelpers.pollForFile(path: socketPath, timeout: 10)
@@ -244,20 +243,23 @@ struct VsockSocketLifecycleTests {
 
   @Test("vsock-db with different port numbers")
   func testDifferentPorts() async throws {
-    let ports = [5432, 5433, 5434]
     let projectName = "CCT_Ports_\(UUID().uuidString.prefix(8))"
-    let registryURL = requireRegistryURL()
+    // Multiple socket generators for different ports
     var servicesYaml = ""
+    let ports = [5432, 5433, 5434]
     for (index, port) in ports.enumerated() {
       servicesYaml += """
-        db\(index + 1):
-          image: \(registryURL)/pgmicro:latest
+        socket\(index + 1):
+          image: docker.io/library/alpine:latest
+          command: >
+            sh -c "apk add --no-cache socat &&
+                   mkdir -p /tmp/socket-test &&
+                   rm -f /tmp/socket-test/socket\(port).sock &&
+                   socat UNIX-LISTEN:/tmp/socket-test/socket\(port).sock,fork EXEC:'cat',nofork"
           volumes:
-            - db\(index + 1)-sockets:/var/run/postgresql/sockets
-          x-apple-relays:
-            - type: vsock-db
-              port: \(port)
-              socket_path: ~/.containers/Volumes/\(projectName)/db\(index + 1)-sockets/.s.PGSQL.\(port)
+            - socket\(index + 1)-volume:/tmp/socket-test
+      volumes:
+        socket\(index + 1)-volume:
       """
     }
 
@@ -265,10 +267,6 @@ struct VsockSocketLifecycleTests {
       name: \(projectName)
       services:
       \(servicesYaml)
-      volumes:
-        db1-sockets:
-        db2-sockets:
-        db3-sockets:
       """
 
     let tempDir = URL.temporaryDirectory.appending(path: projectName)
@@ -281,9 +279,10 @@ struct VsockSocketLifecycleTests {
       try await composeUp.run()
 
       // Verify all ports have sockets
-      for port in ports {
+      for (index, port) in ports.enumerated() {
+        // VirtioFS path: ~/.containers/Volumes/<project>/socket<index+1>-volume/test.sock
         let socketPath = FileManager.default.homeDirectoryForCurrentUser
-          .appendingPathComponent(".containers/Volumes/\(projectName)/db-ports-sockets/.s.PGSQL.\(port)")
+          .appendingPathComponent(".containers/Volumes/\(projectName)/socket\(index + 1)-volume/socket\(port).sock")
         let exists = try await ContainerPollingHelpers.pollForFile(path: socketPath, timeout: 10)
         #expect(exists, "Socket should exist for port \(port)")
       }
