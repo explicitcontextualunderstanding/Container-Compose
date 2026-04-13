@@ -7,7 +7,9 @@
 # 2. POST-CLEAN: Remove ALL CCT_* containers and snapshots AFTER testing (via trap)
 # 3. This prevents resource exhaustion from accumulated test artifacts
 
-set -e
+# Note: set -e removed to allow Phase 2 to run even if Phase 1 has failures
+# Error handling is done via TEST_EXIT_CODE tracking
+# set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
