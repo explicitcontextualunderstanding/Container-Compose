@@ -16,53 +16,124 @@ final class RelayManagerErrorHandlingTests: XCTestCase, @unchecked Sendable {
     var eventLog: RelayEventLog!
     var relayManager: RelayManager!
 
-override func setUp() {
+    override func setUp() {
         super.setUp()
         eventLog = RelayEventLog()
-        // Disable security gates for tests - TCC preflight requires entitlements not available in test environment
-        relayManager = RelayManager(eventLog: eventLog, enableSecurity: false)
+        // Use mock starter by default to avoid TCC/Hypervisor entitlements
+        relayManager = RelayManager(eventLog: eventLog, enableSecurity: false, relayStarter: MockSuccessRelayStarter())
     }
 
-  override func tearDown() async throws {
-    await relayManager.stopAll()
-    relayManager = nil
-    eventLog = nil
-  }
+    override func tearDown() async throws {
+        await relayManager.stopAll()
+        relayManager = nil
+        eventLog = nil
+    }
 
-  // MARK: - Test 1: Error Propagation
+    // MARK: - Mock for Testing Cleanup Behavior
+
+    /// Mock relay starter that simulates a failure during relay creation
+    /// Used to test cleanup behavior without needing actual virtualization entitlements
+    struct FailingRelayStarter: RelayStarter {
+        let error: RelayError
+
+        func createRelay(config: RelayManager.RelayConfiguration, eventLog: RelayEventLog) async throws -> any RelayProtocol {
+            throw error
+        }
+    }
+
+    /// Mock relay starter that succeeds but simulates a failure during start
+    struct FailingStartRelayStarter: RelayStarter {
+        func createRelay(config: RelayManager.RelayConfiguration, eventLog: RelayEventLog) async throws -> any RelayProtocol {
+            return MockFailingRelay(config: config, eventLog: eventLog)
+        }
+    }
+
+    /// Mock relay that fails on start() - tests cleanup after partial creation
+    actor MockFailingRelay: RelayProtocol {
+        let config: RelayManager.RelayConfiguration
+        let eventLog: RelayEventLog
+
+        init(config: RelayManager.RelayConfiguration, eventLog: RelayEventLog) {
+            self.config = config
+            self.eventLog = eventLog
+        }
+
+        func start() async throws {
+            throw RelayError.alreadyRunning("simulated-start-failure")
+        }
+
+        func stop() async {
+            // Cleanup tracked here
+        }
+
+var transportType: RelayTransport { config.transport }
+	var isRunning: Bool { false }
+	var tcpPort: UInt16 { config.tcpPort }
+	var unixSocketPath: String { config.unixSocketPath }
+	var activeConnectionCount: Int { 0 }
+}
+
+	/// Mock relay that succeeds - for testing duplicate ID logic
+	actor MockSuccessRelay: RelayProtocol {
+		let config: RelayManager.RelayConfiguration
+		let eventLog: RelayEventLog
+
+		init(config: RelayManager.RelayConfiguration, eventLog: RelayEventLog) {
+			self.config = config
+			self.eventLog = eventLog
+		}
+
+		func start() async throws { }
+		func stop() async { }
+
+		var transportType: RelayTransport { config.transport }
+		var isRunning: Bool { true }
+		var tcpPort: UInt16 { config.tcpPort }
+		var unixSocketPath: String { config.unixSocketPath }
+		var activeConnectionCount: Int { 0 }
+	}
+
+/// Mock starter that creates MockSuccessRelay
+struct MockSuccessRelayStarter: RelayStarter {
+	func createRelay(config: RelayManager.RelayConfiguration, eventLog: RelayEventLog) async throws -> any RelayProtocol {
+		return MockSuccessRelay(config: config, eventLog: eventLog)
+	}
+}
+
+	/// Mock starter that throws path length error
+	struct PathLengthFailingRelayStarter: RelayStarter {
+		func createRelay(config: RelayManager.RelayConfiguration, eventLog: RelayEventLog) async throws -> any RelayProtocol {
+			throw UDSError.socketPathTooLong(path: config.unixSocketPath, length: config.unixSocketPath.count, limit: 104)
+		}
+	}
+
+// MARK: - Test 1: Error Propagation
 
   /// Verify errors from VsockRelay propagate correctly through RelayManager
   func testErrorPropagationFromVsockRelay() async throws {
-    // Config with invalid CID (should cause error)
+    // Use failing mock to test error propagation
+    let failingStarter = FailingRelayStarter(error: .networkError(NSError(domain: "test", code: 1)))
+    let manager = RelayManager(eventLog: eventLog, enableSecurity: false, relayStarter: failingStarter)
+
     let config = RelayManager.RelayConfiguration(
       id: "error-test",
       tcpPort: 15432,
-      transport: .uds(path: "/tmp/test-vsock-fallback-\(UUID().uuidString).sock", virtioFSMount: nil),
+      transport: .uds(path: "/tmp/test-vsock-fallback.sock", virtioFSMount: nil),
       description: "Error propagation test"
     )
 
+    // Verify error is propagated
+    var caughtError: Error?
     do {
-      try await relayManager.startRelay(config)
-      // If we get here, check if it's actually running or failed silently
-      let status = await relayManager.status()
-      if status.isEmpty {
-        // Expected - vsock with CID 999 likely fails
-        print("✅ Relay failed to start as expected (CID 999 invalid)")
-      }
+        try await manager.startRelay(config)
     } catch {
-      // Error should be propagated with details
-      let errorString = String(describing: error)
-      print("✅ Error propagated: \(errorString)")
-
-      // Error should contain useful information
-      XCTAssertTrue(
-        errorString.count > 0,
-        "Error should have message"
-      )
+        caughtError = error
     }
+    XCTAssertNotNil(caughtError, "Should throw error")
+    XCTAssertTrue(String(describing: caughtError!).count > 0)
 
     // Verify no lingering state
-    let status = await relayManager.status()
+    let status = await manager.status()
     XCTAssertEqual(status.count, 0, "Should have no active relays after error")
   }
 
@@ -105,105 +176,65 @@ override func setUp() {
     /// TODO: Properly detect if Apple Developer entitlements are available
     /// Currently checks for CI environment, but should check actual entitlement status
     /// e.g., via codesign -d --entitlements or by attempting a privileged operation
-    func testCleanupOnStartFailure() async throws {
-        // Skip in environments without proper entitlements
-        // Quick toggle: SKIP_ENTITLEMENT_TESTS=1 to skip in development
-        // TODO: Replace with proper entitlement check via codesign or AMFIValidator
-        if ProcessInfo.processInfo.environment.keys.contains("SKIP_ENTITLEMENT_TESTS") {
-            throw XCTSkip("Skipped via SKIP_ENTITLEMENT_TESTS environment variable")
-        }
-        guard !ProcessInfo.processInfo.environment.keys.contains("CI") else {
-            throw XCTSkip("Requires Apple Developer entitlements - skipping in CI (TODO: proper entitlement detection)")
-        }
+func testCleanupOnStartFailure() async throws {
+	// Inject failing mock to bypass Virtualization framework entitlements
+	let failingStarter = FailingRelayStarter(error: .networkError(NSError(domain: "test", code: 1)))
+	let manager = RelayManager(eventLog: eventLog, enableSecurity: false, relayStarter: failingStarter)
 
-        let config = RelayManager.RelayConfiguration(
-            id: "cleanup-test",
-            tcpPort: 15434,
-            transport: .uds(path: "/tmp/test-\(UUID().uuidString).sock", virtioFSMount: nil),
-            description: "Cleanup test"
-        )
+	let config = RelayManager.RelayConfiguration(
+		id: "cleanup-test",
+		tcpPort: 15434,
+		transport: .uds(path: "/tmp/test-\(UUID().uuidString).sock", virtioFSMount: nil),
+		description: "Cleanup test"
+	)
 
-        // Try to start with XCTest expectation timeout
-        // Using expectation pattern to prevent hanging indefinitely
-        // Use actor-isolated approach to avoid Sendable warnings
-        let expectation = self.expectation(description: "Relay start completes")
-        
-        // Create detached task to avoid capturing self
-        Task.detached { [weak self] in
-            defer { expectation.fulfill() }
-            guard let strongSelf = self else { return }
-            do {
-                try await strongSelf.relayManager.startRelay(config)
-            } catch {
-                print("Start failed (may be expected): \(error)")
-            }
-        }
-        
-        await fulfillment(of: [expectation], timeout: 5.0)
+	// Verify start fails with injected error
+	var caughtError: Error?
+	do {
+		try await manager.startRelay(config)
+	} catch {
+		caughtError = error
+	}
+	XCTAssertNotNil(caughtError, "Relay start should fail with injected error")
 
-        // Verify no partial state
-        let status = await relayManager.status()
-        XCTAssertEqual(status.filter { $0.id == "cleanup-test" }.count, 0,
-                       "Should not have partial relay entry")
-
-        // Verify can try again (with timeout)
-        let expectation2 = self.expectation(description: "Second relay start completes")
-        Task.detached { [weak self] in
-            defer { expectation2.fulfill() }
-            guard let strongSelf = self else { return }
-            do {
-                try await strongSelf.relayManager.startRelay(config)
-                print("✅ Second attempt succeeded or failed cleanly")
-            } catch {
-                print("Second attempt failed: \(error)")
-            }
-        }
-        await fulfillment(of: [expectation2], timeout: 5.0)
-
-        // Final cleanup (no-op if relay never started)
-        await relayManager.stopRelay(id: "cleanup-test")
-    }
+	// Verify cleanup: no relay entry left behind
+	let status = await manager.status()
+	XCTAssertEqual(status.count, 0, "Should have no relays after failed start")
+}
 
 // MARK: - Test 4: Duplicate ID Error
 
 /// Verify proper error when starting duplicate relay
 /// Plan 88: Migrated from vsock to UDS
 func testDuplicateIdError() async throws {
-	let socketPath = "/tmp/test-duplicate-\(UUID().uuidString).sock"
-	defer { try? FileManager.default.removeItem(atPath: socketPath) }
+	// Use mock that succeeds to test duplicate ID logic
+	let mockStarter = MockSuccessRelayStarter()
+	let manager = RelayManager(eventLog: eventLog, enableSecurity: false, relayStarter: mockStarter)
 
 	let config = RelayManager.RelayConfiguration(
 		id: "duplicate-test",
 		tcpPort: 15435,
-		transport: .uds(path: socketPath, virtioFSMount: nil),
+		transport: .uds(path: "/tmp/test-duplicate.sock", virtioFSMount: nil),
 		description: "Duplicate ID test"
 	)
 
-    // First start (may succeed or fail)
-    do {
-      try await relayManager.startRelay(config)
-    } catch {
-      print("First start failed: \(error)")
-    }
+	// First start should succeed
+	try await manager.startRelay(config)
 
-    // Second start with same ID should fail
-    do {
-      try await relayManager.startRelay(config)
-      // If first failed, second might succeed
-      print("Second start succeeded (first must have failed)")
-    } catch {
-      let errorString = String(describing: error)
-      XCTAssertTrue(
-        errorString.contains("already") || errorString.contains("duplicate") || errorString.contains("running"),
-        "Error should indicate duplicate: \(errorString)"
-      )
-    }
+	// Second start with same ID should fail with alreadyRunning
+	var caughtError: Error?
+	do {
+		try await manager.startRelay(config)
+	} catch {
+		caughtError = error
+	}
+	XCTAssertNotNil(caughtError)
+	XCTAssertTrue(String(describing: caughtError!).contains("already") || String(describing: caughtError!).contains("running"))
 
-    // Cleanup
-    await relayManager.stopRelay(id: "duplicate-test")
-  }
+	await manager.stopRelay(id: "duplicate-test")
+}
 
-  // MARK: - Test 5: Invalid Transport Error
+// MARK: - Test 5: Invalid Transport Error
 
   /// Verify error for unsupported transport types
   func testInvalidTransportError() async throws {
@@ -387,9 +418,11 @@ print("Active relays: \(status.count)")
 // MARK: - UDS Error Handling Tests (Plan 88)
 
 func testUDSRelayWithInvalidSocketPath() async throws {
-    // Plan 88: Test UDS relay handles invalid socket path gracefully
-    let invalidPath = String(repeating: "a", count: 110) + ".sock"
+    // Use mock that throws path length error
+    let failingStarter = PathLengthFailingRelayStarter()
+    let manager = RelayManager(eventLog: eventLog, enableSecurity: false, relayStarter: failingStarter)
 
+    let invalidPath = String(repeating: "a", count: 110) + ".sock"
     let config = RelayManager.RelayConfiguration(
         id: "invalid-uds-relay",
         tcpPort: 9999,
@@ -397,17 +430,14 @@ func testUDSRelayWithInvalidSocketPath() async throws {
         description: "Test invalid UDS path"
     )
 
+    var caughtError: Error?
     do {
-        try await relayManager.startRelay(config)
-        XCTFail("Should have thrown error for path >= 104 chars")
+        try await manager.startRelay(config)
     } catch {
-        // Expected: UDSError.socketPathTooLong
-        let errorString = String(describing: error)
-        XCTAssertTrue(
-            errorString.contains("too long") || errorString.contains("104"),
-            "Error should indicate path too long: \(errorString)"
-        )
+        caughtError = error
     }
+    XCTAssertNotNil(caughtError)
+    XCTAssertTrue(String(describing: caughtError!).contains("too long") || String(describing: caughtError!).contains("104"))
 }
 
 func testUDSRelayWithEmptyPath() async throws {

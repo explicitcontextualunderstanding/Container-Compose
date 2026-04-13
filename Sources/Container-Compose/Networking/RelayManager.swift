@@ -198,6 +198,100 @@ enum RelayError: Error, CustomStringConvertible {
     }
 }
 
+// MARK: - RelayStarter Protocol
+
+/// Protocol for creating relay instances - enables dependency injection for testing
+protocol RelayStarter: Sendable {
+	/// Create a relay instance based on configuration
+	/// - Parameters:
+	/// - config: Relay configuration (nested type from RelayManager)
+	/// - eventLog: Event logging for relay operations
+	/// - Returns: A relay conforming to RelayProtocol
+	/// - Throws: RelayError if relay cannot be created
+	func createRelay(config: RelayManager.RelayConfiguration, eventLog: RelayEventLog) async throws -> any RelayProtocol
+}
+
+/// Default implementation using actual relay types
+struct RealRelayStarter: RelayStarter {
+    /// Security manager for entitlement validation
+    private let secureManager: SecureRelayManager?
+    
+    init(secureManager: SecureRelayManager? = nil) {
+        self.secureManager = secureManager
+    }
+    
+    func createRelay(config: RelayManager.RelayConfiguration, eventLog: RelayEventLog) async throws -> any RelayProtocol {
+        // Check security gates first
+        if let secure = secureManager {
+            let socketPath: String? = switch config.transport {
+            case .uds(let path, _): path
+            case .vsockDb(let path): path
+            case .unixSocket(let path): path
+            case .vsock(_, _, let path): path.isEmpty ? nil : path
+            case .tcp: nil
+            }
+            
+            let securityResult = await secure.validateRelayStartupPrimitives(
+                id: config.id,
+                socketPath: socketPath,
+                transport: config.transport
+            )
+            
+            guard securityResult.passed else {
+                let gate = securityResult.blockedBy?.description ?? "Unknown"
+                let message = securityResult.errorMessage ?? "Security validation failed"
+                throw RelayError.securityValidationFailed(gate: gate, message: message)
+            }
+        }
+        
+        // Create the actual relay based on transport type
+        switch config.transport {
+        case .uds(let path, _):
+            let isVolumeSocket = path.contains(".containers/Volumes")
+            return try UDSVirtioFSRelay(
+                socketPath: path,
+                createSignalSocket: !isVolumeSocket,
+                eventLog: eventLog
+            )
+            
+        case .vsock(let cid, let port, _):
+            // Check vsock availability
+            let availability = checkVsockAvailability()
+            if !availability.isAvailable {
+                // Fall back to TCP relay
+                return try await SocketRelay(
+                    tcpPort: config.tcpPort,
+                    unixPath: config.unixSocketPath,
+                    eventLog: eventLog
+                )
+            }
+            
+            let isVolumeSocket = config.unixSocketPath.contains(".containers/Volumes")
+            return try VsockRelay(
+                cid: cid,
+                port: port,
+                unixSocketPath: config.unixSocketPath,
+                createSignalSocket: !isVolumeSocket,
+                eventLog: eventLog
+            )
+            
+        case .unixSocket, .tcp:
+            return try await SocketRelay(
+                tcpPort: config.tcpPort,
+                unixPath: config.unixSocketPath,
+                eventLog: eventLog
+            )
+            
+        case .vsockDb(let socketPath):
+            return try UDSVirtioFSRelay(
+                socketPath: socketPath,
+                createSignalSocket: false, // PostgreSQL creates the socket
+                eventLog: eventLog
+            )
+        }
+    }
+}
+
 // MARK: - RelayManager
 
 /// Enables container-to-container communication via host-mediated socket relay
@@ -209,14 +303,23 @@ actor RelayManager {
     // MARK: - Security Integration (Plan 85)
     /// Secure relay manager for TCC/AMFI/Isolation gating
     private let secureManager: SecureRelayManager?
+    
+    /// Relay starter for dependency injection (enables testing)
+    private let relayStarter: any RelayStarter
 
     /// Initialize with optional security integration
     /// - Parameters:
-    ///   - eventLog: Event logging for relay operations
-    ///   - enableSecurity: Enable Plan 85 security gates (default: true)
-    init(eventLog: RelayEventLog = RelayEventLog(), enableSecurity: Bool = true) {
+    /// - eventLog: Event logging for relay operations
+    /// - enableSecurity: Enable Plan 85 security gates (default: true)
+    /// - relayStarter: Custom relay starter for testing (default: RealRelayStarter)
+    init(
+        eventLog: RelayEventLog = RelayEventLog(),
+        enableSecurity: Bool = true,
+        relayStarter: (any RelayStarter)? = nil
+    ) {
         self.eventLog = eventLog
         self.secureManager = enableSecurity ? SecureRelayManager(configuration: .production) : nil
+        self.relayStarter = relayStarter ?? RealRelayStarter(secureManager: self.secureManager)
     }
 
     /// Configuration for a socket relay
@@ -278,123 +381,17 @@ actor RelayManager {
             throw RelayError.alreadyRunning(config.id)
         }
 
-        // MARK: - Plan 88 Phase 3: Security Gates Re-enabled (Finding C-3)
-        // Use primitive-based API to avoid import cycle
-        if let secure = secureManager {
-            // Extract primitives for security validation
-            let socketPath: String? = switch config.transport {
-            case .uds(let path, _): path
-            case .vsockDb(let path): path
-            case .unixSocket(let path): path
-            case .vsock(_, _, let path): path.isEmpty ? nil : path
-            case .tcp: nil
-            }
-
-            let securityResult = await secure.validateRelayStartupPrimitives(
-                id: config.id,
-                socketPath: socketPath,
-                transport: config.transport
-            )
-
-            guard securityResult.passed else {
-                let gate = securityResult.blockedBy?.description ?? "Unknown"
-                let message = securityResult.errorMessage ?? "Security validation failed"
-                logger.error("Security gate '\(gate)' blocked relay \(config.id): \(message)")
-                throw RelayError.securityValidationFailed(gate: gate, message: message)
-            }
-            logger.info("Security gates passed for relay \(config.id)")
-        }
-
-        // Route to appropriate relay implementation based on transport type
-    switch config.transport {
-    case .uds(let path, _):
-        // Plan 88: UDS-over-Virtio-FS transport
-        let isVolumeSocket = path.contains(".containers/Volumes")
-        logger.info("Starting UDS relay \(config.id): path:\(path) (volumeSocket: \(isVolumeSocket))")
-
-        let relay = try UDSVirtioFSRelay(
-            socketPath: path,
-            createSignalSocket: !isVolumeSocket,
-            eventLog: eventLog
-        )
-        relays[config.id] = relay
-        try await relay.start()
-
-        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: path))
-        logger.info("UDS relay \(config.id) started successfully")
+        logger.info("Starting relay \(config.id) via RelayStarter")
         
-    case .vsock(let cid, let port, _):
-    logger.info("Starting VSOCK relay \(config.id): TCP:\(config.tcpPort) → vsock:\(cid):\(port)")
-
-    // Check vsock availability first
-    let availability = checkVsockAvailability()
-    if !availability.isAvailable {
-        logger.warning("Vsock not available: \(availability.errorMessage ?? "unknown"). Falling back to TCP relay.")
-        logger.info("Hint: Use type: tcp in compose file for environments without vsock support")
-
-        // Fall back to TCP relay (SocketRelay)
-        let relay = try await SocketRelay(
-            tcpPort: config.tcpPort,
-            unixPath: config.unixSocketPath,
-            eventLog: eventLog
-        )
+        // Use injected RelayStarter for dependency injection (enables testing)
+        let relay = try await relayStarter.createRelay(config: config, eventLog: eventLog)
+        
         relays[config.id] = relay
         try await relay.start()
-        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "tcp-fallback:\(config.unixSocketPath)"))
-        logger.info("TCP fallback relay \(config.id) started successfully")
-    } else {
-        // Detect if socket path is in Virtio-FS volume (vsock-db type)
-        // In this case, PostgreSQL creates the socket, so we should not create/remove signal socket
-        let isVolumeSocket = config.unixSocketPath.contains(".containers/Volumes")
-
-        let relay = try VsockRelay(
-            cid: cid,
-            port: port,
-            unixSocketPath: config.unixSocketPath,
-            createSignalSocket: !isVolumeSocket,
-            eventLog: eventLog
-        )
-
-        relays[config.id] = relay
-        try await relay.start()
-
-        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "vsock:\(cid):\(port)"))
-        logger.info("VSOCK relay \(config.id) started successfully")
-    }
-            
-  case .unixSocket, .tcp:
-    logger.info("Starting relay \(config.id): TCP:\(config.tcpPort) → UNIX:\(config.unixSocketPath)")
-
-    let relay = try await SocketRelay(
-      tcpPort: config.tcpPort,
-      unixPath: config.unixSocketPath,
-      eventLog: eventLog
-    )
-
-    relays[config.id] = relay
-    try await relay.start()
-
-    await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: config.unixSocketPath))
-    logger.info("Relay \(config.id) started successfully")
-
-  case .vsockDb(let socketPath):
-    // Plan 88: vsockDb → UDS over Virtio-FS (vSock unavailable in Apple user containers)
-    logger.info("Starting UDS-DB relay \(config.id): TCP:\(config.tcpPort) → UDS:\(socketPath)")
-    logger.info("Note: vSock unavailable — using UDS over Virtio-FS (Plan 88)")
-
-    // Always use UDSVirtioFSRelay — PostgreSQL creates socket in Virtio-FS
-    let relay = try UDSVirtioFSRelay(
-      socketPath: socketPath,
-      createSignalSocket: false, // PostgreSQL creates the socket
-      eventLog: eventLog
-    )
-
-    relays[config.id] = relay
-    try await relay.start()
-
-    await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: "uds-db:\(socketPath)"))
-    logger.info("UDS-DB relay \(config.id) started successfully (Plan 88)")
-  }
+        
+        let path = await relay.unixSocketPath
+        await eventLog.record(.relayStarted(id: config.id, port: config.tcpPort, path: path))
+        logger.info("Relay \(config.id) started successfully")
     }
 
     /// Stop a specific relay by ID
