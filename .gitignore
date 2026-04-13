@@ -22,3 +22,4 @@ Container-Compose.entitlements.plist
 *.log.2
 *.log.3
 
+.env

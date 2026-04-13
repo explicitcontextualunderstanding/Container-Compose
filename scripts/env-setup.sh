@@ -13,8 +13,30 @@ _ENV_SETUP_SUMMARY=""
 # Load OCI_REGISTRY_URL if not already set
 if [ -z "$OCI_REGISTRY_URL" ]; then
   # Try to load from ops.env
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  ENV_FILE="$SCRIPT_DIR/ops.env"
+  # Since BASH_SOURCE[0] is unreliable when sourced, use multiple methods:
+  # 1. Check PWD (where the shell was when this was sourced)
+  # 2. Check parent of scripts/ directory
+  # 3. Check common workspace locations
+  
+  ENV_FILE=""
+  
+  # Method 1: PWD (most reliable when sourced from run-tests.sh)
+  if [ -f "$PWD/ops.env" ]; then
+    ENV_FILE="$PWD/ops.env"
+  # Method 2: Relative to scripts/
+  elif [ -f "$(dirname "${BASH_SOURCE[0]:-.}")/../ops.env" ]; then
+    ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]:-.}")/.." && pwd)/ops.env"
+  # Method 3: Check up to 3 parent directories
+  else
+    for i in 1 2 3; do
+      if [ -f "ops.env" ]; then
+        ENV_FILE="$PWD/ops.env"
+        break
+      fi
+      cd ..
+    done
+    cd "$PWD" 2>/dev/null || true
+  fi
 
   if [ -f "$ENV_FILE" ]; then
     # Source the file and extract OCI_REGISTRY_URL

@@ -17,6 +17,32 @@
 import Foundation
 
 public struct DockerComposeYamlFiles {
+    /// Resolves environment variables in a YAML string
+    /// - Parameter yaml: YAML string with ${VAR} placeholders
+    /// - Returns: YAML with environment variables substituted
+    public static func resolveEnvVars(_ yaml: String) -> String {
+        var result = yaml
+        let pattern = #"\$\{([^}]+)\}"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return result
+        }
+        
+        let range = NSRange(result.startIndex..., in: result)
+        let matches = regex.matches(in: result, options: [], range: range).reversed()
+        
+        for match in matches {
+            guard let fullRange = Range(match.range, in: result),
+                  let varNameRange = Range(match.range(at: 1), in: result) else {
+                continue
+            }
+            let varName = String(result[varNameRange])
+            if let envValue = ProcessInfo.processInfo.environment[varName] {
+                result.replaceSubrange(fullRange, with: envValue)
+            }
+        }
+        return result
+    }
+    
     /// Finds an available port on the local machine.
     /// - Returns: An available port number
     public static func getAvailablePort() -> UInt16 {
