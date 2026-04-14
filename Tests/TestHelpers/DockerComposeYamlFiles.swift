@@ -487,9 +487,8 @@ public struct DockerComposeYamlFiles {
     
     // Replace environment variable placeholders
     // ${OCI_REGISTRY_URL} -> actual value from environment
-    guard let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] else {
-      throw YamlError.missingRegistryURL
-    }
+    // Note: If OCI_REGISTRY_URL is not set, we use the default registry (images should be cached locally)
+    let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "REMOVED_REGISTRY_URL"
     isolatedYaml = isolatedYaml.replacingOccurrences(
       of: "${OCI_REGISTRY_URL}",
       with: registryURL

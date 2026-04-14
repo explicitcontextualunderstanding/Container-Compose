@@ -143,9 +143,12 @@ return options
         .replacingOccurrences(of: ".txt", with: "")
         .uppercased()
 
-      // Apply filter if specified
-      if let filter = filter, !filter.contains(normalizedName) {
-        continue
+      // Apply filter if specified (case-insensitive comparison)
+      if let filter = filter {
+        let uppercasedFilter = filter.map { $0.uppercased() }
+        if !uppercasedFilter.contains(normalizedName) {
+          continue
+        }
       }
 
       // Validate secret name format
@@ -155,8 +158,15 @@ return options
       }
 
       let path = "\(enclavePath)/\(fileName)"
-      let content = try String(contentsOfFile: path, encoding: .utf8)
-        .trimmingCharacters(in: .whitespacesAndNewlines)
+      let content: String
+      do {
+        content = try String(contentsOfFile: path, encoding: .utf8)
+          .trimmingCharacters(in: .whitespacesAndNewlines)
+      } catch {
+        // Binary or non-UTF8 files: read as Latin1 to preserve bytes
+        let data = FileManager.default.contents(atPath: path) ?? Data()
+        content = String(data: data, encoding: .isoLatin1) ?? "[binary data]"
+      }
 
       result[normalizedName] = content
     }

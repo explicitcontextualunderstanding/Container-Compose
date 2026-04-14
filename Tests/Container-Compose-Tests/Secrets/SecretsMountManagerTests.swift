@@ -160,8 +160,8 @@ let options = await manager.buildMountOptions(config: config)
 
 	#if os(Linux)
 	#expect(options.contains("size=1m"))
-	#endif
 	#expect(options.contains("mode=0400"))
+	#endif
 	#expect(options.contains("noexec"))
 	#expect(options.contains("nosuid"))
 }

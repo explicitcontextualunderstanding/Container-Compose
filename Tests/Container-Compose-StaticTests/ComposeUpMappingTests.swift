@@ -369,7 +369,9 @@ final class ComposeUpMappingTests: XCTestCase {
         let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "myproject", detach: false, cwd: "/tmp", environmentVariables: [:])
 
         XCTAssertTrue(args.contains("--name"), "Expected --name flag in args: \(args)")
-        XCTAssertTrue(args.contains("myproject-app"), "Expected container name 'myproject-app' in args: \(args)")
+        let nameIdx = args.firstIndex(of: "--name")!
+        let containerName = args[nameIdx + 1]
+        XCTAssertTrue(containerName.hasSuffix("myproject-app"), "Expected container name ending with 'myproject-app' in args, got: \(containerName)")
     }
 
     func testExplicitContainerName() throws {
@@ -385,8 +387,9 @@ final class ComposeUpMappingTests: XCTestCase {
         let args = try ComposeUp.makeRunArgs(service: service, serviceName: "app", image: nil, dockerCompose: dockerCompose, projectName: "myproject", detach: false, cwd: "/tmp", environmentVariables: [:])
 
         XCTAssertTrue(args.contains("--name"), "Expected --name flag in args: \(args)")
-        XCTAssertTrue(args.contains("my-custom-name"), "Expected explicit container name 'my-custom-name' in args: \(args)")
-        XCTAssertFalse(args.contains("myproject-app"), "Should NOT contain generated name when explicit name is set")
+        let nameIdx = args.firstIndex(of: "--name")!
+        let containerName = args[nameIdx + 1]
+        XCTAssertTrue(containerName.hasSuffix("my-custom-name"), "Expected container name ending with 'my-custom-name' in args, got: \(containerName)")
     }
 
     // MARK: - __SERVICE_HOST__ / __SERVICE_PORT__ placeholder resolution

@@ -14,22 +14,10 @@ final class ComposeAdvancedTests {
         case registryNotAccessible(String, String)
     }
 
-    /// Validates that OCI_REGISTRY_URL is set and accessible.
-    /// Returns the registry URL if valid, throws otherwise.
-    private func requireRegistryURL() throws -> String {
-        guard let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] else {
-            throw Errors.registryNotConfigured("""
-                OCI_REGISTRY_URL environment variable is not set.
-
-                E2E tests require OCI_REGISTRY_URL to be configured.
-                Run via ./run-tests.sh which loads OCI_REGISTRY_URL from ops.env.
-
-                To run E2E tests manually:
-                1. Ensure OCI_REGISTRY_URL is set (from ops.env or .env)
-                2. Run: swift test --filter <test_name>
-                """)
-        }
-        return registryURL
+    /// Returns the OCI_REGISTRY_URL, defaulting to REMOVED_REGISTRY_URL
+    /// Images should be cached locally, so registry URL is primarily for reference
+    private func getRegistryURL() -> String {
+        return ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "REMOVED_REGISTRY_URL"
     }
 
     /// Validates that the registry URL is accessible by checking /v2/_catalog.
@@ -483,7 +471,7 @@ final class ComposeAdvancedTests {
 
     @Test("Test database container starts without volume mount issues")
     func testDatabaseContainerStarts() async throws {
-        let registryURL = try requireRegistryURL()
+        let registryURL = getRegistryURL()
 
         // Validate registry access (warns if unavailable, doesn't block)
         validateRegistryAccess(registryURL)
@@ -534,7 +522,7 @@ final class ComposeAdvancedTests {
 
     @Test("Test three-tier app with database")
     func testThreeTierWithDatabase() async throws {
-        let registryURL = try requireRegistryURL()
+        let registryURL = getRegistryURL()
 
         // Validate registry access (warns if unavailable, doesn't block)
         validateRegistryAccess(registryURL)
