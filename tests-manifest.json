@@ -1,0 +1,55 @@
+{
+  "project": "Container-Compose",
+  "toolchain": "swift-6.3",
+  "note": "Swift 6.3 has test runner bug - use --filter 'Target.*' pattern",
+  "targets": [
+    {
+      "name": "Container_Compose_StaticTests",
+      "filter": "Container_Compose_StaticTests.*",
+      "type": "unit",
+      "priority": 1,
+      "parallel": true,
+      "workers": 2,
+      "expected_count": 133,
+      "requires_containers": false,
+      "description": "Static parsing and mapping tests"
+    },
+    {
+      "name": "SecurityHardeningTests",
+      "filter": "SecurityHardeningTests.*",
+      "type": "unit",
+      "priority": 2,
+      "parallel": true,
+      "workers": 2,
+      "expected_count": 180,
+      "requires_containers": false,
+      "description": "Security hardening tests (AMFI, TCC, entitlements)"
+    },
+    {
+      "name": "Container_Compose_Tests",
+      "filter": "Container_Compose_Tests.*",
+      "type": "unit",
+      "priority": 3,
+      "parallel": false,
+      "expected_count": 207,
+      "requires_containers": false,
+      "description": "Relay, networking, and secrets tests"
+    },
+    {
+      "name": "Container_Compose_DynamicTests",
+      "filter": "Container_Compose_DynamicTests.*",
+      "type": "integration",
+      "priority": 4,
+      "parallel": false,
+      "expected_count": 113,
+      "requires_containers": true,
+      "memory_threshold_mb": 600,
+      "description": "E2E tests requiring containers and OCI_REGISTRY_URL"
+    }
+  ],
+  "thresholds": {
+    "memory_warning_mb": 500,
+    "memory_critical_mb": 200,
+    "min_free_memory_for_heavy_tests_mb": 600
+  }
+}

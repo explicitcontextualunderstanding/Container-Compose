@@ -53,10 +53,25 @@ class PerformanceAnalyzer:
             
         content = self.test_log_path.read_text()
         
-        # Parse test counts
-        # Example: "Test Suite 'ComposeUpTests' passed at 2024-01-15 10:30:15"
-        passed_tests = re.findall(r'Test Suite.*passed.*(\d+) tests', content)
-        failed_tests = re.findall(r'Test Suite.*failed.*(\d+) tests', content)
+        # Parse test counts - use ✔/✘ symbols as primary source
+        # Swift test output uses these symbols for individual test results
+        
+        # Primary: Count ✔/✘ symbols (most reliable)
+        results['passed'] = len(re.findall(r'✔ Test', content))
+        results['failed'] = len(re.findall(r'✘ Test', content))
+        results['total_tests'] = results['passed'] + results['failed']
+        
+        # If no ✔/✘ found, try "Executed X tests" lines
+        if results['total_tests'] == 0:
+            executed_lines = re.findall(r'Executed (\d+) tests', content)
+            failure_lines = re.findall(r'with (\d+) failures', content)
+            
+            if executed_lines:
+                total = sum(int(x) for x in executed_lines)
+                failures = sum(int(x) for x in failure_lines) if failure_lines else 0
+                results['total_tests'] = total
+                results['passed'] = total - failures
+                results['failed'] = failures
         
         # Count Memory Guard skips
         results['memory_guard_skips'] = len(re.findall(r'MEMORY GUARD: Skipping', content))
@@ -67,12 +82,12 @@ class PerformanceAnalyzer:
         # Count container creations
         results['container_creations'] = len(re.findall(r'container.*run|Creating container', content))
         
-        # Calculate total tests
-        results['total_tests'] = sum(int(x) for x in passed_tests) + sum(int(x) for x in failed_tests)
-        results['passed'] = sum(int(x) for x in passed_tests)
-        
-        # Extract duration
-        duration_match = re.search(r'Test Suite.*\((\d+\.\d+) seconds\)', content)
+        # Extract duration - multiple formats
+        # Format 1: "passed after 10.5 seconds"
+        # Format 2: "Test Suite... (10.5 seconds)"
+        duration_match = re.search(r'passed after (\d+\.\d+) seconds', content)
+        if not duration_match:
+            duration_match = re.search(r'\((\d+\.\d+) seconds\)', content)
         if duration_match:
             results['duration_seconds'] = float(duration_match.group(1))
         
@@ -90,11 +105,11 @@ class PerformanceAnalyzer:
             for row in reader:
                 try:
                     data.append({
-                        'timestamp': row.get('timestamp', ''),
-                        'free_memory_mb': int(row.get('free_memory_mb', 0)),
-                        'active_memory_mb': int(row.get('active_memory_mb', 0)),
-                        'cpu_percent': float(row.get('cpu_percent', 0) or 0),
-                        'container_count': int(row.get('container_count', 0))
+                        'timestamp': row.get('timestamp', '') or '',
+                        'free_memory_mb': int(row.get('free_memory_mb') or 0),
+                        'active_memory_mb': int(row.get('active_memory_mb') or 0),
+                        'cpu_percent': float(row.get('cpu_percent') or 0),
+                        'container_count': int(row.get('container_count') or 0)
                     })
                 except (ValueError, KeyError):
                     continue
