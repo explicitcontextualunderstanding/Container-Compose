@@ -28,9 +28,10 @@ import TestHelpers
 struct ComposeUpTests {
   private let reliabilityHelper = ContainerReliabilityHelper()
 
-  /// Returns registry URL from environment, with docker.io fallback
+  /// Returns registry URL from environment, defaulting to local registry
+  /// Note: pgmicro is only in REMOVED_REGISTRY_URL, not docker.io
   private func getRegistryURL() -> String {
-    ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "docker.io"
+    ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "REMOVED_REGISTRY_URL"
   }
     
     @Test("Test WordPress with MySQL compose file",
@@ -58,9 +59,10 @@ struct ComposeUpTests {
                 })
 
             // Assert correct container information (wp + nginx + mysql setup)
-            guard let wordpressContainer = containers.first(where: { $0.configuration.id == "\(folderName)-wp" }),
-                  let webContainer = containers.first(where: { $0.configuration.id == "\(folderName)-web" }),
-                  let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" })
+            // Note: Container IDs may have CCT_orphan_ prefix, so use contains
+            guard let wordpressContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-wp") }),
+                  let webContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-web") }),
+                  let dbContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-db") })
             else {
                 throw Errors.containerNotFound
             }
@@ -175,10 +177,10 @@ struct ComposeUpTests {
                 timeout: 60 // Networks take longer to populate
             )
 
-            guard let nginxContainer = containers.first(where: { $0.configuration.id == "\(folderName)-nginx" }),
-                 let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }),
-                 let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" }),
-                 let redisContainer = containers.first(where: { $0.configuration.id == "\(folderName)-redis" })
+            guard let nginxContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-nginx") }),
+                 let appContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-app") }),
+                 let dbContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-db") }),
+                 let redisContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-redis") })
             else {
                 throw Errors.containerNotFound
             }
@@ -318,8 +320,8 @@ struct ComposeUpTests {
         // Verify container is running
         let containersAfterFirstUp = try await ClientContainer.list()
           .filter { $0.configuration.id.contains(folderName) }
-        guard let container = containersAfterFirstUp.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
-          throw Errors.containerNotFound
+        guard let container = containersAfterFirstUp.first(where: { $0.configuration.id.contains("\(folderName)-app") }) else {
+             throw Errors.containerNotFound
         }
 #expect(container.status == .running)
 
@@ -328,7 +330,7 @@ struct ComposeUpTests {
 
         // Verify container is stopped
         let stoppedContainers = try await ClientContainer.list()
-          .filter { $0.configuration.id == "\(folderName)-app" }
+          .filter { $0.configuration.id.contains("\(folderName)-app") }
         guard let stoppedContainer = stoppedContainers.first else {
           throw Errors.containerNotFound
         }
@@ -340,7 +342,7 @@ struct ComposeUpTests {
 
         // Verify container is running again
         let containersAfterSecondUp = try await ClientContainer.list()
-          .filter { $0.configuration.id == "\(folderName)-app" }
+          .filter { $0.configuration.id.contains("\(folderName)-app") }
         guard let restartedContainer = containersAfterSecondUp.first else {
           throw Errors.containerNotFound
         }
@@ -366,9 +368,9 @@ struct ComposeUpTests {
                     $0.configuration.id.contains(folderName)
                 }
 
-            guard let webContainer = containers.first(where: { $0.configuration.id == "\(folderName)-web" }),
-                  let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }),
-                  let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" })
+            guard let webContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-web") }),
+                  let appContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-app") }),
+                  let dbContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-db") })
             else {
                 throw Errors.containerNotFound
             }
@@ -430,7 +432,7 @@ struct ComposeUpTests {
                     let containers = try await ClientContainer.list()
                             .filter { $0.configuration.id.contains(folderName) }
 
-                    guard let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
+                    guard let appContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-app") }) else {
                             throw Errors.containerNotFound
                     }
 
@@ -464,7 +466,7 @@ services:
             let containers = try await ClientContainer.list()
                 .filter { $0.configuration.id.contains(folderName) }
 
-            guard let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }) else {
+            guard let appContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-app") }) else {
                 throw Errors.containerNotFound
             }
 
@@ -510,8 +512,8 @@ services:
             let containers = try await ClientContainer.list()
                 .filter { $0.configuration.id.contains(folderName) }
 
-            guard let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" }),
-                  let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" })
+            guard let dbContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-db") }),
+                  let appContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-app") })
             else {
                 throw Errors.containerNotFound
             }
