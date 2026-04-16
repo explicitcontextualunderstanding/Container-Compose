@@ -83,7 +83,7 @@ final class ComposeAdvancedTests {
               TEST_VAR: ${MISSING_VAR:-default_value}
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -125,7 +125,7 @@ final class ComposeAdvancedTests {
               TEST_VAR: ${HOME:-default_value}
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -167,7 +167,7 @@ final class ComposeAdvancedTests {
               - "\(testPort):80"
         """
 
-        let tempLocation1 = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation1 = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation1.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml1.write(to: tempLocation1, atomically: false, encoding: .utf8)
 
@@ -184,7 +184,7 @@ final class ComposeAdvancedTests {
               - "\(testPort):80"
         """
 
-        let tempLocation2 = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation2 = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation2.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml2.write(to: tempLocation2, atomically: false, encoding: .utf8)
 
@@ -241,7 +241,7 @@ final class ComposeAdvancedTests {
               TEST_VAR: preserved_value
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
@@ -309,7 +309,7 @@ final class ComposeAdvancedTests {
                   cpus: 1
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -351,7 +351,7 @@ final class ComposeAdvancedTests {
                   memory: 256M
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -391,7 +391,7 @@ final class ComposeAdvancedTests {
               - "\(testPort):80"
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -442,7 +442,7 @@ final class ComposeAdvancedTests {
               - app
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -495,7 +495,7 @@ final class ComposeAdvancedTests {
               POSTGRES_HOST_AUTH_METHOD: trust
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -558,7 +558,7 @@ final class ComposeAdvancedTests {
               - app
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
@@ -597,10 +597,10 @@ final class ComposeAdvancedTests {
     @Test("Test two-phase startup pattern (DB via container run)")
     func testTwoPhaseStartupPattern() async throws {
         let testPort = DockerComposeYamlFiles.getAvailablePort()
-        let dbName = "CCT_db_\(UUID().uuidString)"
+        let dbName = "test_db_\(UUID().uuidString)"
 
         // Phase 1: Start database with container run (native ext4 volume)
-        let dbVolumeName = "CCT_dbvol_\(UUID().uuidString)"
+        let dbVolumeName = "test_dbvol_\(UUID().uuidString)"
 
         // Create volume first
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -665,7 +665,7 @@ final class ComposeAdvancedTests {
               DATABASE_URL: postgres://testuser:testpass@\(dbName):5432/testdb
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -718,7 +718,7 @@ final class ComposeAdvancedTests {
             command: ["redis-server", "--appendonly", "yes"]
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
@@ -773,7 +773,7 @@ final class ComposeAdvancedTests {
               - /tmp:/tmp:ro
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -817,7 +817,7 @@ final class ComposeAdvancedTests {
             command: ["sh", "-c", "echo 'app started' && sleep 3600"]
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 
@@ -849,7 +849,7 @@ final class ComposeAdvancedTests {
         //
         // Note: Compose requires the service to be defined in YAML even for external containers.
         // We define a stub service that matches the external container name.
-        let externalDbName = "CCT_external_db_\(UUID().uuidString)"
+        let externalDbName = "test_external_db_\(UUID().uuidString)"
 
         // Phase 1: Start database container outside compose
         let dbContainerId = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) -> Void in
@@ -901,7 +901,7 @@ final class ComposeAdvancedTests {
             command: ["sh", "-c", "echo 'app started after external-db' && sleep 3600"]
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
@@ -973,7 +973,7 @@ final class ComposeAdvancedTests {
             command: ["sh", "-c", "echo 'app started' && sleep 3600"]
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {

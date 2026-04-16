@@ -14,7 +14,8 @@ import TestHelpers
 import Yams
 
 /// Vsock socket lifecycle tests with real containers
-/// Uses CCT_* pattern with ContainerPollingHelpers.withProjectCleanup
+/// Uses short project names to stay under 63-char container name limit
+/// Pattern: <prefix><UUID> where prefix indicates test type (Sk=Socket, etc.)
 /// Uses alpine + socat for minimal socket testing (~5MB, <1s startup)
 /// Much faster than pgmicro (2s) or PostgreSQL (30s) for VirtioFS testing
 @Suite("Vsock Socket Lifecycle Tests", .containerDependent)
@@ -24,7 +25,7 @@ struct VsockSocketLifecycleTests {
   func testSocketCreatedInVirtioFs() async throws {
     // Use short names to avoid 63-char container name limit
     // Full name: CCT_<runId>_<projectName>-<serviceName>
-    let projectName = "CCT_Sk\(UUID().uuidString.prefix(4))"
+    let projectName = "Sk\(UUID().uuidString.prefix(4))"
     let serviceName = "sk"
     let volumeName = "sockvol"
 
@@ -81,7 +82,7 @@ struct VsockSocketLifecycleTests {
 
   @Test("Socket removed when container stops")
   func testSocketRemovedOnStop() async throws {
-    let projectName = "CCT_SkRem\(UUID().uuidString.prefix(4))"
+    let projectName = "SkRem\(UUID().uuidString.prefix(4))"
     let serviceName = "sk"
     let volumeName = "sockvol"
 
@@ -141,7 +142,7 @@ struct VsockSocketLifecycleTests {
 
   @Test("Multiple services with vsock-db relays")
   func testMultipleVsockRelays() async throws {
-    let projectName = "CCT_Multi\(UUID().uuidString.prefix(4))"
+    let projectName = "Multi\(UUID().uuidString.prefix(4))"
 
     let tempDir = URL.temporaryDirectory.appendingPathComponent(projectName)
     try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -195,7 +196,7 @@ struct VsockSocketLifecycleTests {
 
   @Test("Socket persists across relay restart")
   func testSocketPersistence() async throws {
-    let projectName = "CCT_SkPr\(UUID().uuidString.prefix(4))"
+    let projectName = "SkPr\(UUID().uuidString.prefix(4))"
     let serviceName = "sk"
     let volumeName = "sockvol"
 
@@ -240,7 +241,7 @@ struct VsockSocketLifecycleTests {
 
   @Test("vsock-db with different port numbers")
   func testDifferentPorts() async throws {
-    let projectName = "CCT_Ports\(UUID().uuidString.prefix(4))"
+    let projectName = "Ports\(UUID().uuidString.prefix(4))"
     let ports = [5432, 5433, 5434]
 
     let tempDir = URL.temporaryDirectory.appendingPathComponent(projectName)

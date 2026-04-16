@@ -463,11 +463,12 @@ public struct DockerComposeYamlFiles {
   /// Note: Replaces hardcoded names/paths with UUID-based values for isolation
   public static func copyYamlToTemporaryLocation(yaml: String) throws -> TemporaryProject {
     // Use first 12 chars of UUID to stay under macOS 63-char container name limit
-    // Full container name: CCT_orphan_CCT_<prefix>-<service> must be <= 63 chars
-    // With prefix "CCT_" + UUID(12) + "-<service>" = 5 + 12 + 1 + ~20 = 38 chars (safe)
+    // Full container name: CCT_<runId>_<project>-<service> must be <= 63 chars
+    // Container runtime adds CCT_orphan_ prefix, so project name should NOT start with CCT_
+    // With "test_" + UUID(12) + "-<service>" = 5 + 12 + 1 + ~20 = 38 chars (safe)
     let shortUUID = String(UUID().uuidString.prefix(12))
     let tempLocation = URL.temporaryDirectory.appending(
-      path: "CCT_\(shortUUID)/docker-compose.yaml"
+      path: "test_\(shortUUID)/docker-compose.yaml"
     )
     let tempBase = tempLocation.deletingLastPathComponent()
     let projectName = tempBase.lastPathComponent

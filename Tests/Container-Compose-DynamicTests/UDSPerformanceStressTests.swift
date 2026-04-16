@@ -14,11 +14,23 @@ import TestHelpers
 @Suite("UDS Performance & Stress Tests", .containerDependent)
 struct UDSPerformanceStressTests {
 
-    private func getRegistryURL() -> String {
-        ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "docker.io"
-    }
+  private func getRegistryURL() -> String {
+    ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "docker.io"
+  }
 
-    private func createTestYaml(socketPath: String) -> String {
+  /// Creates a short temp directory under /tmp to stay under 104-char Unix socket limit
+  /// Returns: (tempDir: URL, socketPath: String)
+  private func createShortTempDir(prefix: String) throws -> (URL, String) {
+    let shortUUID = String(UUID().uuidString.prefix(8))
+    let tempDir = URL(fileURLWithPath: "/tmp/\(prefix)_\(shortUUID)")
+    try? FileManager.default.removeItem(at: tempDir)
+    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    // Socket path: /tmp/{prefix}_{uuid}/.s.PGSQL.5432 = ~45 chars
+    let socketPath = tempDir.appendingPathComponent(".s.PGSQL.5432").path
+    return (tempDir, socketPath)
+  }
+
+  private func createTestYaml(socketPath: String) -> String {
         let registryURL = getRegistryURL()
         return """
         name: uds-perf-test
@@ -47,11 +59,14 @@ struct UDSPerformanceStressTests {
     func testColdStartLatency() async throws {
         try await ContainerPollingHelpers.waitForContainerSlots(maxSlots: 4, timeout: 30)
 
-        let tempDir = FileManager.default.temporaryDirectory
-            .appending(path: "CCT_perf_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    // Use short path to stay under 104-char Unix socket limit
+    // /tmp/uds_ + 8-char UUID = ~40 chars total for socket path
+    let shortUUID = String(UUID().uuidString.prefix(8))
+    let tempDir = URL(fileURLWithPath: "/tmp/uds_\(shortUUID)")
+    try? FileManager.default.removeItem(at: tempDir)
+    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-        let socketPath = tempDir.appendingPathComponent("sockets/.s.PGSQL.5432").path
+    let socketPath = tempDir.appendingPathComponent(".s.PGSQL.5432").path
         let yaml = createTestYaml(socketPath: socketPath)
 
         let yamlURL = tempDir.appendingPathComponent("docker-compose.yaml")
@@ -95,11 +110,7 @@ struct UDSPerformanceStressTests {
     func testThroughputConnections() async throws {
         try await ContainerPollingHelpers.waitForContainerSlots(maxSlots: 4, timeout: 30)
 
-        let tempDir = FileManager.default.temporaryDirectory
-            .appending(path: "CCT_throughput_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        let socketPath = tempDir.appendingPathComponent("sockets/.s.PGSQL.5432").path
+    let (tempDir, socketPath) = try createShortTempDir(prefix: "tp")
         let yaml = createTestYaml(socketPath: socketPath)
 
         let yamlURL = tempDir.appendingPathComponent("docker-compose.yaml")
@@ -149,11 +160,7 @@ struct UDSPerformanceStressTests {
     func testStressRapidStartStop() async throws {
         try await ContainerPollingHelpers.waitForContainerSlots(maxSlots: 4, timeout: 30)
 
-        let tempDir = FileManager.default.temporaryDirectory
-            .appending(path: "CCT_stress_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        let socketPath = tempDir.appendingPathComponent("sockets/.s.PGSQL.5432").path
+    let (tempDir, socketPath) = try createShortTempDir(prefix: "st")
         let yaml = createTestYaml(socketPath: socketPath)
 
         let yamlURL = tempDir.appendingPathComponent("docker-compose.yaml")
@@ -205,11 +212,7 @@ await Task.yield()
     func testMemoryStabilityUnderLoad() async throws {
         try await ContainerPollingHelpers.waitForContainerSlots(maxSlots: 4, timeout: 30)
 
-        let tempDir = FileManager.default.temporaryDirectory
-            .appending(path: "CCT_memory_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        let socketPath = tempDir.appendingPathComponent("sockets/.s.PGSQL.5432").path
+    let (tempDir, socketPath) = try createShortTempDir(prefix: "mem")
         let yaml = createTestYaml(socketPath: socketPath)
 
         let yamlURL = tempDir.appendingPathComponent("docker-compose.yaml")
@@ -258,11 +261,7 @@ await Task.yield()
     func testSocketAppearanceLatency() async throws {
         try await ContainerPollingHelpers.waitForContainerSlots(maxSlots: 4, timeout: 30)
 
-        let tempDir = FileManager.default.temporaryDirectory
-            .appending(path: "CCT_latency_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        let socketPath = tempDir.appendingPathComponent("sockets/.s.PGSQL.5432").path
+    let (tempDir, socketPath) = try createShortTempDir(prefix: "lat")
         let yaml = createTestYaml(socketPath: socketPath)
 
         let yamlURL = tempDir.appendingPathComponent("docker-compose.yaml")
@@ -308,11 +307,7 @@ await Task.yield()
         var cleanupSuccesses = 0
 
         for _ in 0..<3 {
-            let tempDir = FileManager.default.temporaryDirectory
-                .appending(path: "CCT_cleanup_\(UUID().uuidString)")
-            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-            let socketPath = tempDir.appendingPathComponent("sockets/.s.PGSQL.5432").path
+      let (tempDir, socketPath) = try createShortTempDir(prefix: "cl")
             let yaml = createTestYaml(socketPath: socketPath)
 
             let yamlURL = tempDir.appendingPathComponent("docker-compose.yaml")
@@ -363,11 +358,7 @@ await ContainerPollingHelpers.cleanupProjectContainers(projectName: projectName)
     func test30SecondStability() async throws {
         try await ContainerPollingHelpers.waitForContainerSlots(maxSlots: 4, timeout: 30)
 
-        let tempDir = FileManager.default.temporaryDirectory
-            .appending(path: "CCT_duration_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        let socketPath = tempDir.appendingPathComponent("sockets/.s.PGSQL.5432").path
+    let (tempDir, socketPath) = try createShortTempDir(prefix: "dur")
         let yaml = createTestYaml(socketPath: socketPath)
 
         let yamlURL = tempDir.appendingPathComponent("docker-compose.yaml")
@@ -414,11 +405,7 @@ await ContainerPollingHelpers.cleanupProjectContainers(projectName: projectName)
     func testWarmupPerformance() async throws {
         try await ContainerPollingHelpers.waitForContainerSlots(maxSlots: 4, timeout: 30)
 
-        let tempDir = FileManager.default.temporaryDirectory
-            .appending(path: "CCT_warmup_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        let socketPath = tempDir.appendingPathComponent("sockets/.s.PGSQL.5432").path
+    let (tempDir, socketPath) = try createShortTempDir(prefix: "wu")
         let yaml = createTestYaml(socketPath: socketPath)
 
         let yamlURL = tempDir.appendingPathComponent("docker-compose.yaml")

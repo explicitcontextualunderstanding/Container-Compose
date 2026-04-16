@@ -45,7 +45,7 @@ struct ComposeUpTests {
             // Note: MySQL has no host port in this YAML, so no replacement needed for 3306
         let nginxConf = DockerComposeYamlFiles.nginxConf
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         let nginxConfLocation = tempLocation.deletingLastPathComponent().appending(path: "nginx.conf")
         try FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
@@ -165,7 +165,7 @@ struct ComposeUpTests {
           image: redis:alpine
       """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
@@ -282,7 +282,7 @@ struct ComposeUpTests {
 //    func parseComposeWithHealthchecksAndRestart() async throws {
 //        let yaml = DockerComposeYamlFiles.dockerComposeYaml6
 //        
-//        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+//        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
 //        try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
 //        try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
 //        let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
@@ -311,7 +311,7 @@ struct ComposeUpTests {
               - "\(testPort):80"
         """
 
-    let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+    let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
     try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
     try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
     let folderName = tempLocation.deletingLastPathComponent().lastPathComponent
@@ -357,7 +357,7 @@ struct ComposeUpTests {
     func TestComplexDependencyChain() async throws {
         let yaml = DockerComposeYamlFiles.dockerComposeYaml8
         
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
@@ -424,7 +424,7 @@ struct ComposeUpTests {
                                     memory: "512MB"
                 """
 
-                let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+                let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
                 try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
                 try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
@@ -443,22 +443,23 @@ struct ComposeUpTests {
                 }
         }
 
-    @Test("Feature 1: Pre-decode ${VAR} substitution in image and volumes")
-    func testPreDecodeVarSubstitution() async throws {
-        // Use environment variables that will be resolved before YAML decode
-        // Volume uses relative path ./data which will be within the temp project directory
-        let yaml = """
+  @Test("Feature 1: Pre-decode ${VAR} substitution in image and volumes")
+  func testPreDecodeVarSubstitution() async throws {
+    // Use environment variables that will be resolved before YAML decode
+    // Volume uses relative path ./data which will be within the temp project directory
+    let testPort = DockerComposeYamlFiles.getAvailablePort()
+    let yaml = """
 services:
   app:
     image: ${REGISTRY:-docker.io/library}/nginx:${TAG:-alpine}
     volumes:
       - ./${DATA_DIR:-data}:/data
     ports:
-      - "18083:80"
+      - "\(testPort):80"
 """
         let resolvedYaml = try resolveYamlVariables(yaml, with: [:])
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try resolvedYaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
@@ -504,7 +505,7 @@ services:
             command: ["sh", "-c", "echo 'app started after db healthy' && sleep 3600"]
         """
 
-        let tempLocation = URL.temporaryDirectory.appending(path: "CCT_\(UUID().uuidString)/docker-compose.yaml")
+        let tempLocation = URL.temporaryDirectory.appending(path: "test_\(UUID().uuidString)/docker-compose.yaml")
         try? FileManager.default.createDirectory(at: tempLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: tempLocation, atomically: false, encoding: .utf8)
         try await ContainerPollingHelpers.withProjectCleanup(projectName: tempLocation.deletingLastPathComponent().lastPathComponent) {
