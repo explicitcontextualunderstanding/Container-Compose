@@ -68,6 +68,12 @@ echo "=========================================="
 echo "RUN_ID: $RUN_ID"
 echo "Started: $(date)"
 echo ""
+echo "Log files:"
+echo "  Output:   $TIER_LOG"
+echo "  Telemetry: $LOG_DIR/resource_usage_${RUN_ID}_${TIMESTAMP}.csv"
+echo ""
+echo "  tail -f $TIER_LOG"
+echo ""
 
 # ============================================================================
 # PARSE FLAGS
