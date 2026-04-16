@@ -1,7 +1,7 @@
 {
   "project": "Container-Compose",
   "toolchain": "swift-6.3",
-  "note": "Swift 6.3 has test runner bug - use --filter 'Target.*' pattern",
+  "note": "Swift 6.3 has test runner bug - use --filter 'Target.*' pattern. Updated with accurate counts from swift test --list-tests.",
   "targets": [
     {
       "name": "Container_Compose_StaticTests",
@@ -10,46 +10,108 @@
       "priority": 1,
       "parallel": true,
       "workers": 2,
-      "expected_count": 133,
+      "expected_count": 295,
+      "actual_count": 295,
       "requires_containers": false,
-      "description": "Static parsing and mapping tests"
+      "timeout_seconds": 300,
+      "description": "Static parsing and mapping tests (Docker Compose YAML parsing, healthcheck config, network config, service dependencies)"
     },
     {
       "name": "SecurityHardeningTests",
       "filter": "SecurityHardeningTests.*",
-      "type": "unit",
+      "type": "security",
       "priority": 2,
       "parallel": true,
       "workers": 2,
       "expected_count": 180,
+      "actual_count": 180,
       "requires_containers": false,
-      "description": "Security hardening tests (AMFI, TCC, entitlements)"
+      "timeout_seconds": 300,
+      "description": "Security hardening tests (AMFI, TCC, entitlements, secrets mount validation)"
     },
     {
       "name": "Container_Compose_Tests",
       "filter": "Container_Compose_Tests.*",
-      "type": "unit",
+      "type": "integration",
       "priority": 3,
       "parallel": false,
-      "expected_count": 207,
+      "expected_count": 247,
+      "actual_count": 247,
       "requires_containers": false,
-      "description": "Relay, networking, and secrets tests"
+      "timeout_seconds": 600,
+      "skipped_tests": [
+        "testRelayManagerRoutesUDSConfig",
+        "testFullOrchestrationYAMLToRelayConfig"
+      ],
+      "skip_reason": "TCC entitlements not available in CLI test environment",
+      "description": "Relay, networking, secrets, XPC health tests (2 skipped due to TCC)"
     },
     {
       "name": "Container_Compose_DynamicTests",
       "filter": "Container_Compose_DynamicTests.*",
-      "type": "integration",
+      "type": "e2e",
       "priority": 4,
       "parallel": false,
       "expected_count": 113,
+      "actual_count": 113,
       "requires_containers": true,
+      "timeout_seconds": 2400,
       "memory_threshold_mb": 600,
-      "description": "E2E tests requiring containers and OCI_REGISTRY_URL"
+      "description": "E2E tests requiring Apple Container runtime and OCI_REGISTRY_URL"
     }
   ],
+  "total": {
+    "expected": 835,
+    "actual": 835,
+    "executed_with_skips": 833,
+    "skipped": 2
+  },
+  "timeouts": {
+    "unit_tests_seconds": 300,
+    "security_tests_seconds": 300,
+    "integration_tests_seconds": 600,
+    "e2e_tests_seconds": 2400,
+    "total_suite_seconds": 3600
+  },
   "thresholds": {
     "memory_warning_mb": 500,
     "memory_critical_mb": 200,
     "min_free_memory_for_heavy_tests_mb": 600
-  }
+  },
+  "performance_telemetry": {
+    "enabled": true,
+    "interval_seconds": 2,
+    "metrics": ["memory", "cpu", "container_count", "pressure_level"],
+    "output_dir": "logs"
+  },
+  "test_categories": {
+    "production_critical": [
+      "StaticTests (parsing, config validation)",
+      "SecurityHardeningTests (AMFI, TCC, entitlements)",
+      "IntegrationTests (relay, networking, secrets)"
+    ],
+    "performance_validation": [
+      "UDSPerformanceStressTests (socket readiness)",
+      "VsockSocketLifecycleTests (lifecycle)",
+      "ComposeUpTests (E2E orchestration)"
+    ],
+    "ci_fast_track": [
+      "Unit tests only",
+      "Skip performance tests on 8GB machines"
+    ]
+  },
+  "known_issues": [
+    {
+      "id": "SWIFT-63-BUG",
+      "description": "swift test without filter only runs ~295 tests from one target",
+      "workaround": "Use --filter 'Target.*' pattern to run each target individually",
+      "fixed_in": null
+    },
+    {
+      "id": "TCC-RESTRICTED",
+      "description": "2 tests in VsockAmbientIntegrationTests require macOS TCC entitlements",
+      "workaround": "Skipped with XCTSkip",
+      "tests": ["testRelayManagerRoutesUDSConfig", "testFullOrchestrationYAMLToRelayConfig"]
+    }
+  ]
 }

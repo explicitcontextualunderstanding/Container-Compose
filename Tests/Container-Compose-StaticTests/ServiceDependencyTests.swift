@@ -258,7 +258,7 @@ struct ServiceDependencyTests {
 
     @Test("service_healthy dependency with external container name pattern")
     func externalContainerServiceHealthyPattern() throws {
-        // Simulates the honcho-db scenario: compose references an externally-managed DB
+        // Simulates the test-db scenario: compose references an externally-managed DB
         let yaml = """
         image: myapp
         depends_on:
@@ -302,23 +302,23 @@ struct ServiceDependencyTests {
         // externally present services during crash recovery.
         var externallyPresentServices: Set<String> = []
 
-        // Simulate: honcho-db was already running before compose started
-        externallyPresentServices.insert("honcho-db")
-        #expect(externallyPresentServices.contains("honcho-db"))
-        #expect(!externallyPresentServices.contains("honcho-hub"))
+        // Simulate: test-db was already running before compose started
+        externallyPresentServices.insert("test-db")
+        #expect(externallyPresentServices.contains("test-db"))
+        #expect(!externallyPresentServices.contains("test-hub"))
 
-        // Simulate: honcho-hub was also already running
-        externallyPresentServices.insert("honcho-hub")
-        #expect(externallyPresentServices.contains("honcho-hub"))
+        // Simulate: test-hub was also already running
+        externallyPresentServices.insert("test-hub")
+        #expect(externallyPresentServices.contains("test-hub"))
         #expect(externallyPresentServices.count == 2)
 
         // Health-gating: if dependency is in the set, DO NOT skip - always check health
-        let dependency = "honcho-db"
+        let dependency = "test-db"
         if externallyPresentServices.contains(dependency) {
             // Health gate should proceed - this is the fix (H-2)
             #expect(true, "Health-gate should run for externally present service")
         } else {
-            Issue.record("Should have detected honcho-db as externally present")
+            Issue.record("Should have detected test-db as externally present")
         }
 
         // Service not in set should also have health gate run
@@ -334,7 +334,7 @@ struct ServiceDependencyTests {
         // When no services were pre-existing, all health-gates should proceed normally
         var externallyPresentServices: Set<String> = []
 
-        let dependency = "honcho-db"
+        let dependency = "test-db"
         #expect(!externallyPresentServices.contains(dependency),
                 "Empty set should not contain any services")
     }

@@ -457,13 +457,17 @@ public struct DockerComposeYamlFiles {
     }
 
     /// Copies the provided Docker Compose YAML content to a temporary location and returns a
-    /// TemporaryProject.
-/// - Parameter yaml: The Docker Compose YAML content to copy.
+  /// TemporaryProject.
+  /// - Parameter yaml: The Docker Compose YAML content to copy.
   /// - Returns: A TemporaryProject containing the URL and project name.
   /// Note: Replaces hardcoded names/paths with UUID-based values for isolation
   public static func copyYamlToTemporaryLocation(yaml: String) throws -> TemporaryProject {
+    // Use first 12 chars of UUID to stay under macOS 63-char container name limit
+    // Full container name: CCT_orphan_CCT_<prefix>-<service> must be <= 63 chars
+    // With prefix "CCT_" + UUID(12) + "-<service>" = 5 + 12 + 1 + ~20 = 38 chars (safe)
+    let shortUUID = String(UUID().uuidString.prefix(12))
     let tempLocation = URL.temporaryDirectory.appending(
-      path: "CCT_\(UUID().uuidString)/docker-compose.yaml"
+      path: "CCT_\(shortUUID)/docker-compose.yaml"
     )
     let tempBase = tempLocation.deletingLastPathComponent()
     let projectName = tempBase.lastPathComponent
@@ -487,8 +491,11 @@ public struct DockerComposeYamlFiles {
     
     // Replace environment variable placeholders
     // ${OCI_REGISTRY_URL} -> actual value from environment
-    // Note: If OCI_REGISTRY_URL is not set, we use the default registry (images should be cached locally)
-    let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "REMOVED_REGISTRY_URL"
+    // CRITICAL: pgmicro image is ONLY available in private registry, not docker.io
+    // Tests will FAIL if OCI_REGISTRY_URL is not set - no fallback to docker.io
+    guard let registryURL = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"], !registryURL.isEmpty else {
+      throw YamlError.missingRegistryURL
+    }
     isolatedYaml = isolatedYaml.replacingOccurrences(
       of: "${OCI_REGISTRY_URL}",
       with: registryURL

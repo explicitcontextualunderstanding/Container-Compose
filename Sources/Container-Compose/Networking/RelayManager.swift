@@ -452,23 +452,38 @@ actor RelayManager {
     /// - interval: Polling interval (default: 100ms)
     /// - Throws: RelayError.timeout if socket doesn't appear within timeout
     func waitForSocket(at path: String, timeout: TimeInterval = 30, interval: TimeInterval = 0.1) async throws {
-        let startTime = Date()
-        let fileManager = FileManager.default
+        // Use SocketHealth for reliable polling with circuit breaker
+        let status = await SocketHealth.waitForSocket(
+            socketPath: path,
+            config: SocketHealth.Configuration(
+                socketTimeout: timeout,
+                initialPollingInterval: interval,
+                maxPollingInterval: 1.0,
+                backoffMultiplier: 1.5
+            )
+        )
 
-        while Date().timeIntervalSince(startTime) < timeout {
-            var isDirectory: ObjCBool = false
-            if fileManager.fileExists(atPath: path, isDirectory: &isDirectory) {
-                // Check if it's a socket (not a directory or regular file)
-                var statInfo = stat()
-                if stat(path, &statInfo) == 0 {
-                    if (statInfo.st_mode & S_IFMT) == S_IFSOCK {
-                        logger.debug("Socket found at \(path)")
-                        return
-                    }
-                }
+        if status.isReady {
+            logger.debug("Socket found at \(path) after \(status.attempts) attempts")
+            return
+        }
+
+        // Handle specific error types
+        if let error = status.error {
+            switch error {
+            case .circuitBreakerOpen:
+                logger.error("Circuit breaker open for socket at \(path) - too many failures")
+                throw RelayError.timeout("Circuit breaker open - socket at \(path) has too many consecutive failures")
+            case .notSocket(let socketPath):
+                logger.error("File exists but is not a socket: \(socketPath)")
+                throw RelayError.timeout("File exists but is not a socket: \(socketPath)")
+            case .containerNotRunning(let id):
+                logger.error("Container '\(id)' is not running")
+                throw RelayError.timeout("Container '\(id)' is not running")
+            default:
+                logger.error("Socket timeout at \(path): \(error.description)")
+                throw RelayError.timeout("Socket did not appear at \(path): \(error.description)")
             }
-
-            try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
         }
 
         throw RelayError.timeout("Socket did not appear at \(path) within \(timeout)s")

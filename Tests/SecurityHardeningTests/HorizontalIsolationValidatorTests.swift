@@ -128,7 +128,7 @@ final class HorizontalIsolationValidatorTests: XCTestCase {
     func testValidateSocketPathVirtioFSVolume() async {
         let validator = HorizontalIsolationValidator(configuration: .production)
         let result = await validator.validateSocketPath(
-            "/Users/test/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+            "/Users/test/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
         )
         XCTAssertTrue(result.isIsolated)
     }
@@ -266,7 +266,7 @@ func testValidatorIsSendable() async {
 
         // Step 2: Validate socket path
         let socketResult = await validator.validateSocketPath(
-            "/Users/test/.containers/Volumes/apple-honcho/test.sock"
+            "/Users/test/.containers/Volumes/test-project/test.sock"
         )
 
         // Step 3: Both should pass
@@ -306,7 +306,7 @@ return false
 
 func testValidateUDSSocketPathProduction() async throws {
         // Plan 88 A-1: UDS replaces CID-based validation
-        let socketPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+        let socketPath = "/Users/kieranlal/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
 
         let result = await validator.validateSocketPath(socketPath)
 
@@ -377,7 +377,7 @@ func testUDSSocketPathIsolation() async {
 
 func testUDSProductionPathValidation() async {
     // Plan 88: Validate production UDS paths
-    let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+    let productionPath = "/Users/kieranlal/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
 
     let result = await validator.validateSocketPath(productionPath)
 

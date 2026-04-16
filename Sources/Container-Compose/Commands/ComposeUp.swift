@@ -736,9 +736,63 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         return ip
     }
 
+    /// Apple Container runtime prefix for orphaned/exited containers.
+    private static let appleContainerPrefix = "CCT_orphan_"
+
+    /// Resolves a container name/ID to its actual container ID, handling Apple Container's
+    /// `CCT_orphan_` prefix that gets added to container identifiers.
+    /// - Parameters:
+    ///   - name: The container name or ID to resolve
+    /// - Returns: A tuple of (resolvedID, container) if found
+    /// - Throws: ContainerNotFoundError if the container cannot be found
+    private func resolveContainer(name: String) async throws -> (id: String, container: ClientContainer) {
+        // Try exact match first
+        do {
+            let container = try await ClientContainer.get(id: name)
+            return (name, container)
+        } catch {
+            // Not found with exact name, try with Apple Container prefix
+        }
+
+        // If name already has the prefix, it's not going to be found
+        if name.hasPrefix(Self.appleContainerPrefix) {
+            throw ContainerNotFoundError(
+                "Container '\(name)' not found. "
+                + "Note: Apple Container may have modified the container identifier."
+            )
+        }
+
+        // Try with Apple Container prefix
+        let prefixedName = Self.appleContainerPrefix + name
+        do {
+            let container = try await ClientContainer.get(id: prefixedName)
+            return (prefixedName, container)
+        } catch {
+            // Not found with prefix either
+        }
+
+        // Try searching all containers for CCT_<runId>_ prefixed match
+        // Apple Container adds CCT_<runId>_ prefix (e.g., CCT_t42680_test_...-db)
+        let allContainers = try await ClientContainer.list()
+        if let match = allContainers.first(where: { c in
+            let id = c.configuration.id
+            if id.hasPrefix("CCT_"), let secondUnderscore = id.dropFirst(4).firstIndex(of: "_") {
+                return String(id[id.index(after: secondUnderscore)...]) == name
+            }
+            return false
+        }) {
+            return (match.configuration.id, match)
+        }
+
+        throw ContainerNotFoundError(
+            "Container '\(name)' not found (tried exact, CCT_orphan_, and CCT_<runId>_ prefixes). "
+            + "The container may have been removed or the name may be incorrect."
+        )
+    }
+
     /// Repeatedly checks `container list -a` until the given container is listed as `running`.
     /// - Parameters:
-    ///   - containerName: The exact name of the container (e.g. "Assignment-Manager-API-db").
+    ///   - containerName: The name of the container (e.g. "Assignment-Manager-API-db").
     ///   - timeout: Max seconds to wait before failing.
     ///   - interval: How often to poll (in seconds).
     private func waitUntilContainerIsRunning(_ containerName: String, timeout: TimeInterval = 30, interval: TimeInterval = 0.5) async throws {
@@ -746,13 +800,15 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
         while Date() < deadline {
             do {
-                let container = try await ClientContainer.get(id: containerName)
+                let (_, container) = try await resolveContainer(name: containerName)
                 if container.status == .running {
                     print("Container '\(containerName)' is now running.")
                     return
                 }
-            } catch {
+            } catch let error as ContainerNotFoundError {
                 // Container doesn't exist yet, keep polling
+            } catch {
+                // Unexpected error, keep polling
             }
 
             try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
@@ -800,18 +856,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             return // No healthcheck or explicitly disabled
         }
 
-        // Verify container exists before attempting health checks
-        do {
-            let _ = try await ClientContainer.get(id: containerName)
-        } catch {
-            // If the container is not found, give a clear, actionable error and do not hang.
-            // Recommend using short-form depends_on for externally managed containers.
-            throw ContainerNotFoundError(
-                "Dependency container '\(containerName)' (service '\(dependencyName)') not found. "
-                + "If this container was started outside container-compose, ensure it exists and is accessible. "
-                + "For externally managed dependencies, replace long-form depends_on with the short-form (e.g., depends_on: [\"external-db\"]) or ensure the external container is named exactly as referenced."
-            )
-        }
+        // Resolve container ID (handles Apple Container's CCT_orphan_ prefix)
+        let (resolvedID, _) = try await resolveContainer(name: containerName)
 
         let startPeriodSeconds = Self.parseDuration(healthcheck.start_period) ?? 30
         let intervalSeconds = Self.parseDuration(healthcheck.interval) ?? 30
@@ -831,13 +877,13 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             // ["CMD-SHELL", "pg_isready -U postgres"] -> exec with /bin/sh -c
             guard test.count >= 2 else { return }
             let shellCommand = test.dropFirst().joined(separator: " ")
-            execArgs = [containerName, "/bin/sh", "-c", shellCommand]
+            execArgs = [resolvedID, "/bin/sh", "-c", shellCommand]
         } else if test.first == "CMD" {
             // ["CMD", "pg_isready", "-U", "postgres"] -> exec directly
-            execArgs = [containerName] + Array(test.dropFirst())
+            execArgs = [resolvedID] + Array(test.dropFirst())
         } else {
             // Unknown format, try treating as direct command
-            execArgs = [containerName] + test
+            execArgs = [resolvedID] + test
         }
 
         var consecutiveFailures = 0
@@ -857,7 +903,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
             consecutiveFailures += 1
             if consecutiveFailures >= retries {
-                let containerLogs = await captureContainerLogs(containerName)
+                let containerLogs = await captureContainerLogs(resolvedID)
                 throw HealthcheckTimeoutError(
                     "Dependency '\(dependencyName)' failed healthcheck after \(retries) retries.\n"
                     + "Container output (last 50 lines):\n\(containerLogs)"
@@ -877,59 +923,70 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     
     /// Waits for a container to exit with exit code 0 (service_completed_successfully condition).
     /// - Parameters:
-    ///   - containerName: The exact name of the container (e.g. "project-migrations").
+    ///   - containerName: The name of the container (e.g. "project-migrations").
     ///   - dependencyName: The service name for logging (e.g. "migrations").
     ///   - timeout: Max seconds to wait before failing.
     ///   - interval: How often to poll (in seconds).
+    /// Extended polling with retry for filesystem sync delays on constrained hardware (e.g., 8GB M2).
     private func waitForCompletedSuccessfully(
         containerName: String,
         dependencyName: String,
         timeout: TimeInterval = 300,
-        interval: TimeInterval = 1.0
+        interval: TimeInterval = 2.0,
+        maxRetries: Int = 5,
+        retryDelay: TimeInterval = 1.5
     ) async throws {
-        // Verify container exists before attempting to wait
-        do {
-            let _ = try await ClientContainer.get(id: containerName)
-        } catch {
-            throw ContainerNotFoundError(
-                "Dependency container '\(containerName)' (service '\(dependencyName)') not found. "
-                + "Cannot wait for service_completed_successfully condition."
-            )
-        }
+        // Resolve container ID (handles Apple Container's CCT_orphan_ prefix)
+        let (resolvedID, _) = try await resolveContainer(name: containerName)
         
         print("Service depends on '\(dependencyName)' to complete successfully. Waiting for exit code 0...")
         
         let deadline = Date().addingTimeInterval(timeout)
+        var containerStopped = false
         
         while Date() < deadline {
             do {
-                let container = try await ClientContainer.get(id: containerName)
+                let container = try await ClientContainer.get(id: resolvedID)
                 
-      // Check if container has stopped
-      if container.status == .stopped {
-        // Container has stopped - we need to check if it succeeded
-        // Since Apple Container runtime doesn't expose exit code after stop,
-        // we use the Sentinel File pattern: init container writes a success token
-        // to a shared volume that the orchestrator can check.
-        //
-        // SECURITY: This is a "Hardware-Verified Handshake" - even if the exit
-        // code is lost, the success file proves the work was completed.
-        // In Zero Trust environments, init containers MUST write:
-        //   /tmp/container-compose-status/<container-name>.success
-        // before exiting, or dependent services will fail to start.
-        let sentinelPath = "/tmp/container-compose-status/\(containerName).success"
-        if FileManager.default.fileExists(atPath: sentinelPath) {
-          print("✓ Service '\(dependencyName)' completed successfully (sentinel verified).")
-          return
-        } else {
-          // Sentinel file missing - treat as hard failure
-          throw DependencyFailedError(
-            "Service '\(dependencyName)' stopped without success sentinel. " +
-            "Init container must write '\(sentinelPath)' before exiting with code 0. " +
-            "See: https://github.com/Kilo-Org/kilocode/issues/exit-code-handling"
-          )
-        }
-      }
+                // Check if container has stopped
+                if container.status == .stopped {
+                    containerStopped = true
+                    
+                    // Container has stopped - we need to check if it succeeded
+                    // Since Apple Container runtime doesn't expose exit code after stop,
+                    // we use the Sentinel File pattern: init container writes a success token
+                    // to a shared volume that the orchestrator can check.
+                    //
+                    // SECURITY: This is a "Hardware-Verified Handshake" - even if the exit
+                    // code is lost, the success file proves the work was completed.
+                    // In Zero Trust environments, init containers MUST write:
+                    //   /tmp/container-compose-status/<container-name>.success
+                    // before exiting, or dependent services will fail to start.
+                    let sentinelPath = "/tmp/container-compose-status/\(resolvedID).success"
+                    
+                    // Extended polling: retry with exponential backoff for filesystem sync delays
+                    // On constrained hardware (8GB M2), virtio-fs may have delayed writes
+                    for retryAttempt in 0...maxRetries {
+                        if FileManager.default.fileExists(atPath: sentinelPath) {
+                            print("✓ Service '\(dependencyName)' completed successfully (sentinel verified on attempt \(retryAttempt + 1)).")
+                            return
+                        }
+                        
+                        if retryAttempt < maxRetries {
+                            let delay = retryDelay * pow(2.0, Double(retryAttempt))
+                            print("  Sentinel not found, retrying in \(String(format: "%.1f", delay))s (attempt \(retryAttempt + 1)/\(maxRetries + 1))...")
+                            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                        }
+                    }
+                    
+                    // All retries exhausted - treat as hard failure
+                    throw DependencyFailedError(
+                        "Service '\(dependencyName)' stopped without success sentinel after \(maxRetries + 1) attempts. " +
+                        "Init container must write '\(sentinelPath)' before exiting with code 0. " +
+                        "This may indicate filesystem sync delays on constrained hardware. " +
+                        "See: https://github.com/Kilo-Org/kilocode/issues/exit-code-handling"
+                    )
+                }
                 
                 // Container is still running, wait and poll again
                 print("  Waiting for '\(dependencyName)' to complete (status: \(container.status))...")
@@ -940,10 +997,18 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             }
         }
         
-        throw DependencyFailedError(
-            "Timed out waiting for dependency '\(dependencyName)' to complete. "
-            + "Container did not exit within \(Int(timeout)) seconds."
-        )
+        if containerStopped {
+            throw DependencyFailedError(
+                "Timed out waiting for sentinel file for dependency '\(dependencyName)'. "
+                + "Container stopped but sentinel not found within \(Int(timeout)) seconds. "
+                + "This may indicate filesystem sync delays on constrained hardware."
+            )
+        } else {
+            throw DependencyFailedError(
+                "Timed out waiting for dependency '\(dependencyName)' to complete. "
+                + "Container did not exit within \(Int(timeout)) seconds."
+            )
+        }
     }
 
 /// Parses a duration string like "30s", "1m", "10" into seconds. Returns nil if unparseable.

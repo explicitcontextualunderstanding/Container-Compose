@@ -14,10 +14,10 @@ final class ComposeAdvancedTests {
         case registryNotAccessible(String, String)
     }
 
-    /// Returns the OCI_REGISTRY_URL, defaulting to REMOVED_REGISTRY_URL
+    /// Returns the OCI_REGISTRY_URL, defaulting to docker.io
     /// Images should be cached locally, so registry URL is primarily for reference
     private func getRegistryURL() -> String {
-        return ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "REMOVED_REGISTRY_URL"
+        return ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "docker.io"
     }
 
     /// Validates that the registry URL is accessible by checking /v2/_catalog.

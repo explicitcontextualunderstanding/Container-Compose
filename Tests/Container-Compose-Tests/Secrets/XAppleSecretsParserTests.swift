@@ -283,7 +283,7 @@ final class XAppleSecretsParserTests: XCTestCase {
     let yaml = """
       version: '3.8'
       services:
-        honcho-db:
+        test-db:
           image: walg-db:vsock
           x-apple-relays:
             - type: vsock-db
@@ -299,7 +299,7 @@ final class XAppleSecretsParserTests: XCTestCase {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let dbService = try XCTUnwrap(compose.services["honcho-db"])
+    let dbService = try XCTUnwrap(compose.services["test-db"])
     let secretsConfig = try XCTUnwrap(dbService?.x_apple_secrets)
 
     XCTAssertEqual(secretsConfig.mount, "/run/secrets")
@@ -313,7 +313,7 @@ final class XAppleSecretsParserTests: XCTestCase {
     let yaml = """
       version: '3.8'
       services:
-        honcho-hub:
+        test-hub:
           image: honcho:latest
           x-apple-secrets:
             mount: /run/secrets
@@ -325,7 +325,7 @@ final class XAppleSecretsParserTests: XCTestCase {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let hubService = try XCTUnwrap(compose.services["honcho-hub"])
+    let hubService = try XCTUnwrap(compose.services["test-hub"])
     let secretsConfig = try XCTUnwrap(hubService?.x_apple_secrets)
 
     XCTAssertTrue(secretsConfig.filter?.contains("HONCHO_ADMIN_TOKEN") ?? false)

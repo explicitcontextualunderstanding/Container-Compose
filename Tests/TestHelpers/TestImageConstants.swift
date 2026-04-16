@@ -22,7 +22,7 @@ public enum TestImages {
 
     /// Default PostgreSQL-compatible database image for tests
     /// Uses pgmicro (wire-compatible, in-memory) for fast startup (2-5s vs 30s)
-    /// Set OCI_REGISTRY_URL env var to use local LAN registry (e.g., REMOVED_REGISTRY_URL)
+    /// Falls back to docker.io if OCI_REGISTRY_URL not set
     public static let pgmicro = "${OCI_REGISTRY_URL}/pgmicro:latest"
 
     /// Fallback alpine-based PostgreSQL for tests requiring full PostgreSQL features

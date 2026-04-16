@@ -9,47 +9,47 @@ final class ComposeSchemaMappingTests: XCTestCase {
     // MARK: - End-to-End Schema Parsing
 
 func testParsesFullFleetConfiguration() throws {
-	// Simulate parsing the actual Hermes/Honcho compose file
-	// Includes both legacy vsock-db and new uds types for Plan 88
-	let yamlString = """
-name: apple-honcho
-services:
-  honcho-db:
-    image: walg-db:latest
-    x-apple-relays:
-      - type: "vsock-db"
-        port: 5432
-        priority: "high"
+    // Simulate parsing a fleet configuration (renamed to avoid production collision)
+    // Includes both legacy vsock-db and new uds types for Plan 88
+    let yamlString = """
+    name: test-schema-fleet
+    services:
+      test-db:
+        image: walg-db:latest
+        x-apple-relays:
+          - type: "vsock-db"
+            port: 5432
+            priority: "high"
 
-  honcho-db-uds:
-    image: walg-db:latest
-    x-apple-relays:
-      - type: "uds-db"
-        port: 5433
-        socket_path: "/run/uds-honcho-db.sock"
-        priority: "high"
+      test-db-uds:
+        image: walg-db:latest
+        x-apple-relays:
+          - type: "uds-db"
+            port: 5433
+            socket_path: "/run/uds-test-db.sock"
+            priority: "high"
 
-  hermes:
-    image: hermes:v26
-    x-apple-relays:
-      - type: "vsock-log-stream"
-        port: 5001
-        target: "code-graph"
-        priority: "high"
-      - type: "vsock-mcp-bridge"
-        port: 5002
-        target: "honcho-hub"
-        priority: "high"
-      - type: "vsock-ane-embedding"
-        port: 6000
-        priority: "high"
+      test-hermes:
+        image: hermes:v26
+        x-apple-relays:
+          - type: "vsock-log-stream"
+            port: 5001
+            target: "test-code-graph"
+            priority: "high"
+          - type: "vsock-mcp-bridge"
+            port: 5002
+            target: "test-hub"
+            priority: "high"
+          - type: "vsock-ane-embedding"
+            port: 6000
+            priority: "high"
 
-  honcho-hub:
-    image: honcho:latest
+      test-hub:
+        image: honcho:latest
 
-  code-graph:
-    image: codegraph:latest
-"""
+      test-code-graph:
+        image: codegraph:latest
+    """
 
         // Parse YAML
         let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlString)
@@ -57,10 +57,10 @@ services:
  // Verify services parsed
  XCTAssertEqual(dockerCompose.services.count, 5)
 
-        // Verify honcho-db has vsock-db relay
-        guard let dbServiceOptional = dockerCompose.services["honcho-db"],
+        // Verify test-db has vsock-db relay
+        guard let dbServiceOptional = dockerCompose.services["test-db"],
               let dbService = dbServiceOptional else {
-            XCTFail("Missing honcho-db service")
+            XCTFail("Missing test-db service")
             return
         }
         XCTAssertNotNil(dbService.x_apple_relays)
@@ -106,7 +106,7 @@ services:
  let mcpRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockMcpBridge }
  XCTAssertNotNil(mcpRelay)
  XCTAssertEqual(mcpRelay?.port, 5002)
- XCTAssertEqual(mcpRelay?.target, "honcho-hub")
+ XCTAssertEqual(mcpRelay?.target, "test-hub")
 
  let logRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockLogStream }
  XCTAssertNotNil(logRelay)

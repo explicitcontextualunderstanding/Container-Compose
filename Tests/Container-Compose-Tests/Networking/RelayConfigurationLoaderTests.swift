@@ -22,7 +22,7 @@ final class RelayConfigurationLoaderTests: XCTestCase {
     func testLoadsValidConfiguration() throws {
         // Create a service with x-apple-relays
         let relay1 = AppleRelayConfig(type: "vsock-ane-embedding", port: 6000, priority: "high")
-        let relay2 = AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "honcho-hub")
+        let relay2 = AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "test-hub")
         
         let service = Service(
             image: "hermes:v26",
@@ -43,7 +43,7 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         
         XCTAssertEqual(loaded[1].type, .vsockMcpBridge)
         XCTAssertEqual(loaded[1].port, 5002)
-        XCTAssertEqual(loaded[1].target, "honcho-hub")
+        XCTAssertEqual(loaded[1].target, "test-hub")
     }
     
     func testDetectsPresenceOfAppleRelays() {
@@ -200,7 +200,7 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         // Simulate the actual Hermes/Honcho compose configuration
         let hermesRelays = [
             AppleRelayConfig(type: "vsock-log-stream", port: 5001, target: "code-graph", priority: "high"),
-            AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "honcho-hub", priority: "high"),
+            AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "test-hub", priority: "high"),
             AppleRelayConfig(type: "vsock-ane-embedding", port: 6000, priority: "high")
         ]
         
@@ -208,7 +208,7 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         
         let services = [
             ("hermes", hermes),
-            ("honcho-hub", Service(image: "honcho:latest")),
+            ("test-hub", Service(image: "honcho:latest")),
             ("code-graph", Service(image: "codegraph:latest"))
         ]
         
@@ -224,7 +224,7 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         // Verify MCP bridge
         XCTAssertEqual(loaded[1].type, .vsockMcpBridge)
         XCTAssertEqual(loaded[1].port, 5002)
-        XCTAssertEqual(loaded[1].target, "honcho-hub")
+        XCTAssertEqual(loaded[1].target, "test-hub")
         
         // Verify ANE embedding
         XCTAssertEqual(loaded[2].type, .vsockAneEmbedding)
@@ -244,7 +244,7 @@ final class RelayConfigurationLoaderTests: XCTestCase {
                 serviceName: "hermes",
                 type: .vsockMcpBridge,
                 port: 5002,
-                target: "honcho-hub",
+                target: "test-hub",
                 priority: "high"
             )
         ]
@@ -255,7 +255,7 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         XCTAssertTrue(summary.contains("ANE Native Embedding Relay"))
         XCTAssertTrue(summary.contains("Port 5002"))
         XCTAssertTrue(summary.contains("MCP Bridge Relay"))
-        XCTAssertTrue(summary.contains("honcho-hub"))
+        XCTAssertTrue(summary.contains("test-hub"))
     }
     
     func testSummarizeEmptyRelays() {
@@ -270,7 +270,7 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         let relay = AppleRelayConfig(type: "vsock-db", port: 5432, priority: "high")
         let service = Service(image: "walg-db:latest", x_apple_relays: [relay])
         
-        let loaded = try loader.loadRelays(from: [("honcho-db", service)])
+        let loaded = try loader.loadRelays(from: [("test-db", service)])
         
         XCTAssertEqual(loaded.count, 1)
         XCTAssertEqual(loaded[0].type, .vsockDb)
@@ -331,12 +331,12 @@ final class RelayConfigurationLoaderTests: XCTestCase {
 
   func testSocketPathInVolumeFormat() throws {
     // Test that socket_path follows Virtio-FS volume format
-    let volumePath = "/Users/testuser/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+    let volumePath = "/Users/testuser/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
     let relay = AppleRelayConfig(type: "vsock-db", port: 5432, socket_path: volumePath)
 
     // Verify the path contains expected Virtio-FS volume structure
     XCTAssertTrue(relay.socket_path?.contains(".containers/Volumes") ?? false)
-    XCTAssertTrue(relay.socket_path?.contains("honcho-db-sockets") ?? false)
+    XCTAssertTrue(relay.socket_path?.contains("test-db-sockets") ?? false)
 XCTAssertTrue(relay.socket_path?.contains(".s.PGSQL.5432") ?? false)
 }
 

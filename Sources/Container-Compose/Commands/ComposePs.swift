@@ -241,8 +241,22 @@ public struct ComposePs: AsyncParsableCommand {
         containers: [ContainerInfo],
         serviceFilter: String?
     ) -> [PsStatus] {
-        // Build lookup by container name
+        // Build lookup by container name — also index by stripped name
+        // Apple Container adds CCT_<runId>_ prefix (e.g., CCT_t97107_test_...-nginx)
         let containerMap = Dictionary(uniqueKeysWithValues: containers.map { ($0.name, $0) })
+        var strippedMap: [String: ContainerInfo] = [:]
+        for container in containers {
+            let name = container.name
+            // Strip CCT_orphan_ prefix
+            if name.hasPrefix("CCT_orphan_") {
+                strippedMap[String(name.dropFirst("CCT_orphan_".count))] = container
+            }
+            // Strip CCT_<runId>_ prefix (CCT_ followed by non-underscore chars then _)
+            if name.hasPrefix("CCT_"), let secondUnderscore = name.dropFirst(4).firstIndex(of: "_") {
+                let stripped = String(name[name.index(after: secondUnderscore)...])
+                strippedMap[stripped] = container
+            }
+        }
 
         return services.compactMap { (serviceName, service) -> PsStatus? in
             // Apply service filter
@@ -250,18 +264,23 @@ public struct ComposePs: AsyncParsableCommand {
                 guard serviceName == filter else { return nil }
             }
 
-            // Determine expected container name
-            let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
+      // Determine expected container name
+      let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
 
-            guard let container = containerMap[containerName] else {
-                // No matching container → missing
-                return PsStatus(
-                    service: serviceName,
-                    container: containerName,
-                    state: .missing,
-                    id: nil, ip: nil, ports: nil, started: nil
-                )
-            }
+      // Try exact match, then stripped prefix matches
+      let actualContainer: ContainerInfo? = containerMap[containerName]
+        ?? strippedMap[containerName]
+        ?? containerMap["CCT_orphan_\(containerName)"]
+
+      guard let container = actualContainer else {
+        // No matching container → missing
+        return PsStatus(
+          service: serviceName,
+          container: containerName,
+          state: .missing,
+          id: nil, ip: nil, ports: nil, started: nil
+        )
+      }
 
             // Truncate ID to 12 chars
             let truncatedID = container.id.count > 12

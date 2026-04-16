@@ -90,8 +90,8 @@ public actor TCCChecker: Sendable {
         guard FileManager.default.fileExists(atPath: dbPath) else {
             return PermissionResult(
                 service: service,
-                status: .unknown,
-                error: "TCC database not found"
+                status: .notDetermined,
+                error: "TCC database not found (SIP protected or not initialized)"
             )
         }
 

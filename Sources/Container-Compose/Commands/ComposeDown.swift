@@ -292,13 +292,31 @@ public mutating func run() async throws {
 
     for containerName in containersToStop {
       print("Stopping container: \(containerName)")
-      guard let container = try? await ClientContainer.get(id: containerName) else {
+      // Try exact match first, then with CCT_orphan_ prefix,
+      // then search all containers for CCT_<runId>_ prefixed match
+      var container: ClientContainer? = try? await ClientContainer.get(id: containerName)
+      if container == nil {
+        let prefixedName = "CCT_orphan_\(containerName)"
+        container = try? await ClientContainer.get(id: prefixedName)
+      }
+      if container == nil {
+        // Apple Container adds CCT_<runId>_ prefix — search all containers
+        let allContainers = try await ClientContainer.list()
+        container = allContainers.first { c in
+          let name = c.configuration.id
+          if name.hasPrefix("CCT_"), let secondUnderscore = name.dropFirst(4).firstIndex(of: "_") {
+            return String(name[name.index(after: secondUnderscore)...]) == containerName
+          }
+          return false
+        }
+      }
+      guard let resolvedContainer = container else {
         print("Warning: Container '\(containerName)' not found, skipping.")
         continue
       }
 
       // Stop with per-service timeout
-      let didStop = try await stopWithTimeout(container: container, name: containerName, timeout: timeoutSeconds)
+      let didStop = try await stopWithTimeout(container: resolvedContainer, name: containerName, timeout: timeoutSeconds)
       if didStop {
         print("Successfully stopped container: \(containerName)")
         stopped.append(containerName)
@@ -309,7 +327,7 @@ public mutating func run() async throws {
 
       if remove {
         do {
-          try await container.delete()
+          try await resolvedContainer.delete()
           print("Successfully removed container: \(containerName)")
         } catch {
           print("Error Removing Container: \(error)")
@@ -382,13 +400,31 @@ public mutating func run() async throws {
       ownedContainerNames.append(containerName)
 
       print("Stopping container: \(containerName)")
-      guard let container = try? await ClientContainer.get(id: containerName) else {
+      // Try exact match first, then with CCT_orphan_ prefix,
+      // then search all containers for CCT_<runId>_ prefixed match
+      var container: ClientContainer? = try? await ClientContainer.get(id: containerName)
+      if container == nil {
+        let prefixedName = "CCT_orphan_\(containerName)"
+        container = try? await ClientContainer.get(id: prefixedName)
+      }
+      if container == nil {
+        // Apple Container adds CCT_<runId>_ prefix — search all containers
+        let allContainers = try await ClientContainer.list()
+        container = allContainers.first { c in
+          let name = c.configuration.id
+          if name.hasPrefix("CCT_"), let secondUnderscore = name.dropFirst(4).firstIndex(of: "_") {
+            return String(name[name.index(after: secondUnderscore)...]) == containerName
+          }
+          return false
+        }
+      }
+      guard let resolvedContainer = container else {
         print("Warning: Container '\(containerName)' not found, skipping.")
         continue
       }
 
       // Stop with per-service timeout
-      let didStop = try await stopWithTimeout(container: container, name: containerName, timeout: timeoutSeconds)
+      let didStop = try await stopWithTimeout(container: resolvedContainer, name: containerName, timeout: timeoutSeconds)
       if didStop {
         print("Successfully stopped container: \(containerName)")
         stopped.append(containerName)
@@ -399,7 +435,7 @@ public mutating func run() async throws {
 
       if remove {
         do {
-          try await container.delete()
+          try await resolvedContainer.delete()
           print("Successfully removed container: \(containerName)")
         } catch {
           print("Error Removing Container: \(error)")

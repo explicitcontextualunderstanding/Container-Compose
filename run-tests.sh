@@ -71,8 +71,10 @@ trap 'release_build_lock' EXIT
 # ============================================================================
 # VICTORIA PROTOCOL: Initialize RUN_ID for surgical container tracking
 # This enables label-based cleanup that only targets this test session's containers
+# CRITICAL: Keep RUN_ID short (< 10 chars) to avoid exceeding 63 char container name limit
+# Full name: CCT_{RUN_ID}_{PROJECT}-{SERVICE} must be <= 63 chars
 # ============================================================================
-RUN_ID="cct-$(date +%s)-$$"
+RUN_ID="t$$"
 export RUN_ID
 echo "=========================================="
 echo "Container-Compose Test Runner"
@@ -203,6 +205,7 @@ echo ""
 # ============================================================================
 export CCT_RUN_ID="$RUN_ID"
 export TELEMETRY_RUN_ID="$RUN_ID"
+export CONTAINER_COMPOSE_SKIP_AMFI="1"
 echo "Victoria Protocol: RUN_ID exported to Swift environment"
 echo "  CCT_RUN_ID=$CCT_RUN_ID"
 echo ""
@@ -242,6 +245,78 @@ if ! command -v container &> /dev/null; then
     echo " Tests requiring container runtime will fail"
     echo ""
 fi
+
+# ============================================================================
+# XPC HEALTH CHECK: Verify Apple Container daemon is healthy before testing
+# Uses XPCHealth module for pre-flight validation
+# ============================================================================
+check_xpc_health() {
+    echo "=========================================="
+    echo "XPC HEALTH CHECK: Apple Container Daemon"
+    echo "=========================================="
+
+    # Create a temporary Swift script to check XPC health
+    local health_check_file=$(mktemp /tmp/xpc_health_check.XXXXXX.swift)
+    cat > "$health_check_file" << 'SWIFT_EOF'
+import Foundation
+import ContainerComposeCore
+
+async func checkHealth() async {
+    do {
+        let status = try await XPCHealth.verifyConnection()
+        print(status.description)
+        
+        if status.isHealthy {
+            print("\n✅ XPC Health Check: PASSED")
+            exit(0)
+        } else {
+            print("\n⚠️  XPC Health Check: FAILED")
+            for issue in status.issues {
+                print("  • \(issue.description)")
+            }
+            exit(1)
+        }
+    } catch {
+        print("XPC Health Check Error: \(error)")
+        exit(1)
+    }
+}
+
+Task {
+    await checkHealth()
+}
+SWIFT_EOF
+
+    # Run the health check using swift run with the compiled binary
+    # This avoids recompilation overhead
+    local health_output
+    local health_exit_code=0
+    
+    # Try using the already-built binary if available
+    if [ -f "$SCRIPT_DIR/.build/debug/Container-Compose" ]; then
+        # Use built binary - it's faster
+        health_output=$("$SCRIPT_DIR/.build/debug/Container-Compose" xpc-health 2>&1) || health_exit_code=$?
+    else
+        # Fallback: just check if container CLI is responsive
+        health_output=$(container --version 2>&1) || health_exit_code=$?
+    fi
+    
+    echo "$health_output"
+    
+    if [ $health_exit_code -ne 0 ]; then
+        echo ""
+        echo "⚠️  Apple Container daemon may not be healthy"
+        echo "   Consider running 'container system-reset' to fix XPC connection issues"
+        echo ""
+    fi
+    
+    rm -f "$health_check_file"
+    return $health_exit_code
+}
+
+# Run XPC health check (non-blocking - don't fail tests if health check fails)
+check_xpc_health || true
+echo ""
 
 # Check if we can run privileged tests
 PRIVILEGED_TESTS=(

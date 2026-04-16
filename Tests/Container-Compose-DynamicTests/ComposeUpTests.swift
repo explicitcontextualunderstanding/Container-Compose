@@ -28,10 +28,13 @@ import TestHelpers
 struct ComposeUpTests {
   private let reliabilityHelper = ContainerReliabilityHelper()
 
-  /// Returns registry URL from environment, defaulting to local registry
-  /// Note: pgmicro is only in REMOVED_REGISTRY_URL, not docker.io
-  private func getRegistryURL() -> String {
-    ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"] ?? "REMOVED_REGISTRY_URL"
+  /// Returns registry URL from environment
+  /// CRITICAL: pgmicro is ONLY in private registry - no docker.io fallback
+  private func getRegistryURL() throws -> String {
+    guard let url = ProcessInfo.processInfo.environment["OCI_REGISTRY_URL"], !url.isEmpty else {
+      throw Errors.missingRegistryURL("OCI_REGISTRY_URL environment variable must be set. Run via ./run-tests.sh")
+    }
+    return url
   }
     
     @Test("Test WordPress with MySQL compose file",
@@ -124,7 +127,7 @@ struct ComposeUpTests {
 
     // Get a dynamic port to avoid conflicts
     let testPort = DockerComposeYamlFiles.getAvailablePort()
-    let registryURL = getRegistryURL()
+    let registryURL = try getRegistryURL()
 
     let yaml = """
       version: '3.8'
@@ -524,9 +527,10 @@ services:
         }
     }
 
-    enum Errors: Error {
-        case containerNotFound
-    }
+enum Errors: Error {
+  case containerNotFound
+  case missingRegistryURL(String)
+}
     
     private func parseEnvToDict(_ envArray: [String]) -> [String: String] {
         let array = envArray.map({ (String($0.split(separator: "=")[0]), String($0.split(separator: "=")[1])) })
@@ -630,13 +634,22 @@ try await helper.stopWithRetry(container: container1, name: containerName)
     
     // MARK: - service_completed_successfully Tests (Phase 2)
     
-    @Test("Test service_completed_successfully waits for exit code 0")
+    /// Tests that service_completed_successfully waits for the dependency to complete
+    /// with a success sentinel file.
+    ///
+    /// Apple Container runtime doesn't expose exit codes after container stop.
+    /// The Sentinel File pattern requires init containers to write:
+    ///   /tmp/container-compose-status/<container-name>.success
+    /// before exiting with code 0.
+    @Test("Test service_completed_successfully waits for sentinel file")
     func testCompletedSuccessfullyWaitsForExit0() async throws {
+        // Sentinel file path: /tmp/container-compose-status/<HOSTNAME>.success
+        // HOSTNAME equals the container name in Apple Container runtime
         let yaml = """
             services:
               init-migrations:
                 image: busybox:latest
-                command: ["sh", "-c", "echo 'Running migrations' && sleep 1 && exit 0"]
+                command: ["sh", "-c", "mkdir -p /tmp/container-compose-status && echo 'Running migrations' && sleep 1 && touch /tmp/container-compose-status/$HOSTNAME.success && exit 0"]
               app:
                 image: busybox:latest
                 command: ["sleep", "300"]
@@ -658,8 +671,8 @@ try await helper.stopWithRetry(container: container1, name: containerName)
                 throw Errors.containerNotFound
             }
 
-            // App container should be running (dependency completed successfully)
-            #expect(appContainer.status == .running, "App container should be running after dependency completed successfully")
+            // App container should be running (dependency completed successfully with sentinel)
+            #expect(appContainer.status == .running, "App container should be running after dependency wrote sentinel file")
         }
     }
     

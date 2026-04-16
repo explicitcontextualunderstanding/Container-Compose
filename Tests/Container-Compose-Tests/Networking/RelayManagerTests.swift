@@ -865,7 +865,7 @@ func testProductionSocketPath() async throws {
     XCTAssertGreaterThanOrEqual(remaining, 40, "Base path should have 40+ chars for project names")
 
     // Verify actual production path from honcho-stack-with-derivers.yml
-    let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+    let productionPath = "/Users/kieranlal/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
     let actualCount = productionPath.count
 
     // Production path length: 81 characters (has 23-char margin under 104 limit)
@@ -878,7 +878,7 @@ func testProductionSocketPath() async throws {
 
         // Verify path structure
         XCTAssertTrue(productionPath.hasPrefix("/Users/kieranlal/.containers/Volumes/"), "Path should start with Volumes dir")
-        XCTAssertTrue(productionPath.contains("honcho-db-sockets"), "Path should contain db-sockets directory")
+        XCTAssertTrue(productionPath.contains("test-db-sockets"), "Path should contain db-sockets directory")
         XCTAssertTrue(productionPath.hasSuffix(".s.PGSQL.5432"), "Path should end with PostgreSQL socket name")
     }
 
@@ -975,7 +975,7 @@ func testUDSErrorDescriptions() {
 
 func testProductionSocketPath() {
     // Plan 88 Finding C-2: ACTUAL path from honcho-stack-with-derivers.yml
-    let path = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+    let path = "/Users/kieranlal/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
     XCTAssertEqual(path.count, 81, "Production path length is 81 characters (23-char margin)")
     XCTAssertLessThan(path.count, 104, "Production socket path must be under AF_UNIX limit")
 }

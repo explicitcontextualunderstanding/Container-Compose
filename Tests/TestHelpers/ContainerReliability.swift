@@ -20,19 +20,70 @@ public enum ContainerTestError: Error, CustomStringConvertible {
 }
 
 public actor ContainerReliabilityHelper {
-    private let maxRetries: Int
-    private let retryDelay: UInt64
-    private let statePollingTimeout: TimeInterval
+  private let maxRetries: Int
+  private let retryDelay: UInt64
+  private let statePollingTimeout: TimeInterval
 
-    public init(
-        maxRetries: Int = 3,
-        retryDelaySeconds: Double = 2.0,
-        statePollingTimeout: TimeInterval = 30.0
-    ) {
-        self.maxRetries = maxRetries
-        self.retryDelay = UInt64(retryDelaySeconds * 1_000_000_000)
-        self.statePollingTimeout = statePollingTimeout
+  // Apple Container runtime adds CCT_orphan_ prefix to container names
+  private static let appleContainerPrefix = "CCT_orphan_"
+
+  public init(
+    maxRetries: Int = 3,
+    retryDelaySeconds: Double = 2.0,
+    statePollingTimeout: TimeInterval = 30.0
+  ) {
+    self.maxRetries = maxRetries
+    self.retryDelay = UInt64(retryDelaySeconds * 1_000_000_000)
+    self.statePollingTimeout = statePollingTimeout
+  }
+
+  /// Resolves a container name/ID to its actual container ID, handling Apple Container's
+  /// `CCT_orphan_` prefix that gets added to container identifiers.
+  /// - Parameter name: The container name or ID to resolve
+  /// - Returns: The resolved container
+  /// - Throws: ContainerTestError if the container cannot be found
+  public func resolveContainer(name: String) async throws -> ClientContainer {
+    // Try exact match first
+    do {
+      return try await ClientContainer.get(id: name)
+    } catch {
+      // Not found with exact name, try with Apple Container prefix
     }
+
+    // If name already has the prefix, it's not going to be found
+    if name.hasPrefix(Self.appleContainerPrefix) {
+      throw ContainerTestError.containerNotReady(
+        "Container '\(name)' not found. " +
+        "Note: Apple Container may have modified the container identifier."
+      )
+    }
+
+    // Try with Apple Container prefix
+    let prefixedName = Self.appleContainerPrefix + name
+    do {
+      return try await ClientContainer.get(id: prefixedName)
+    } catch {
+      // Not found with prefix either
+    }
+
+    // Try searching all containers for CCT_<runId>_ prefixed match
+    // Apple Container adds CCT_<runId>_ prefix (e.g., CCT_t20953_ps_stop_...)
+    let allContainers = try await ClientContainer.list()
+    if let match = allContainers.first(where: { c in
+      let id = c.configuration.id
+      if id.hasPrefix("CCT_"), let secondUnderscore = id.dropFirst(4).firstIndex(of: "_") {
+        return String(id[id.index(after: secondUnderscore)...]) == name
+      }
+      return false
+    }) {
+      return match
+    }
+
+    throw ContainerTestError.containerNotReady(
+      "Container '\(name)' not found (tried exact, CCT_orphan_, and CCT_<runId>_ prefixes). " +
+      "The container may have been removed or the name may be incorrect."
+    )
+  }
 
     public func stopWithRetry(container: ClientContainer, name: String) async throws {
         var lastError: Error?

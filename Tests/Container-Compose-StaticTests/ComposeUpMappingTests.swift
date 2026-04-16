@@ -403,29 +403,29 @@ final class ComposeUpMappingTests: XCTestCase {
         ComposeUp.resolveServicePlaceholder(value, containerIps: ips, containerPorts: ports, knownServiceNames: services)
     }
 
-    func testServiceHostResolvesToKnownIP() {
-        let result = resolve(
-            "__HONCHO_DB_HOST__",
-            ips: ["honcho-db": "192.168.64.5"],
-            services: ["honcho-db", "honcho-hub"]
-        )
-        XCTAssertEqual(result, "192.168.64.5")
-    }
+  func testServiceHostResolvesToKnownIP() {
+    let result = resolve(
+      "__TEST_DB_HOST__",
+      ips: ["test-db": "192.168.64.5"],
+      services: ["test-db", "test-hub"]
+    )
+    XCTAssertEqual(result, "192.168.64.5")
+  }
 
-    func testServicePortResolvesToContainerPort() {
-        let result = resolve(
-            "__HONCHO_DB_PORT__",
-            ports: ["honcho-db": "5432"],
-            services: ["honcho-db", "honcho-hub"]
-        )
-        XCTAssertEqual(result, "5432")
-    }
+  func testServicePortResolvesToContainerPort() {
+    let result = resolve(
+      "__TEST_DB_PORT__",
+      ports: ["test-db": "5432"],
+      services: ["test-db", "test-hub"]
+    )
+    XCTAssertEqual(result, "5432")
+  }
 
     func testUnknownServiceHostLeftUntouched() {
         let result = resolve(
             "__FOO_HOST__",
-            ips: ["honcho-db": "192.168.64.5"],
-            services: ["honcho-db", "honcho-hub"]
+            ips: ["test-db": "192.168.64.5"],
+            services: ["test-db", "test-hub"]
         )
         XCTAssertEqual(result, "__FOO_HOST__")
     }
@@ -441,35 +441,35 @@ final class ComposeUpMappingTests: XCTestCase {
         XCTAssertEqual(result, "DIALECTIC__LEVELS__minimal__PROVIDER")
     }
 
-    func testMixedPlaceholdersAndVarRef() {
-        let result = resolve(
-            "postgresql://__HONCHO_DB_HOST__:__HONCHO_DB_PORT__/mydb",
-            ips: ["honcho-db": "192.168.64.5"],
-            ports: ["honcho-db": "5432"],
-            services: ["honcho-db"]
-        )
-        XCTAssertEqual(result, "postgresql://192.168.64.5:5432/mydb")
-    }
+  func testMixedPlaceholdersAndVarRef() {
+    let result = resolve(
+      "postgresql://__TEST_DB_HOST__:__TEST_DB_PORT__/mydb",
+      ips: ["test-db": "192.168.64.5"],
+      ports: ["test-db": "5432"],
+      services: ["test-db"]
+    )
+    XCTAssertEqual(result, "postgresql://192.168.64.5:5432/mydb")
+  }
 
-    func testFuzzyMatchingCaseInsensitive() {
-        // Lowercase input should still match service "honcho-db"
-        let result = resolve(
-            "__honcho_db_host__",
-            ips: ["honcho-db": "192.168.64.5"],
-            services: ["honcho-db"]
-        )
-        XCTAssertEqual(result, "192.168.64.5")
-    }
+  func testFuzzyMatchingCaseInsensitive() {
+    // Lowercase input should still match service "test-db"
+    let result = resolve(
+      "__test_db_host__",
+      ips: ["test-db": "192.168.64.5"],
+      services: ["test-db"]
+    )
+    XCTAssertEqual(result, "192.168.64.5")
+  }
 
-    func testFuzzyMatchingStripsHyphensAndUnderscores() {
-        // HONCHODB (no separator) should match service "honcho-db"
-        let result = resolve(
-            "__HONCHODB_HOST__",
-            ips: ["honcho-db": "192.168.64.5"],
-            services: ["honcho-db"]
-        )
-        XCTAssertEqual(result, "192.168.64.5")
-    }
+  func testFuzzyMatchingStripsHyphensAndUnderscores() {
+    // TESTDB (no separator) should match service "test-db"
+    let result = resolve(
+      "__TESTDB_HOST__",
+      ips: ["test-db": "192.168.64.5"],
+      services: ["test-db"]
+    )
+    XCTAssertEqual(result, "192.168.64.5")
+  }
 
     func testNoPlaceholderLeftAsIs() {
         let result = resolve("plain_value", ips: ["db": "10.0.0.1"], services: ["db"])

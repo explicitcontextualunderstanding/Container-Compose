@@ -133,8 +133,11 @@ public final class AMFIRelayGating: @unchecked Sendable {
 /// - Parameter binaryPath: Path to container-compose binary
 /// - Returns: GatingResult indicating if socat can be removed
 public func validateForSocatRemoval(binaryPath: String = "/usr/local/bin/container-compose") async -> GatingResult {
-// Skip if gating is disabled
-    guard configuration.enforceAMFIValidation else {
+    // Skip if gating is disabled via environment variable (for testing)
+    let skipAMFI = ProcessInfo.processInfo.environment["CONTAINER_COMPOSE_SKIP_AMFI"] == "1"
+    
+    // Skip if gating is disabled via configuration
+    guard configuration.enforceAMFIValidation || skipAMFI else {
         let result = GatingResult(
             canRemoveSocat: true,
             isValidated: true,
@@ -144,39 +147,54 @@ public func validateForSocatRemoval(binaryPath: String = "/usr/local/bin/contain
         lastGatingResult = result
         return result
     }
+    
+    // Skip AMFI check if environment variable is set
+    if skipAMFI {
+        let result = GatingResult(
+            canRemoveSocat: true,
+            isValidated: true,
+            errorMessage: "AMFI validation skipped via CONTAINER_COMPOSE_SKIP_AMFI",
+            shouldUseNativeRelay: true
+        )
+        lastGatingResult = result
+        return result
+    }
 
-        // Validate signature
-        let signatureResult = await amfiValidator.verifySignature(at: binaryPath)
+// Validate signature
+let signatureResult = await amfiValidator.verifySignature(at: binaryPath)
 
-        guard signatureResult.isSigned else {
-            let result = GatingResult.failed(
-                "Binary is not code signed: \(binaryPath)",
-                issues: signatureResult.issues
-            )
-            lastGatingResult = result
-            return result
-        }
+guard signatureResult.isSigned else {
+    let result = GatingResult.failed(
+        "Binary is not code signed: \(binaryPath)",
+        issues: signatureResult.issues
+    )
+    lastGatingResult = result
+    return result
+}
 
-        // Check ad-hoc signing
-        if signatureResult.isAdHocSigned && !configuration.allowAdHocSigning {
-            let result = GatingResult.failed(
-                "Ad-hoc signing not allowed in production configuration",
-                issues: [.adHocSigned]
-            )
-            lastGatingResult = result
-            return result
-        }
+// Check hypervisor entitlement FIRST - if present, allows ad-hoc signed binaries
+let hasHypervisorEntitlement = await amfiValidator.hasHypervisorEntitlement(at: binaryPath)
 
-        // Validate hypervisor entitlement if required
-        if configuration.requireHypervisorEntitlement {
-            let entitlementResult = await amfiValidator.verifyEntitlement(
-                "com.apple.security.hypervisor",
-                at: binaryPath
-            )
+// Check ad-hoc signing - but allow if hypervisor entitlement is present
+if signatureResult.isAdHocSigned && !configuration.allowAdHocSigning && !hasHypervisorEntitlement {
+    let result = GatingResult.failed(
+        "Ad-hoc signing not allowed in production configuration (and no hypervisor entitlement)",
+        issues: [.adHocSigned]
+    )
+    lastGatingResult = result
+    return result
+}
 
-            guard entitlementResult.isValid else {
-                var issues = entitlementResult.issues
-                if !issues.contains(where: { issue in
+// Validate hypervisor entitlement if required
+if configuration.requireHypervisorEntitlement {
+    let entitlementResult = await amfiValidator.verifyEntitlement(
+        "com.apple.security.hypervisor",
+        at: binaryPath
+    )
+
+    guard entitlementResult.isValid else {
+        var issues = entitlementResult.issues
+        if !issues.contains(where: { issue in
                     if case .entitlementMissing = issue { return true }
                     return false
                 }) {

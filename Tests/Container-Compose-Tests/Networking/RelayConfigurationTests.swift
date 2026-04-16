@@ -28,14 +28,14 @@ final class RelayConfigurationTests: XCTestCase {
         let relay = ServiceRelay(
             transport: .vsock,
             cid: nil,
-            target: "honcho-db",
+            target: "test-db",
             port: nil,
             socket: nil
         )
 
         XCTAssertEqual(relay.transport, .vsock)
         XCTAssertNil(relay.cid)
-        XCTAssertEqual(relay.target, "honcho-db")
+        XCTAssertEqual(relay.target, "test-db")
         XCTAssertNil(relay.port)
         XCTAssertNil(relay.socket)
     }
@@ -141,14 +141,14 @@ func testRelayTransportCodable() throws {
 
     func testServiceRelayDecodingWithTarget() throws {
         let json = """
-        {"transport": "vsock", "target": "honcho-db"}
+        {"transport": "vsock", "target": "test-db"}
         """
         let data = json.data(using: .utf8)!
         let relay = try JSONDecoder().decode(ServiceRelay.self, from: data)
 
         XCTAssertEqual(relay.transport, .vsock)
         XCTAssertNil(relay.cid)
-        XCTAssertEqual(relay.target, "honcho-db")
+        XCTAssertEqual(relay.target, "test-db")
     }
 
     func testServiceRelayDecodingWithUnixSocket() throws {
@@ -252,8 +252,8 @@ func testRelayTransportCodable() throws {
 
     func testTargetServiceExistenceValidation() {
         let services: [(serviceName: String, service: Service)] = [
-            ("honcho-db", Service(image: "postgres")),
-            ("honcho-hub", Service(image: "honcho", relay: ServiceRelay(transport: .vsock, target: "honcho-db")))
+            ("test-db", Service(image: "postgres")),
+            ("test-hub", Service(image: "honcho", relay: ServiceRelay(transport: .vsock, target: "test-db")))
         ]
 
         let serviceNames = Set(services.map { $0.serviceName })
@@ -267,7 +267,7 @@ func testRelayTransportCodable() throws {
 
     func testTargetServiceNotFound() {
         let services: [(serviceName: String, service: Service)] = [
-            ("honcho-hub", Service(image: "honcho", relay: ServiceRelay(transport: .vsock, target: "nonexistent-db")))
+            ("test-hub", Service(image: "honcho", relay: ServiceRelay(transport: .vsock, target: "nonexistent-db")))
         ]
 
         let serviceNames = Set(services.map { $0.serviceName })
@@ -420,12 +420,12 @@ func testRelayConfigurationPreservesUDSTransport() {
 
     // MARK: - Plan 88 Production Path Tests
 
-    func testProductionSocketPath() {
-        // ACTUAL path from honcho-stack-with-derivers.yml
-        let path = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
-        XCTAssertEqual(path.count, 81, "Production path length is 81 characters (23-char margin)")
-        XCTAssertLessThan(path.count, 104, "Production socket path must be under AF_UNIX limit")
-    }
+  func testProductionSocketPath() {
+    // ACTUAL path from honcho-stack-with-derivers.yml (renamed to test-project)
+    let path = "/Users/kieranlal/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
+    XCTAssertEqual(path.count, 79, "Production path length is 79 characters (25-char margin)")
+    XCTAssertLessThan(path.count, 104, "Production socket path must be under AF_UNIX limit")
+  }
 
     func testHardErrorOnLongSocketPath() {
         // Finding C-2: MUST fail at config time for paths ≥104 chars

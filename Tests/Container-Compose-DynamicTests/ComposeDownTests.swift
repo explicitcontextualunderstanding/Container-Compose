@@ -28,12 +28,13 @@ import ContainerTesting
 struct ComposeDownTests {
     private let reliabilityHelper = ContainerReliabilityHelper()
 
-    @Test("What goes up must come down - three containers")
-    func testUpAndDownComplex() async throws {
-        // Use WordPress compose to validate real-world multi-service orchestration
-        // Note: MySQL 8.0 may not stay running due to Virtualization.framework limitations
-        // We verify containers are created with correct configuration, then test compose down
-        let yaml = """
+  @Test("What goes up must come down - three containers")
+  func testUpAndDownComplex() async throws {
+    // Use WordPress compose to validate real-world multi-service orchestration
+    // Note: MySQL 8.0 may not stay running due to Virtualization.framework limitations
+    // We verify containers are created with correct configuration, then test compose down
+    let testPort = DockerComposeYamlFiles.getAvailablePort()
+    let yaml = """
         version: '3.8'
 
         services:
@@ -52,7 +53,7 @@ struct ComposeDownTests {
           web:
             image: nginx:alpine
             ports:
-              - "18085:8080"
+              - "\(testPort):8080"
             depends_on:
               - wp
             volumes:
@@ -132,7 +133,7 @@ struct ComposeDownTests {
     func testUpAndDownContainerName() async throws {
  // Create a new temporary UUID to use as a container name, otherwise we might conflict with
  // existing containers on the system
- let containerName = "CCT_\(UUID().uuidString)"
+ let containerName = "test_\(UUID().uuidString)"
 
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)

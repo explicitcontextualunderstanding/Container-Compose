@@ -25,18 +25,19 @@ import Testing
 @Suite("Compose Ps Tests", .containerDependent)
 struct ComposePsTests {
 
-    @Test("Shows running containers from compose up")
-    func testPsShowsRunningContainers() async throws {
-        let yaml = """
-        services:
-          nginx:
-            image: nginx:alpine
-            ports:
-              - "18090:8080"
-          busybox:
-            image: busybox:latest
-            command: ["sh", "-c", "sleep 300"]
-        """
+  @Test("Shows running containers from compose up")
+  func testPsShowsRunningContainers() async throws {
+    let testPort = DockerComposeYamlFiles.getAvailablePort()
+    let yaml = """
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "\(testPort):8080"
+  busybox:
+    image: busybox:latest
+    command: ["sh", "-c", "sleep 300"]
+"""
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
         try await ContainerPollingHelpers.withProjectCleanup(projectName: project.name) {
             var composeUp = try ComposeUp.parse([
@@ -64,18 +65,18 @@ struct ComposePsTests {
 
     @Test("Shows stopped container after container stop")
     func testPsShowsStoppedContainer() async throws {
-        let containerName = "CCT_ps_stop_\(UUID().uuidString)"
+        let containerName = "ps_stop_\(UUID().uuidString)"
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
-        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "CCT_ps_stop"]) {
+        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "ps_stop"]) {
             var composeUp = try ComposeUp.parse([
                 "-d", "--cwd", project.base.path(percentEncoded: false),
             ])
             try await composeUp.run()
 
-let container = try await ClientContainer.get(id: containerName)
-let helper = ContainerReliabilityHelper()
-try await helper.stopWithRetry(container: container, name: containerName)
+    let helper = ContainerReliabilityHelper()
+    let container = try await helper.resolveContainer(name: containerName)
+    try await helper.stopWithRetry(container: container, name: container.configuration.id)
 
             let statuses = try await ComposePs.listServices(cwd: project.base.path(percentEncoded: false))
             let status = statuses.first { $0.service == "web" }
@@ -158,10 +159,10 @@ try await helper.stopWithRetry(container: busybox, name: busybox.configuration.i
 
     @Test("Container name override matches correctly")
     func testPsContainerNameOverride() async throws {
-        let containerName = "CCT_ps_name_\(UUID().uuidString)"
+        let containerName = "ps_name_\(UUID().uuidString)"
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
-        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "CCT_ps_name"]) {
+        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "ps_name"]) {
             var composeUp = try ComposeUp.parse([
                 "-d", "--cwd", project.base.path(percentEncoded: false),
             ])
@@ -176,10 +177,10 @@ try await helper.stopWithRetry(container: busybox, name: busybox.configuration.i
 
     @Test("JSON output is valid JSON")
     func testPsJsonOutputFormat() async throws {
-        let containerName = "CCT_ps_json_\(UUID().uuidString)"
+        let containerName = "ps_json_\(UUID().uuidString)"
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
-        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "CCT_ps_json"]) {
+        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "ps_json"]) {
             var composeUp = try ComposeUp.parse([
                 "-d", "--cwd", project.base.path(percentEncoded: false),
             ])
@@ -195,10 +196,10 @@ try await helper.stopWithRetry(container: busybox, name: busybox.configuration.i
 
     @Test("Exit code 0 when all running")
     func testPsExitCodeAllRunning() async throws {
-        let containerName = "CCT_ps_exit_\(UUID().uuidString)"
+        let containerName = "ps_exit_\(UUID().uuidString)"
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
-        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "CCT_ps_exit"]) {
+        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "ps_exit"]) {
             var composeUp = try ComposeUp.parse([
                 "-d", "--cwd", project.base.path(percentEncoded: false),
             ])
@@ -212,10 +213,10 @@ try await helper.stopWithRetry(container: busybox, name: busybox.configuration.i
 
     @Test("All stopped after compose down")
     func testPsAfterComposeDown() async throws {
-        let containerName = "CCT_ps_after_\(UUID().uuidString)"
+        let containerName = "ps_after_\(UUID().uuidString)"
         let yaml = DockerComposeYamlFiles.dockerComposeYaml9(containerName: containerName)
         let project = try DockerComposeYamlFiles.copyYamlToTemporaryLocation(yaml: yaml)
-        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "CCT_ps_after"]) {
+        try await ContainerPollingHelpers.withProjectCleanup(projectNames: [project.name, "ps_after"]) {
             var composeUp = try ComposeUp.parse([
                 "-d", "--cwd", project.base.path(percentEncoded: false),
             ])

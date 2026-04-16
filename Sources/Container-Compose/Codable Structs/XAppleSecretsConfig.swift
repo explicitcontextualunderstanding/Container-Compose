@@ -54,8 +54,33 @@ public struct XAppleSecretsConfig: Codable, Hashable, Sendable {
 
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.mount = try container.decode(String.self, forKey: .mount)
-    self.filter = try container.decodeIfPresent([String].self, forKey: .filter)
+    
+    // Decode mount path and validate it's absolute
+    let decodedMount = try container.decodeIfPresent(String.self, forKey: .mount) ?? "/run/secrets"
+    guard XAppleSecretsConfig.isValidMountPath(decodedMount) else {
+      throw DecodingError.dataCorruptedError(
+        forKey: .mount,
+        in: container,
+        debugDescription: "Mount path must be absolute (start with /) and not contain '..' or '~'. Got: \(decodedMount)"
+      )
+    }
+    self.mount = decodedMount
+    
+    // Decode filter and validate secret names
+    let decodedFilter = try container.decodeIfPresent([String].self, forKey: .filter)
+    if let filter = decodedFilter {
+      for secretName in filter {
+        guard XAppleSecretsConfig.isValidSecretName(secretName) else {
+          throw DecodingError.dataCorruptedError(
+            forKey: .filter,
+            in: container,
+            debugDescription: "Secret name '\(secretName)' is invalid. Must start with letter or underscore, followed by alphanumeric or underscore characters."
+          )
+        }
+      }
+    }
+    self.filter = decodedFilter
+    
     self.readOnly = try container.decodeIfPresent(Bool.self, forKey: .readOnly) ?? true
     self.noexec = try container.decodeIfPresent(Bool.self, forKey: .noexec) ?? true
     self.nosuid = try container.decodeIfPresent(Bool.self, forKey: .nosuid) ?? true
@@ -117,6 +142,25 @@ public struct XAppleSecretsGlobalConfig: Codable, Hashable, Sendable {
   /// Secret format options
   public enum Format: String, Codable, Hashable, Sendable {
     case files
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case version
+    case enclave
+    case defaultMount = "default_mount"
+    case format
+    case permissions
+    case cleanup
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.version = try container.decodeIfPresent(String.self, forKey: .version) ?? "1.0"
+    self.enclave = try container.decodeIfPresent(String.self, forKey: .enclave) ?? "/Volumes/AGENT_SECRETS"
+    self.defaultMount = try container.decodeIfPresent(String.self, forKey: .defaultMount) ?? "/run/secrets"
+    self.format = try container.decodeIfPresent(Format.self, forKey: .format) ?? .files
+    self.permissions = try container.decodeIfPresent(String.self, forKey: .permissions) ?? "0400"
+    self.cleanup = try container.decodeIfPresent(XAppleSecretsConfig.CleanupPolicy.self, forKey: .cleanup) ?? .immediate
   }
 
   public init(

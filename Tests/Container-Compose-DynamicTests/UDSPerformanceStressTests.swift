@@ -355,7 +355,7 @@ await ContainerPollingHelpers.cleanupProjectContainers(projectName: projectName)
         let tooLongPath = String(repeating: "x", count: 110) + ".sock"
         #expect(tooLongPath.count >= 104, "Long path should exceed 104 chars")
 
-        let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+        let productionPath = "/Users/kieranlal/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
         #expect(productionPath.count < 104, "Production path (\(productionPath.count) chars) should be under limit")
     }
 

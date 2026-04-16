@@ -37,64 +37,66 @@ try? FileManager.default.removeItem(atPath: composeFilePath)
 
 // MARK: - Compose File Parsing Tests
 
-@Test("Parse Honcho Stack Compose file")
-func parseHonchoStackCompose() throws {
+  @Test("Parse Honcho Stack Compose file")
+  func parseHonchoStackCompose() throws {
+    // CRITICAL: Use unique project name to avoid collision with production
+    let testId = UUID().uuidString.prefix(8)
     let yaml = """
-      version: '3.8'
-      name: honcho-stack
+version: '3.8'
+name: honcho-test-\(testId)
 
-      x-apple-secrets:
-        version: "1.0"
-        enclave: /Volumes/AGENT_SECRETS
-        default_mount: /run/secrets
-        format: files
-        permissions: "0400"
-        cleanup: immediate
+x-apple-secrets:
+  version: "1.0"
+  enclave: /Volumes/AGENT_SECRETS
+  default_mount: /run/secrets
+  format: files
+  permissions: "0400"
+  cleanup: immediate
 
-      services:
-        honcho-db:
-          image: walg-db:vsock
-          x-apple-relays:
-            - type: vsock-db
-              port: 5432
-          x-apple-secrets:
-            mount: /run/secrets
-            filter:
-              - HONCHO_DB_PASSWORD
-              - WALG_AWS_ACCESS_KEY_ID
-              - WALG_AWS_SECRET_ACCESS_KEY
-            read_only: true
-            noexec: true
-            nosuid: true
-            cleanup: immediate
+services:
+  test-db:
+    image: walg-db:vsock
+    x-apple-relays:
+      - type: vsock-db
+        port: 5432
+    x-apple-secrets:
+      mount: /run/secrets
+      filter:
+        - HONCHO_DB_PASSWORD
+        - WALG_AWS_ACCESS_KEY_ID
+        - WALG_AWS_SECRET_ACCESS_KEY
+      read_only: true
+      noexec: true
+      nosuid: true
+      cleanup: immediate
 
-        honcho-hub:
-          image: honcho:latest
-          x-apple-secrets:
-            mount: /run/secrets
-            filter:
-              - HONCHO_ADMIN_TOKEN
-              - LLM_ANTHROPIC_API_KEY
-              - DATABASE_URL_VSOCK
-            read_only: true
-            noexec: true
-            nosuid: true
-            cleanup: immediate
-          depends_on:
-            honcho-db:
-              condition: service_started
+  test-hub:
+    image: honcho:latest
+    x-apple-secrets:
+      mount: /run/secrets
+      filter:
+        - HONCHO_ADMIN_TOKEN
+        - LLM_ANTHROPIC_API_KEY
+        - DATABASE_URL_VSOCK
+      read_only: true
+      noexec: true
+      nosuid: true
+      cleanup: immediate
+    depends_on:
+      test-db:
+        condition: service_started
 
-        honcho-deriver:
-          image: honcho:latest
-          x-apple-secrets:
-            mount: /run/secrets
-            filter:
-              - LLM_ANTHROPIC_API_KEY
-              - DATABASE_URL_VSOCK
-          depends_on:
-            honcho-hub:
-              condition: service_started
-      """
+  test-deriver:
+    image: honcho:latest
+    x-apple-secrets:
+      mount: /run/secrets
+      filter:
+        - LLM_ANTHROPIC_API_KEY
+        - DATABASE_URL_VSOCK
+    depends_on:
+      test-hub:
+        condition: service_started
+"""
 
     try yaml.write(toFile: composeFilePath, atomically: true, encoding: .utf8)
 
@@ -106,8 +108,8 @@ func parseHonchoStackCompose() throws {
     #expect(globalConfig.enclave == "/Volumes/AGENT_SECRETS")
     #expect(globalConfig.defaultMount == "/run/secrets")
 
-    // Verify honcho-db secrets
-    let dbService = try #require(compose.services["honcho-db"])
+    // Verify test-db secrets
+    let dbService = try #require(compose.services["test-db"])
     let dbSecrets = try #require(dbService?.xAppleSecrets)
     #expect(dbSecrets.filter?.contains("HONCHO_DB_PASSWORD") == true)
     #expect(dbSecrets.filter?.contains("WALG_AWS_ACCESS_KEY_ID") == true)
@@ -115,15 +117,15 @@ func parseHonchoStackCompose() throws {
     #expect(dbSecrets.readOnly == true)
     #expect(dbSecrets.noexec == true)
 
-    // Verify honcho-hub secrets
-    let hubService = try #require(compose.services["honcho-hub"])
+    // Verify test-hub secrets
+    let hubService = try #require(compose.services["test-hub"])
     let hubSecrets = try #require(hubService?.xAppleSecrets)
     #expect(hubSecrets.filter?.contains("HONCHO_ADMIN_TOKEN") == true)
     #expect(hubSecrets.filter?.contains("LLM_ANTHROPIC_API_KEY") == true)
     #expect(hubSecrets.filter?.contains("DATABASE_URL_VSOCK") == true)
 
-    // Verify honcho-deriver secrets
-    let deriverService = try #require(compose.services["honcho-deriver"])
+    // Verify test-deriver secrets
+    let deriverService = try #require(compose.services["test-deriver"])
     let deriverSecrets = try #require(deriverService?.xAppleSecrets)
     #expect(deriverSecrets.filter?.contains("LLM_ANTHROPIC_API_KEY") == true)
   }
@@ -136,7 +138,7 @@ func parseHonchoStackCompose() throws {
     let yaml = """
       version: '3.8'
       services:
-        honcho-db:
+        test-db:
           image: walg-db:vsock
           x-apple-secrets:
             filter:
@@ -144,32 +146,32 @@ func parseHonchoStackCompose() throws {
               - WALG_AWS_ACCESS_KEY_ID
               - WALG_AWS_SECRET_ACCESS_KEY
 
-        honcho-hub:
+        test-hub:
           image: honcho:latest
           x-apple-secrets:
             filter:
               - HONCHO_ADMIN_TOKEN
               - LLM_ANTHROPIC_API_KEY
 
-        honcho-deriver-1:
+        test-deriver-1:
           image: honcho:latest
           x-apple-secrets:
             filter:
               - LLM_ANTHROPIC_API_KEY
 
-        honcho-deriver-2:
+        test-deriver-2:
           image: honcho:latest
           x-apple-secrets:
             filter:
               - LLM_ANTHROPIC_API_KEY
 
-        honcho-deriver-3:
+        test-deriver-3:
           image: honcho:latest
           x-apple-secrets:
             filter:
               - LLM_ANTHROPIC_API_KEY
 
-        honcho-deriver-4:
+        test-deriver-4:
           image: honcho:latest
           x-apple-secrets:
             filter:
@@ -190,8 +192,8 @@ func parseHonchoStackCompose() throws {
     #expect(servicesWithSecrets.count == 7)
 
     // Verify each service type
-    #expect(compose.services["honcho-db"]??.xAppleSecrets?.filter?.contains("HONCHO_DB_PASSWORD") == true)
-    #expect(compose.services["honcho-hub"]??.xAppleSecrets?.filter?.contains("HONCHO_ADMIN_TOKEN") == true)
+    #expect(compose.services["test-db"]??.xAppleSecrets?.filter?.contains("HONCHO_DB_PASSWORD") == true)
+    #expect(compose.services["test-hub"]??.xAppleSecrets?.filter?.contains("HONCHO_ADMIN_TOKEN") == true)
     #expect(compose.services["codegraph"]??.xAppleSecrets?.filter?.contains("HONCHO_ADMIN_TOKEN") == true)
   }
 
@@ -201,21 +203,21 @@ func parseHonchoStackCompose() throws {
     let yaml = """
       version: '3.8'
       services:
-        honcho-deriver-1:
+        test-deriver-1:
           image: honcho:latest
           x-apple-secrets:
             filter:
               - LLM_ANTHROPIC_API_KEY
               - DATABASE_URL_VSOCK
 
-        honcho-deriver-2:
+        test-deriver-2:
           image: honcho:latest
           x-apple-secrets:
             filter:
               - LLM_ANTHROPIC_API_KEY
               - DATABASE_URL_VSOCK
 
-        honcho-deriver-3:
+        test-deriver-3:
           image: honcho:latest
           x-apple-secrets:
             filter:
@@ -228,7 +230,7 @@ func parseHonchoStackCompose() throws {
 
     // All derivers should have the same secrets
     for i in 1...3 {
-      let deriver = compose.services["honcho-deriver-\(i)"]
+      let deriver = compose.services["test-deriver-\(i)"]
       let secrets = deriver??.xAppleSecrets?.filter
 
       #expect(secrets?.contains("LLM_ANTHROPIC_API_KEY") == true)
@@ -245,7 +247,7 @@ func parseHonchoStackCompose() throws {
     let yaml = """
       version: '3.8'
       services:
-        honcho-db:
+        test-db:
           image: walg-db:vsock
           x-apple-secrets:
             mount: /run/secrets
@@ -259,7 +261,7 @@ func parseHonchoStackCompose() throws {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let dbSecrets = compose.services["honcho-db"]??.xAppleSecrets
+    let dbSecrets = compose.services["test-db"]??.xAppleSecrets
 
     #expect(dbSecrets?.readOnly == true)
     #expect(dbSecrets?.noexec == true)
@@ -275,7 +277,7 @@ func parseHonchoStackCompose() throws {
     let yaml = """
       version: '3.8'
       services:
-        honcho-db:
+        test-db:
           image: walg-db:vsock
           x-apple-relays:
             - type: vsock-db
@@ -284,7 +286,7 @@ func parseHonchoStackCompose() throws {
             filter:
               - HONCHO_DB_PASSWORD
 
-        honcho-hub:
+        test-hub:
           image: honcho:latest
           environment:
             DATABASE_URL_VSOCK: postgresql://...@vsock:2:5432/honcho
@@ -292,15 +294,15 @@ func parseHonchoStackCompose() throws {
             filter:
               - HONCHO_ADMIN_TOKEN
           depends_on:
-            honcho-db:
+            test-db:
               condition: service_started
       """
 
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let dbService = compose.services["honcho-db"]
-    let hubService = compose.services["honcho-hub"]
+    let dbService = compose.services["test-db"]
+    let hubService = compose.services["test-hub"]
 
     // Both extensions should coexist
     #expect(dbService??.xAppleRelays != nil)
@@ -318,14 +320,14 @@ func parseHonchoStackCompose() throws {
     let yaml = """
       version: '3.8'
       services:
-        honcho-db:
+        test-db:
           image: walg-db:vsock
           x-apple-secrets:
             filter:
               - HONCHO_DB_PASSWORD
             cleanup: immediate
 
-        honcho-hub:
+        test-hub:
           image: honcho:latest
           x-apple-secrets:
             filter:
@@ -336,8 +338,8 @@ func parseHonchoStackCompose() throws {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let dbCleanup = compose.services["honcho-db"]??.xAppleSecrets?.cleanup
-    let hubCleanup = compose.services["honcho-hub"]??.xAppleSecrets?.cleanup
+    let dbCleanup = compose.services["test-db"]??.xAppleSecrets?.cleanup
+    let hubCleanup = compose.services["test-hub"]??.xAppleSecrets?.cleanup
 
     #expect(dbCleanup == .immediate)
     #expect(hubCleanup == .immediate)
@@ -351,14 +353,14 @@ func parseHonchoStackCompose() throws {
     let yaml = """
       version: '3.8'
       services:
-        honcho-db:
+        test-db:
           image: walg-db:vsock
           x-apple-secrets:
             mount: /run/secrets
             filter:
               - HONCHO_DB_PASSWORD
 
-        honcho-hub:
+        test-hub:
           image: honcho:latest
           x-apple-secrets:
             mount: /run/secrets
@@ -369,8 +371,8 @@ func parseHonchoStackCompose() throws {
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
 
-    let dbMount = compose.services["honcho-db"]??.xAppleSecrets?.mount
-    let hubMount = compose.services["honcho-hub"]??.xAppleSecrets?.mount
+    let dbMount = compose.services["test-db"]??.xAppleSecrets?.mount
+    let hubMount = compose.services["test-hub"]??.xAppleSecrets?.mount
 
     // Consistent mount path for standardization
     #expect(dbMount == "/run/secrets")
@@ -424,91 +426,93 @@ func parseHonchoStackCompose() throws {
   
   @Test("Full Honcho stack configuration")
   func fullHonchoStackConfiguration() throws {
+    // CRITICAL: Use unique project name to avoid collision with production
+    let testId = UUID().uuidString.prefix(8)
     let yaml = """
-      version: '3.8'
-      name: apple-honcho
+version: '3.8'
+name: honcho-test-\(testId)
 
-      x-apple-secrets:
-        version: "1.0"
-        enclave: /Volumes/AGENT_SECRETS
-        default_mount: /run/secrets
-        cleanup: immediate
+x-apple-secrets:
+  version: "1.0"
+  enclave: /Volumes/AGENT_SECRETS
+  default_mount: /run/secrets
+  cleanup: immediate
 
-      services:
-        honcho-db:
-          image: walg-db:vsock
-          x-apple-relays:
-            - type: vsock-db
-              port: 5432
-          x-apple-secrets:
-            filter:
-              - HONCHO_DB_PASSWORD
-              - WALG_AWS_ACCESS_KEY_ID
-              - WALG_AWS_SECRET_ACCESS_KEY
+services:
+  test-db:
+    image: walg-db:vsock
+    x-apple-relays:
+      - type: vsock-db
+        port: 5432
+    x-apple-secrets:
+      filter:
+        - HONCHO_DB_PASSWORD
+        - WALG_AWS_ACCESS_KEY_ID
+        - WALG_AWS_SECRET_ACCESS_KEY
 
-        honcho-hub:
-          image: honcho:latest
-          environment:
-            DATABASE_URL_VSOCK: postgresql://...:5432/honcho
-            HONCHO_BASE_URL: vsock://2:8000
-          x-apple-secrets:
-            filter:
-              - HONCHO_ADMIN_TOKEN
-              - LLM_ANTHROPIC_API_KEY
-              - LLM_VLLM_API_KEY
-          depends_on:
-            honcho-db:
-              condition: service_started
+  test-hub:
+    image: honcho:latest
+    environment:
+      DATABASE_URL_VSOCK: postgresql://...:5432/honcho
+      HONCHO_BASE_URL: vsock://2:8000
+    x-apple-secrets:
+      filter:
+        - HONCHO_ADMIN_TOKEN
+        - LLM_ANTHROPIC_API_KEY
+        - LLM_VLLM_API_KEY
+    depends_on:
+      test-db:
+        condition: service_started
 
-        honcho-deriver-1:
-          image: honcho:latest
-          x-apple-secrets:
-            filter:
-              - LLM_ANTHROPIC_API_KEY
-              - DATABASE_URL_VSOCK
-          depends_on:
-            honcho-hub:
-              condition: service_started
+  test-deriver-1:
+    image: honcho:latest
+    x-apple-secrets:
+      filter:
+        - LLM_ANTHROPIC_API_KEY
+        - DATABASE_URL_VSOCK
+    depends_on:
+      test-hub:
+        condition: service_started
 
-        honcho-deriver-2:
-          image: honcho:latest
-          x-apple-secrets:
-            filter:
-              - LLM_ANTHROPIC_API_KEY
-              - DATABASE_URL_VSOCK
-          depends_on:
-            honcho-hub:
-              condition: service_started
+  test-deriver-2:
+    image: honcho:latest
+    x-apple-secrets:
+      filter:
+        - LLM_ANTHROPIC_API_KEY
+        - DATABASE_URL_VSOCK
+    depends_on:
+      test-hub:
+        condition: service_started
 
-        honcho-deriver-3:
-          image: honcho:latest
-          x-apple-secrets:
-            filter:
-              - LLM_ANTHROPIC_API_KEY
-              - DATABASE_URL_VSOCK
-          depends_on:
-            honcho-hub:
-              condition: service_started
+  test-deriver-3:
+    image: honcho:latest
+    x-apple-secrets:
+      filter:
+        - LLM_ANTHROPIC_API_KEY
+        - DATABASE_URL_VSOCK
+    depends_on:
+      test-hub:
+        condition: service_started
 
-        honcho-deriver-4:
-          image: honcho:latest
-          x-apple-secrets:
-            filter:
-              - LLM_ANTHROPIC_API_KEY
-              - DATABASE_URL_VSOCK
-          depends_on:
-            honcho-hub:
-              condition: service_started
+  test-deriver-4:
+    image: honcho:latest
+    x-apple-secrets:
+      filter:
+        - LLM_ANTHROPIC_API_KEY
+        - DATABASE_URL_VSOCK
+    depends_on:
+      test-hub:
+        condition: service_started
 
-        codegraph:
-          image: codegraph-mcp:latest
-          x-apple-secrets:
-            filter:
-              - HONCHO_ADMIN_TOKEN
-          depends_on:
-            honcho-hub:
-              condition: service_started
-      """
+  codegraph:
+    image: codegraph-mcp:latest
+    x-apple-secrets:
+      filter:
+        - HONCHO_ADMIN_TOKEN
+    depends_on:
+      test-hub:
+        condition: service_started
+"""
 
     let decoder = YAMLDecoder()
     let compose = try decoder.decode(DockerCompose.self, from: yaml)
@@ -518,12 +522,12 @@ func parseHonchoStackCompose() throws {
 
     // Verify service names
     let serviceNames = Set(compose.services.keys)
-    #expect(serviceNames.contains("honcho-db"))
-    #expect(serviceNames.contains("honcho-hub"))
-    #expect(serviceNames.contains("honcho-deriver-1"))
-    #expect(serviceNames.contains("honcho-deriver-2"))
-    #expect(serviceNames.contains("honcho-deriver-3"))
-    #expect(serviceNames.contains("honcho-deriver-4"))
+    #expect(serviceNames.contains("test-db"))
+    #expect(serviceNames.contains("test-hub"))
+    #expect(serviceNames.contains("test-deriver-1"))
+    #expect(serviceNames.contains("test-deriver-2"))
+    #expect(serviceNames.contains("test-deriver-3"))
+    #expect(serviceNames.contains("test-deriver-4"))
     #expect(serviceNames.contains("codegraph"))
 
     // Verify global config
@@ -536,11 +540,11 @@ func parseHonchoStackCompose() throws {
     }
 
     // Verify DB secrets (3)
-    let dbSecrets = compose.services["honcho-db"]??.xAppleSecrets?.filter
+    let dbSecrets = compose.services["test-db"]??.xAppleSecrets?.filter
     #expect(dbSecrets?.count == 3)
 
     // Verify hub secrets (3)
-    let hubSecrets = compose.services["honcho-hub"]??.xAppleSecrets?.filter
+    let hubSecrets = compose.services["test-hub"]??.xAppleSecrets?.filter
     #expect(hubSecrets?.count == 3)
 
     // Verify codegraph secrets (1)

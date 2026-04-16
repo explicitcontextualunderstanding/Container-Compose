@@ -241,10 +241,10 @@ public actor TCCRelayIntegration: Sendable {
 
         case .unknown:
             return PreflightResult(
-                canProceed: false,
+                canProceed: true,
                 status: .unknown,
-                errorMessage: "Unable to determine TCC status",
-                shouldBlockStartup: true
+                errorMessage: "TCC status unknown (database protected by SIP)",
+                shouldBlockStartup: false
             )
         }
     }

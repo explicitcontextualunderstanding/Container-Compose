@@ -11,7 +11,7 @@
 _ENV_SETUP_SUMMARY=""
 
 # Load OCI_REGISTRY_URL if not already set
-if [ -z "$OCI_REGISTRY_URL" ]; then
+if [ -z "${OCI_REGISTRY_URL:-}" ]; then
   # Try to load from ops.env
   # Since BASH_SOURCE[0] is unreliable when sourced, use multiple methods:
   # 1. Check PWD (where the shell was when this was sourced)

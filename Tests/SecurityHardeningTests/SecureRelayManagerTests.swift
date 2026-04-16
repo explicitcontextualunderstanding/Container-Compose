@@ -118,7 +118,7 @@ func testSecurityGatesWithUDSTransport() async throws {
     let udsConfig = RelayConfiguration(
         id: "uds-relay-test",
         tcpPort: 5432,
-        unixSocketPath: "/Users/test/.containers/Volumes/test/honcho-db-sockets/.s.PGSQL.5432",
+        unixSocketPath: "/Users/test/.containers/Volumes/test/test-db-sockets/.s.PGSQL.5432",
         description: "UDS relay test"
     )
 
@@ -190,7 +190,7 @@ let validResult = await secureManager.validateRelayStartup(validConfig)
 
     func testUDSProductionSecurityGates() async {
         // Plan 88: Production UDS path validation
-        let productionPath = "/Users/kieranlal/.containers/Volumes/apple-honcho/honcho-db-sockets/.s.PGSQL.5432"
+        let productionPath = "/Users/kieranlal/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
 
         let config = RelayConfiguration(
             id: "production-uds",
