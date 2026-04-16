@@ -452,8 +452,13 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
       }
 
       // Initialize relay manager
+      // Check for AMFI bypass environment variable (for testing on development machines)
+      let skipAMFI = ProcessInfo.processInfo.environment["CONTAINER_COMPOSE_SKIP_AMFI"] == "1"
       let eventLog = RelayEventLog()
-      let relayManager = RelayManager(eventLog: eventLog)
+      let relayManager = RelayManager(
+        eventLog: eventLog,
+        enableSecurity: !skipAMFI
+      )
       var socketRelays: [ComposeDown.SocketRelayState] = []
 
     // Start relays for each service
