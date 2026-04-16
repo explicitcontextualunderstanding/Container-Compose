@@ -844,7 +844,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         let collector = LogCollector()
         do {
             _ = try await ContainerComposeCore.streamCommand(
-                "container", args: ["logs", "--tail", "\(lines)", containerName], cwd: self.cwd,
+                "container", args: ["logs", "-n", "\(lines)", containerName], cwd: self.cwd,
                 onStdout: { (msg: String) in Task { await collector.append(msg) } },
                 onStderr: { (msg: String) in Task { await collector.append(msg) } }
             )
