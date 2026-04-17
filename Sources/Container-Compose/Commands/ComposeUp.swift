@@ -876,37 +876,53 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
 
         // Build the exec arguments from the healthcheck test
-        // Apple container exec: container exec <id> <command> <args>... (no "--" separator)
         let execArgs: [String]
         if test.first == "CMD-SHELL" {
-            // ["CMD-SHELL", "pg_isready -U postgres"] -> exec with /bin/sh -c
             guard test.count >= 2 else { return }
             let shellCommand = test.dropFirst().joined(separator: " ")
             execArgs = [resolvedID, "/bin/sh", "-c", shellCommand]
         } else if test.first == "CMD" {
-            // ["CMD", "pg_isready", "-U", "postgres"] -> exec directly
             execArgs = [resolvedID] + Array(test.dropFirst())
         } else {
-            // Unknown format, try treating as direct command
             execArgs = [resolvedID] + test
         }
 
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let timestamp = formatter.string(from: Date())
+        print("[DIAGNOSTIC] [\(timestamp)] Waiting for dependency '\(dependencyName)' to become healthy (Managed Wait-State)...")
+        
         var consecutiveFailures = 0
-        let deadline = Date().addingTimeInterval(
-            TimeInterval(retries) * intervalSeconds + timeoutSeconds
-        )
-
-        while Date() < deadline {
+        let startTime = Date()
+        let maxWaitTime = TimeInterval(retries) * intervalSeconds + timeoutSeconds
+        
+        // Loop with improved diagnostics
+        while Date().timeIntervalSince(startTime) < maxWaitTime {
+            // Perform the container-native health check
             let exitCode = try await ContainerComposeCore.streamCommand(
                 "container", args: ["exec"] + execArgs, cwd: self.cwd,
                 onStdout: { _ in }, onStderr: { _ in }
             )
 
             if exitCode == 0 {
-                return // Healthy!
+                let endTimestamp = formatter.string(from: Date())
+                print("[DIAGNOSTIC] [\(endTimestamp)] Service '\(dependencyName)' is healthy.")
+                return 
             }
 
             consecutiveFailures += 1
+            
+            // diagnostic check: Is the container even running?
+            if let container = try? await ClientContainer.get(id: resolvedID) {
+                if container.status != .running {
+                    print("  [DIAGNOSTIC] '\(dependencyName)' status: \(container.status). Waiting for startup...")
+                } else {
+                    print("  [DIAGNOSTIC] '\(dependencyName)' is running but healthcheck failed (Attempt \(consecutiveFailures)/\(retries)).")
+                }
+            } else {
+                print("  [DIAGNOSTIC] '\(dependencyName)' container not found. Waiting...")
+            }
+
             if consecutiveFailures >= retries {
                 let containerLogs = await captureContainerLogs(resolvedID)
                 throw HealthcheckTimeoutError(
@@ -915,11 +931,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
                 )
             }
 
-            print("  Healthcheck for '\(dependencyName)' failed (attempt \(consecutiveFailures)/\(retries)). Retrying in \(intervalSeconds)s...")
             try await Task.sleep(nanoseconds: UInt64(intervalSeconds * 1_000_000_000))
         }
 
-        let containerLogs = await captureContainerLogs(containerName)
+        let containerLogs = await captureContainerLogs(resolvedID)
         throw HealthcheckTimeoutError(
             "Timed out waiting for dependency '\(dependencyName)' to become healthy.\n"
             + "Container output (last 50 lines):\n\(containerLogs)"
@@ -1399,14 +1414,28 @@ let runCommandArgs = try Self.makeRunArgs(
     secretsEnv: secretsEnv
 )
 
-        // Extract container name for status checks (consistent with makeRunArgs logic)
-        let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] ?? "orphan"
+        // VICTORIA PROTOCOL: Only use CCT_ prefix when CCT_RUN_ID is explicitly set (test mode).
+        // Production runs (no CCT_RUN_ID) use clean project-service naming.
+        let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"]
         let containerName: String
-        if let explicit = service.container_name {
-            containerName = "CCT_\(runId)_\(explicit)"
+        if let runId {
+            if let explicit = service.container_name {
+                containerName = "CCT_\(runId)_\(explicit)"
+            } else {
+                containerName = "CCT_\(runId)_\(projectName)-\(serviceName)"
+            }
         } else {
-            containerName = "CCT_\(runId)_\(projectName)-\(serviceName)"
+            if let explicit = service.container_name {
+                containerName = explicit
+            } else {
+                containerName = "\(projectName)-\(serviceName)"
+            }
         }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let timestamp = formatter.string(from: Date())
+        print("[DIAGNOSTIC] [\(timestamp)] Preparing to orchestrate container: \(containerName)")
         if containerName.count > 63 {
             print("⚠️  Warning: Container name '\(containerName)' is \(containerName.count) characters long.".yellow)
             print("   macOS Virtualization.framework has a hard limit of 63 characters for container labels.".yellow)
@@ -1492,36 +1521,67 @@ case .stopped:
 } else {
                 // Non-recovery mode: Check health of pre-existing containers
                 if existingContainer.status == .running {
-                    print("[RECOVERY] Container '\(containerName)' is already running — verifying health before proceeding")
-                    // Verify the running container is healthy before allowing dependents to start.
-                    // This ensures health gates work correctly for pre-existing containers.
-                    if let healthcheck = service.healthcheck {
-                        do {
-                            try await waitForHealthy(
-                                containerName: containerName,
-                                dependencyName: serviceName,
-                                healthcheck: healthcheck
-                            )
-                            print("[RECOVERY] Container '\(containerName)' passed health check")
-                        } catch {
-                            print("[RECOVERY] Container '\(containerName)' failed health check: \(error)")
-                            throw ComposeError.healthCheckFailed(serviceName, "Pre-existing container failed health check: \(error)")
+                    // VICTORIA PROTOCOL: Check configuration drift BEFORE health verification
+                    // A running container with stale config-hash is a ghost — it appears healthy
+                    // but executes the wrong configuration. Drift check must come first.
+                    if !forceRecreate {
+                        let driftWarnings = checkContainerDrift(container: existingContainer, service: service, expectedImage: imageToRun, env: combinedEnv)
+                        if let warnings = driftWarnings, !warnings.isEmpty {
+                            print("[DRIFT] Running container '\(containerName)' is out of sync — stopping for recreation:")
+                            for warning in warnings {
+                                print("  ⚠️  \(warning)")
+                            }
+                            try await existingContainer.stop()
+                            try await existingContainer.delete()
+                            // Fall through to recreate below
+                        } else {
+                            // No drift — verify health before allowing dependents to start
+                            print("[RECOVERY] Container '\(containerName)' is already running — verifying health before proceeding")
+                            if let healthcheck = service.healthcheck {
+                                do {
+                                    try await waitForHealthy(
+                                        containerName: containerName,
+                                        dependencyName: serviceName,
+                                        healthcheck: healthcheck
+                                    )
+                                    print("[RECOVERY] Container '\(containerName)' passed health check")
+                                } catch {
+                                    print("[RECOVERY] Container '\(containerName)' failed health check: \(error)")
+                                    throw ComposeError.healthCheckFailed(serviceName, "Pre-existing container failed health check: \(error)")
+                                }
+                            }
+                            try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
+                            return
                         }
+                    } else {
+                        // forceRecreate — stop and fall through
+                        print("[FORCE] Stopping running container '\(containerName)' for recreation...")
+                        try await existingContainer.stop()
+                        try await existingContainer.delete()
+                        // Fall through to recreate below
                     }
-                    try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
-                    return
                 } else {
                   // Container exists but is not running
                   if noRecreate {
                       print("Container '\(containerName)' exists with status: \(existingContainer.status). Not recreating (--no-recreate).")
                       return
                   }
-                  print("Container '\(containerName)' exists with status: \(existingContainer.status). Starting it...")
-                  let startCommand = try Application.ContainerStart.parse([containerName])
-                  try await startCommand.run()
-                  try await waitUntilContainerIsRunning(containerName)
-                  try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
-                  return
+                  
+                  // VICTORIA PROTOCOL: Check for configuration drift/force-recreate even for stopped containers
+                  // This fixes the 'Ghost Configuration' bug where stale experiments persist.
+                  let driftWarnings = checkContainerDrift(container: existingContainer, service: service, expectedImage: imageToRun, env: combinedEnv)
+                  if forceRecreate || (driftWarnings != nil && !driftWarnings!.isEmpty) {
+                      print("Recreating container '\(containerName)' (out of sync)...")
+                      try await existingContainer.delete()
+                      // Fall through to recreate below
+                  } else {
+                      print("Container '\(containerName)' exists with status: \(existingContainer.status). Starting it...")
+                      let startCommand = try Application.ContainerStart.parse([containerName])
+                      try await startCommand.run()
+                      try await waitUntilContainerIsRunning(containerName)
+                      try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName, ports: service.ports)
+                      return
+                  }
               }
           }
       }
@@ -1815,6 +1875,13 @@ case .stopped:
             warnings.append("Image changed from \(expectedImage) to \(container.configuration.image.reference)")
         }
         
+        // Check config hash drift (State Machine Protection)
+        let expectedHash = "\(service.hashValue)"
+        let actualHash = container.configuration.labels["com.container-compose.config-hash"] ?? "unknown"
+        if actualHash != "unknown" && actualHash != expectedHash {
+            warnings.append("Configuration hash drift detected (expected \(expectedHash), found \(actualHash))")
+        }
+        
         // Check environment drift (basic check - just compare keys)
         let containerEnvArray = container.configuration.initProcess.environment
         let containerEnvKeys = Set(containerEnvArray.compactMap { $0.components(separatedBy: "=").first })
@@ -1864,13 +1931,22 @@ public static func makeRunArgs(service: Service, serviceName: String, image: Str
         }
 
         // Determine container name
-        // VICTORIA PROTOCOL: Prefix with CCT_ and include RUN_ID for surgical cleanup
-        let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] ?? "orphan"
+        // VICTORIA PROTOCOL: Only use CCT_ prefix when CCT_RUN_ID is explicitly set (test mode).
+        // Production runs (no CCT_RUN_ID) use clean project-service naming.
+        let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"]
         let containerName: String
-        if let explicit = service.container_name {
-            containerName = "CCT_\(runId)_\(explicit)"
+        if let runId {
+            if let explicit = service.container_name {
+                containerName = "CCT_\(runId)_\(explicit)"
+            } else {
+                containerName = "CCT_\(runId)_\(projectName)-\(serviceName)"
+            }
         } else {
-            containerName = "CCT_\(runId)_\(projectName)-\(serviceName)"
+            if let explicit = service.container_name {
+                containerName = explicit
+            } else {
+                containerName = "\(projectName)-\(serviceName)"
+            }
         }
         runArgs.append("--name")
         runArgs.append(containerName)
@@ -2077,12 +2153,16 @@ for (key, value) in environmentVariables {
             runArgs.append("\(key)=\(value)")
         }
 
-        // VICTORIA PROTOCOL: Label containers with RUN_ID for surgical cleanup
+        // VICTORIA PROTOCOL: Label containers with RUN_ID and config-hash for surgical cleanup and drift detection
         // This enables cleanup-orchestrator.sh to target only this test session's containers
         if let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] {
             runArgs.append("--label")
             runArgs.append("com.container-compose.test-run-id=\(runId)")
         }
+        
+        // Configuration state hashing
+        runArgs.append("--label")
+        runArgs.append("com.container-compose.config-hash=\(service.hashValue)")
 
         // Map port mappings if present (resolve environment variables in port specs)
         if let ports = service.ports {
@@ -2094,6 +2174,33 @@ for (key, value) in environmentVariables {
 
     // Ensure entrypoint flag is placed before the image name when provided
     let imageToRun = image ?? service.image ?? "\(serviceName):latest"
+
+    // Experiment 1: Raw command passthrough override (Production Stability Debug Hook)
+    // Allows bypassing internal command/entrypoint merging to isolate Apple Container binary bugs.
+    if let rawCommand = service.x_apple_raw_command {
+        runArgs.append(imageToRun)
+        // Split by whitespace to ensure multi-part commands (e.g. "sleep 60") 
+        // are passed as separate arguments to the container runtime.
+        let parts = {
+            // Robust regex-based splitting to handle quoted arguments correctly
+            // e.g., sh -c 'echo "hello world"' -> ["sh", "-c", "echo \"hello world\""]
+            let pattern = #"("[^"]*"|'[^']*'|[^'"\s]+)"#
+            let regex = try? NSRegularExpression(pattern: pattern, options: [])
+            let nsString = rawCommand as NSString
+            let results = regex?.matches(in: rawCommand, options: [], range: NSRange(location: 0, length: nsString.length)) ?? []
+            return results.map { result in
+                var part = nsString.substring(with: result.range)
+                // Optionally strip leading/trailing quotes if they wrap the entire part
+                if (part.hasPrefix("'") && part.hasSuffix("'")) || (part.hasPrefix("\"") && part.hasSuffix("\"")) {
+                    part = String(part.dropFirst().dropLast())
+                }
+                return part
+            }
+        }()
+        runArgs.append(contentsOf: parts)
+        return runArgs
+    }
+
     if let entrypointParts = service.entrypoint, !entrypointParts.isEmpty {
       // Join entrypoint parts with space, preserving the command structure
       // e.g., ["/bin/bash", "-lc"] becomes "/bin/bash -lc"
@@ -2140,8 +2247,12 @@ for (key, value) in environmentVariables {
             process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
             process.arguments = [command] + args
             process.currentDirectoryURL = URL(fileURLWithPath: cwd)
-            process.standardOutput = stdoutPipe
-            process.standardError = stderrPipe
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        
+        // [DIAGNOSTIC] Log process start for telemetry
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        print("[DIAGNOSTIC] [\(timestamp)] Starting process: \(command) \(args.joined(separator: " "))")
 
             process.environment = ProcessInfo.processInfo.environment.merging([
                 "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
