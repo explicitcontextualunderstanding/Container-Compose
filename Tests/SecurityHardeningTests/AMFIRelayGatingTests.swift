@@ -91,7 +91,7 @@ final class AMFIRelayGatingTests: XCTestCase {
         let result = await gating.validateForSocatRemoval()
         XCTAssertTrue(result.canRemoveSocat)
         XCTAssertTrue(result.isValidated, "When disabled, result should show as validated to allow native relay")
-        XCTAssertEqual(result.errorMessage, "AMFI validation disabled")
+        XCTAssertEqual(result.errorMessage, "AMFI validation skipped via CONTAINER_COMPOSE_SKIP_AMFI")
         XCTAssertTrue(result.shouldUseNativeRelay)
     }
 
@@ -134,7 +134,7 @@ final class AMFIRelayGatingTests: XCTestCase {
         // After validation
         _ = await gating.validateForSocatRemoval()
         let message = await gating.lastErrorMessage()
-        XCTAssertEqual(message, "AMFI validation disabled")
+        XCTAssertEqual(message, "AMFI validation skipped via CONTAINER_COMPOSE_SKIP_AMFI")
     }
 
     // MARK: - Integration Method Tests
@@ -147,13 +147,13 @@ final class AMFIRelayGatingTests: XCTestCase {
     func testFormattedError() async {
         _ = await gating.validateForSocatRemoval()
         let error = await gating.formattedError()
-        XCTAssertEqual(error, "Security gating: AMFI validation disabled")
+        XCTAssertEqual(error, "Security gating: AMFI validation skipped via CONTAINER_COMPOSE_SKIP_AMFI")
     }
 
     func testPhase6Decision() async {
         let (canRemove, error) = await gating.phase6Decision()
         XCTAssertTrue(canRemove)
-        XCTAssertEqual(error, "AMFI validation disabled")
+        XCTAssertEqual(error, "AMFI validation skipped via CONTAINER_COMPOSE_SKIP_AMFI")
     }
 
     // MARK: - Sendable Compliance Tests
@@ -239,7 +239,7 @@ final class AMFIRelayGatingTests: XCTestCase {
             XCTFail("Should be able to remove socat with dev config")
         }
 
-        XCTAssertEqual(error, "AMFI validation disabled")
+        XCTAssertEqual(error, "AMFI validation skipped via CONTAINER_COMPOSE_SKIP_AMFI")
     }
 
     // MARK: - Error Handling Tests

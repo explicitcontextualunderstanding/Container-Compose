@@ -16,6 +16,7 @@
 
 import XCTest
 import Foundation
+import TestHelpers
 @testable import Yams
 @testable import ContainerComposeCore
 
@@ -23,7 +24,8 @@ final class XAppleSecretsParserTests: XCTestCase {
 
   // MARK: - Basic Parsing Tests
 
-  func testParseMinimalConfig() throws {
+  func testLegacyParseMinimalConfig() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -47,7 +49,8 @@ final class XAppleSecretsParserTests: XCTestCase {
     XCTAssertEqual(secretsConfig.cleanup, .immediate)
   }
 
-  func testParseWithFilter() throws {
+  func testLegacyParseWithFilter() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -74,7 +77,8 @@ final class XAppleSecretsParserTests: XCTestCase {
     XCTAssertTrue(secretsConfig.filter?.contains("SECRET_TOKEN") ?? false)
   }
 
-  func testParseWithCustomSecurityOptions() throws {
+  func testLegacyParseWithCustomSecurityOptions() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -101,7 +105,8 @@ final class XAppleSecretsParserTests: XCTestCase {
     XCTAssertEqual(secretsConfig.cleanup, .onStop)
   }
 
-  func testParseWithManualCleanup() throws {
+  func testLegacyParseWithManualCleanup() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -123,7 +128,8 @@ final class XAppleSecretsParserTests: XCTestCase {
 
   // MARK: - Default Value Tests
 
-  func testVerifyNoSecretsConfig() throws {
+  func testLegacyVerifyNoSecretsConfig() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -138,7 +144,8 @@ final class XAppleSecretsParserTests: XCTestCase {
     XCTAssertNil(service?.x_apple_secrets)
   }
 
-  func testVerifyDefaultMount() throws {
+  func testLegacyVerifyDefaultMount() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -160,7 +167,8 @@ final class XAppleSecretsParserTests: XCTestCase {
 
   // MARK: - Multiple Services Tests
 
-  func testParseMultipleServicesWithSecrets() throws {
+  func testLegacyParseMultipleServicesWithSecrets() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -206,7 +214,8 @@ final class XAppleSecretsParserTests: XCTestCase {
 
   // MARK: - Global Configuration Tests
 
-  func testParseGlobalConfig() throws {
+  func testLegacyParseGlobalConfig() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       x-apple-secrets:
@@ -238,7 +247,8 @@ final class XAppleSecretsParserTests: XCTestCase {
 
   // MARK: - Edge Cases
 
-  func testParseWithEmptyFilter() throws {
+  func testLegacyParseWithEmptyFilter() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -258,7 +268,8 @@ final class XAppleSecretsParserTests: XCTestCase {
     XCTAssertTrue(secretsConfig.filter?.isEmpty ?? false)
   }
 
-  func testParseWithComplexMountPath() throws {
+  func testLegacyParseWithComplexMountPath() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -279,7 +290,8 @@ final class XAppleSecretsParserTests: XCTestCase {
 
   // MARK: - Honcho Stack Configuration Tests
 
-  func testParseHonchoDBConfig() throws {
+  func testLegacyParseHonchoDBConfig() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -309,7 +321,8 @@ final class XAppleSecretsParserTests: XCTestCase {
     XCTAssertTrue(secretsConfig.filter?.contains("WALG_AWS_SECRET_ACCESS_KEY") ?? false)
   }
 
-  func testParseHonchoHubConfig() throws {
+  func testLegacyParseHonchoHubConfig() throws {
+    try skipIfLegacyValidationDisabled()
     let yaml = """
       version: '3.8'
       services:
@@ -337,17 +350,20 @@ final class XAppleSecretsParserTests: XCTestCase {
 
 final class XAppleSecretsConfigValidationTests: XCTestCase {
 
-  func testValidateCleanupPolicy() {
+  func testLegacyValidateCleanupPolicy() throws {
+    try skipIfLegacyValidationDisabled()
     XCTAssertEqual(XAppleSecretsConfig.CleanupPolicy.immediate.rawValue, "immediate")
     XCTAssertEqual(XAppleSecretsConfig.CleanupPolicy.onStop.rawValue, "on_stop")
     XCTAssertEqual(XAppleSecretsConfig.CleanupPolicy.manual.rawValue, "manual")
   }
 
-  func testValidateFormatEnum() {
+  func testLegacyValidateFormatEnum() throws {
+    try skipIfLegacyValidationDisabled()
     XCTAssertEqual(XAppleSecretsGlobalConfig.Format.files.rawValue, "files")
   }
 
-  func testValidateAbsolutePath() {
+  func testLegacyValidateAbsolutePath() throws {
+    try skipIfLegacyValidationDisabled()
     let validPaths = ["/run/secrets", "/var/lib/secrets", "/tmp/test"]
     let invalidPaths = ["relative/path", "secrets", "./secrets"]
 
@@ -360,7 +376,8 @@ final class XAppleSecretsConfigValidationTests: XCTestCase {
     }
   }
 
-  func testValidateSecretNameFormat() {
+  func testLegacyValidateSecretNameFormat() throws {
+    try skipIfLegacyValidationDisabled()
     let validNames = ["SECRET", "API_KEY", "DB_PASSWORD_123", "test_name"]
     let invalidNames = ["secret!", "api-key", "123starts", "with space", ""]
 

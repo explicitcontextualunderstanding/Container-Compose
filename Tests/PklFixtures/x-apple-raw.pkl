@@ -1,0 +1,28 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// Raw command bypass fixture — exercises: x_apple_raw_command, scheme, init_image, runtime
+services {
+  ["test-db"] {
+    image = "postgres:14"
+    x_apple_raw_command = "postgres -c listen_addresses=* -c shared_buffers=256MB"
+    scheme = "https"
+    runtime = "apple-container"
+    init_image = "docker.io/library/busybox:latest"
+    environment {
+      ["POSTGRES_PASSWORD"] = "password"
+    }
+    healthcheck {
+      test {
+        "CMD-SHELL"
+        "pg_isready -U postgres"
+      }
+      interval = "2s"
+      timeout = "5s"
+      retries = 5
+    }
+    env_file {
+      ".env"
+      ".env.local"
+    }
+  }
+}

@@ -541,7 +541,7 @@ The orchestrator script works around several features that container-compose alr
 - [ ] Add `--env-file` support for `.env` file loading
 - [ ] Implement changed-service-only restart (skip services with identical config)
 - [ ] Fix named volume "already exists" error (skip gracefully like docker compose)
-- [ ] Investigate virtiofs chmod/chown failure for named volumes (PostgreSQL use case)
+- [x] ~~Investigate virtiofs chmod/chown failure for named volumes~~ — RESOLVED: Apple Container 0.11.0 (kernel 6.18.5) no longer EPERMs on virtiofs. `chmod` works, `chown` is silent no-op (exit 0). PostgreSQL (walg-db/dark-db entrypoint) runs correctly on virtiofs named volumes. See Plan 95 Phase 11.
 
 ---
 

@@ -1,0 +1,36 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// Alpine + socat socket test pattern — exercises: image, entrypoint, command, publish_socket, privileged, read_only, platform
+services {
+  ["socat-relay"] {
+    image = "alpine:3.19"
+    entrypoint {
+      "/bin/sh"
+      "-c"
+    }
+    command {
+      "apk add --no-cache socat && socat -d -d UNIX-LISTEN:/tmp/relay.sock,fork TCP:127.0.0.1:8080"
+    }
+    publish_socket = "/tmp/relay.sock"
+    platform = "linux/arm64"
+    read_only = false
+    privileged = false
+    init = true
+    dns {
+      "8.8.8.8"
+      "8.8.4.4"
+    }
+    dns_search { "local.example.com" }
+    healthcheck {
+      test {
+        "CMD"
+        "test"
+        "-S"
+        "/tmp/relay.sock"
+      }
+      interval = "5s"
+      timeout = "3s"
+      retries = 3
+    }
+  }
+}

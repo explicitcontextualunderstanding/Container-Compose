@@ -1,0 +1,12 @@
+extends "../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+name = "parity-test"
+
+services {
+  ["web"] {
+    image = "nginx:latest"
+    ports {
+      "80:80"
+    }
+  }
+}

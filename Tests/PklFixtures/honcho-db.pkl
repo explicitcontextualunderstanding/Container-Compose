@@ -1,0 +1,31 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// PostgreSQL service fixture — exercises: image, cpu, memory, volumes, ports, environment, command
+services {
+  ["honcho-db"] {
+    image = "postgres:15-alpine"
+    cpu = 2
+    memory = 2048
+    volumes {
+      "pgdata:/var/lib/postgresql/data"
+    }
+    ports {
+      "5432:5432"
+    }
+    environment {
+      ["POSTGRES_USER"] = "postgres"
+      ["POSTGRES_DB"] = "honcho"
+      ["POSTGRES_PASSWORD"] = "secret"
+    }
+    command {
+      "postgres"
+      "-c"
+      "listen_addresses=*"
+    }
+    restart = "unless-stopped"
+    container_name = "honcho-db"
+    hostname = "honcho-db"
+    working_dir = "/var/lib/postgresql"
+    user = "postgres"
+  }
+}

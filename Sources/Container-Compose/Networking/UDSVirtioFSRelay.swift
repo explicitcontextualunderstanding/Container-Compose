@@ -25,7 +25,6 @@ public final actor UDSVirtioFSRelay: RelayProtocol {
     private let virtioFSMount: String?
 private var listenSocket: Int32 = -1
 private var activeConnections: Set<UDSConnection> = []
-private var acceptTask: Task<Void, Never>?
 private let peerValidator: PeerValidator
 
 /// AF_UNIX sun_path limit (includes null terminator)
@@ -82,9 +81,50 @@ self.logger = Logger(
             try await waitForExternalSocket()
         }
 
-        // Start accept loop
-        acceptTask = Task { [weak self] in
-            await self?.acceptLoop()
+        // Start accept loop using GCD to avoid blocking the cooperative thread pool
+        let socketToAccept = listenSocket
+        let validator = peerValidator
+        let log = logger
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            while true {
+                var clientAddr = sockaddr_un()
+                var addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
+
+                let clientSocket = withUnsafeMutablePointer(to: &clientAddr) { addrPtr in
+                    addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+                        Darwin.accept(socketToAccept, sockaddrPtr, &addrLen)
+                    }
+                }
+
+                guard clientSocket >= 0 else {
+                    if errno == EINTR { continue }
+                    if errno == EBADF { break } // Socket closed by stop()
+                    log.error("Accept failed: \(errno) - \(String(cString: strerror(errno)))")
+                    continue
+                }
+
+                Task { [weak self] in
+                    guard let self = self else {
+                        Darwin.close(clientSocket)
+                        return
+                    }
+                    
+                    let connection = UDSConnection(socket: clientSocket, logger: log)
+                    await self.addConnection(connection)
+
+                    let validationResult = await validator.validatePeer(socket_fd: clientSocket)
+                    if case .failed(let reason) = validationResult {
+                        log.warning("Peer validation failed: \(reason)")
+                        await connection.close()
+                        await self.removeConnection(connection)
+                        return
+                    }
+
+                    await connection.handle()
+                    await self.removeConnection(connection)
+                }
+            }
         }
 
         isRunningValue = true
@@ -96,10 +136,7 @@ self.logger = Logger(
     public func stop() async {
         guard isRunningValue else { return }
 
-        acceptTask?.cancel()
-        acceptTask = nil
-
-        // Close listening socket
+        // Close listening socket to interrupt Darwin.accept
         if listenSocket >= 0 {
             Darwin.close(listenSocket)
             listenSocket = -1
@@ -199,43 +236,12 @@ self.logger = Logger(
         throw UDSError.socketTimeout(path: socketPath)
     }
 
-    /// Accept loop for incoming connections
-    private func acceptLoop() async {
-        while !Task.isCancelled {
-            var clientAddr = sockaddr_un()
-            var addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
+    private func addConnection(_ conn: UDSConnection) {
+        activeConnections.insert(conn)
+    }
 
-            let clientSocket = withUnsafeMutablePointer(to: &clientAddr) { addrPtr in
-                addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-                    Darwin.accept(listenSocket, sockaddrPtr, &addrLen)
-                }
-            }
-
-            guard clientSocket >= 0 else {
-                if errno == EINTR { continue }
-                if errno == EBADF { break } // Socket closed
-                logger.error("Accept failed: \(errno) - \(String(cString: strerror(errno)))")
-                continue
-            }
-
-// Handle connection
-        let connection = UDSConnection(socket: clientSocket, logger: logger)
-        activeConnections.insert(connection)
-
-        // Plan 88 A-1: Validate peer using SO_PEERCRED
-        let validationResult = await peerValidator.validatePeer(socket_fd: clientSocket)
-        if case .failed(let reason) = validationResult {
-            logger.warning("Peer validation failed: \(reason)")
-            await connection.close()
-            activeConnections.remove(connection)
-            continue
-        }
-
-        Task {
-            await connection.handle()
-            activeConnections.remove(connection)
-        }
-        }
+    private func removeConnection(_ conn: UDSConnection) {
+        activeConnections.remove(conn)
     }
 
     /// Detect Virtio-FS mount

@@ -23,7 +23,7 @@
 
 
 /// Represents an external secret reference.
-public struct ExternalSecret: Codable {
+public struct ExternalSecret: Codable, Equatable {
     /// True if the secret is external
     public let isExternal: Bool
     /// Optional name of the external secret if different from key

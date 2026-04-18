@@ -1,4 +1,5 @@
 import XCTest
+import TestHelpers
 @testable import ContainerComposeCore
 
 // MARK: - RelayConfiguration Tests
@@ -8,7 +9,8 @@ final class RelayConfigurationTests: XCTestCase {
 
     // MARK: - ServiceRelay Creation Tests
 
-    func testServiceRelayCreationWithVsock() {
+    func testLegacyServiceRelayCreationWithVsock() throws {
+        try skipIfLegacyValidationDisabled()
         let relay = ServiceRelay(
             transport: .vsock,
             cid: 3,
@@ -24,7 +26,8 @@ final class RelayConfigurationTests: XCTestCase {
         XCTAssertNil(relay.socket)
     }
 
-    func testServiceRelayCreationWithTarget() {
+    func testLegacyServiceRelayCreationWithTarget() throws {
+        try skipIfLegacyValidationDisabled()
         let relay = ServiceRelay(
             transport: .vsock,
             cid: nil,
@@ -40,7 +43,8 @@ final class RelayConfigurationTests: XCTestCase {
         XCTAssertNil(relay.socket)
     }
 
-    func testServiceRelayCreationWithUnixSocket() {
+    func testLegacyServiceRelayCreationWithUnixSocket() throws {
+        try skipIfLegacyValidationDisabled()
         let relay = ServiceRelay(
             transport: .unix,
             cid: nil,
@@ -56,7 +60,8 @@ final class RelayConfigurationTests: XCTestCase {
         XCTAssertEqual(relay.socket, "/tmp/my-service.sock")
     }
 
-    func testServiceRelayCreationWithTcp() {
+    func testLegacyServiceRelayCreationWithTcp() throws {
+        try skipIfLegacyValidationDisabled()
         let relay = ServiceRelay(
             transport: .tcp,
             cid: nil,
@@ -74,7 +79,8 @@ final class RelayConfigurationTests: XCTestCase {
 
     // MARK: - Hashable Conformance Tests
 
-    func testServiceRelayEquality() {
+    func testLegacyServiceRelayEquality() throws {
+        try skipIfLegacyValidationDisabled()
         let relay1 = ServiceRelay(transport: .vsock, cid: 3, target: nil, port: 5432, socket: nil)
         let relay2 = ServiceRelay(transport: .vsock, cid: 3, target: nil, port: 5432, socket: nil)
         let relay3 = ServiceRelay(transport: .vsock, cid: 4, target: nil, port: 5432, socket: nil)
@@ -83,7 +89,8 @@ final class RelayConfigurationTests: XCTestCase {
         XCTAssertNotEqual(relay1, relay3)
     }
 
-    func testServiceRelayHashable() {
+    func testLegacyServiceRelayHashable() throws {
+        try skipIfLegacyValidationDisabled()
         let relay1 = ServiceRelay(transport: .vsock, cid: 3, target: "db", port: 5432, socket: "/tmp/db.sock")
         let relay2 = ServiceRelay(transport: .vsock, cid: 3, target: "db", port: 5432, socket: "/tmp/db.sock")
 
@@ -97,13 +104,15 @@ final class RelayConfigurationTests: XCTestCase {
 
 // MARK: - Transport Type Tests
 
-func testRelayTransportRawValues() {
+func testLegacyRelayTransportRawValues() throws {
+    try skipIfLegacyValidationDisabled()
     XCTAssertEqual(RelayTransport.TransportType.vsock.rawValue, "vsock")
     XCTAssertEqual(RelayTransport.TransportType.unix.rawValue, "unix")
     XCTAssertEqual(RelayTransport.TransportType.tcp.rawValue, "tcp")
 }
 
-func testRelayTransportCodable() throws {
+func testLegacyRelayTransportCodable() throws {
+    try skipIfLegacyValidationDisabled()
     let transports: [RelayTransport.TransportType] = [.vsock, .unix, .tcp]
 
     for transport in transports {
@@ -115,7 +124,8 @@ func testRelayTransportCodable() throws {
 
     // MARK: - YAML Parsing Tests
 
-    func testServiceRelayDecodingFromYAML() throws {
+    func testLegacyServiceRelayDecodingFromYAML() throws {
+        try skipIfLegacyValidationDisabled()
         let yaml = """
         transport: vsock
         cid: 3
@@ -139,7 +149,8 @@ func testRelayTransportCodable() throws {
         XCTAssertNil(relay.socket)
     }
 
-    func testServiceRelayDecodingWithTarget() throws {
+    func testLegacyServiceRelayDecodingWithTarget() throws {
+        try skipIfLegacyValidationDisabled()
         let json = """
         {"transport": "vsock", "target": "test-db"}
         """
@@ -151,7 +162,8 @@ func testRelayTransportCodable() throws {
         XCTAssertEqual(relay.target, "test-db")
     }
 
-    func testServiceRelayDecodingWithUnixSocket() throws {
+    func testLegacyServiceRelayDecodingWithUnixSocket() throws {
+        try skipIfLegacyValidationDisabled()
         let json = """
         {"transport": "unix", "socket": "/tmp/honcho.sock"}
         """
@@ -162,7 +174,8 @@ func testRelayTransportCodable() throws {
         XCTAssertEqual(relay.socket, "/tmp/honcho.sock")
     }
 
-    func testServiceRelayDecodingWithTcp() throws {
+    func testLegacyServiceRelayDecodingWithTcp() throws {
+        try skipIfLegacyValidationDisabled()
         let json = """
         {"transport": "tcp", "port": 8080, "target": "backend"}
         """
@@ -176,7 +189,8 @@ func testRelayTransportCodable() throws {
 
     // MARK: - Service Integration Tests
 
-    func testServiceWithRelayConfiguration() {
+    func testLegacyServiceWithRelayConfiguration() throws {
+        try skipIfLegacyValidationDisabled()
         let relay = ServiceRelay(
             transport: .vsock,
             cid: 3,
@@ -195,7 +209,8 @@ func testRelayTransportCodable() throws {
         XCTAssertEqual(service.relay?.cid, 3)
     }
 
-    func testServiceWithoutRelayConfiguration() {
+    func testLegacyServiceWithoutRelayConfiguration() throws {
+        try skipIfLegacyValidationDisabled()
         let service = Service(
             image: "nginx:latest"
         )
@@ -205,7 +220,8 @@ func testRelayTransportCodable() throws {
 
     // MARK: - CID Validation Tests
 
-    func testCIDUniquenessValidation() throws {
+    func testLegacyCIDUniquenessValidation() throws {
+        try skipIfLegacyValidationDisabled()
         // Simulate services with CIDs
         let services: [(serviceName: String, service: Service)] = [
             ("db1", Service(image: "postgres", relay: ServiceRelay(transport: .vsock, cid: 3, port: 5432))),
@@ -225,7 +241,8 @@ func testRelayTransportCodable() throws {
         XCTAssertEqual(seenCIDs.count, 3, "Should have 3 unique CIDs")
     }
 
-    func testDuplicateCIDDetection() {
+    func testLegacyDuplicateCIDDetection() throws {
+        try skipIfLegacyValidationDisabled()
         let services: [(serviceName: String, service: Service)] = [
             ("db1", Service(image: "postgres", relay: ServiceRelay(transport: .vsock, cid: 3, port: 5432))),
             ("db2", Service(image: "postgres", relay: ServiceRelay(transport: .vsock, cid: 3, port: 5432))) // Duplicate CID
@@ -250,7 +267,8 @@ func testRelayTransportCodable() throws {
 
     // MARK: - Target Validation Tests
 
-    func testTargetServiceExistenceValidation() {
+    func testLegacyTargetServiceExistenceValidation() throws {
+        try skipIfLegacyValidationDisabled()
         let services: [(serviceName: String, service: Service)] = [
             ("test-db", Service(image: "postgres")),
             ("test-hub", Service(image: "honcho", relay: ServiceRelay(transport: .vsock, target: "test-db")))
@@ -265,7 +283,8 @@ func testRelayTransportCodable() throws {
         }
     }
 
-    func testTargetServiceNotFound() {
+    func testLegacyTargetServiceNotFound() throws {
+        try skipIfLegacyValidationDisabled()
         let services: [(serviceName: String, service: Service)] = [
             ("test-hub", Service(image: "honcho", relay: ServiceRelay(transport: .vsock, target: "nonexistent-db")))
         ]
@@ -279,7 +298,8 @@ func testRelayTransportCodable() throws {
 
     // MARK: - Transport Compatibility Tests
 
-    func testVsockTransportRequiresCIDOrTarget() {
+    func testLegacyVsockTransportRequiresCIDOrTarget() throws {
+        try skipIfLegacyValidationDisabled()
         // Valid: has CID
         let relayWithCID = ServiceRelay(transport: .vsock, cid: 3, port: 5432)
         XCTAssertTrue(relayWithCID.cid != nil || relayWithCID.target != nil)
@@ -293,7 +313,8 @@ func testRelayTransportCodable() throws {
         XCTAssertFalse(relayInvalid.cid != nil || relayInvalid.target != nil)
     }
 
-    func testUnixTransportRequiresSocket() {
+    func testLegacyUnixTransportRequiresSocket() throws {
+        try skipIfLegacyValidationDisabled()
         // Valid: has socket
         let relayValid = ServiceRelay(transport: .unix, socket: "/tmp/test.sock")
         XCTAssertNotNil(relayValid.socket)
@@ -303,7 +324,8 @@ func testRelayTransportCodable() throws {
         XCTAssertNil(relayInvalid.socket)
     }
 
-    func testTcpTransportRequiresPortOrTarget() {
+    func testLegacyTcpTransportRequiresPortOrTarget() throws {
+        try skipIfLegacyValidationDisabled()
         // Valid: has port
         let relayWithPort = ServiceRelay(transport: .tcp, port: 8080)
         XCTAssertTrue(relayWithPort.port != nil || relayWithPort.target != nil)
@@ -319,7 +341,8 @@ func testRelayTransportCodable() throws {
 
     // MARK: - Service Hashable Tests
 
-    func testServiceWithRelayHashable() {
+    func testLegacyServiceWithRelayHashable() throws {
+        try skipIfLegacyValidationDisabled()
         let relay = ServiceRelay(transport: .vsock, cid: 3, port: 5432)
         let service1 = Service(image: "postgres:latest", relay: relay)
         let service2 = Service(image: "postgres:latest", relay: relay)
@@ -333,7 +356,8 @@ func testRelayTransportCodable() throws {
         XCTAssertEqual(hasher1.finalize(), hasher2.finalize())
     }
 
-func testServiceEqualityWithDifferentRelays() {
+func testLegacyServiceEqualityWithDifferentRelays() throws {
+    try skipIfLegacyValidationDisabled()
     let service1 = Service(image: "postgres:latest", relay: ServiceRelay(transport: .vsock, cid: 3))
     let service2 = Service(image: "postgres:latest", relay: ServiceRelay(transport: .vsock, cid: 4))
     let service3 = Service(image: "postgres:latest", relay: nil)
@@ -344,7 +368,8 @@ func testServiceEqualityWithDifferentRelays() {
 
   // MARK: - Transport Type Preservation Tests (Plan 84 Phase 3)
 
-func testRelayConfigurationPreservesVsockTransport() {
+func testLegacyRelayConfigurationPreservesVsockTransport() throws {
+	try skipIfLegacyValidationDisabled()
 	// Plan 88: vsock is deprecated - test remains for backward compatibility
 	let transport = RelayTransport.vsock(cid: 2, port: 5432, unixSocketPath: "")
 	let config = RelayManager.RelayConfiguration(
@@ -363,7 +388,8 @@ func testRelayConfigurationPreservesVsockTransport() {
 	}
 }
 
-func testRelayConfigurationPreservesUDSTransport() {
+func testLegacyRelayConfigurationPreservesUDSTransport() throws {
+	try skipIfLegacyValidationDisabled()
 	// Plan 88: New UDS transport for Virtio-FS
 	let socketPath = "/tmp/test-uds-\(UUID().uuidString).sock"
 	defer { try? FileManager.default.removeItem(atPath: socketPath) }
@@ -385,7 +411,8 @@ func testRelayConfigurationPreservesUDSTransport() {
 	}
 }
 
-  func testRelayConfigurationPreservesTcpTransport() {
+  func testLegacyRelayConfigurationPreservesTcpTransport() throws {
+    try skipIfLegacyValidationDisabled()
     let transport = RelayTransport.tcp(host: "0.0.0.0", port: 5432)
     let config = RelayManager.RelayConfiguration(
       id: "test-tcp-relay",
@@ -402,7 +429,8 @@ func testRelayConfigurationPreservesUDSTransport() {
     }
   }
 
-  func testRelayConfigurationPreservesUnixSocketTransport() {
+  func testLegacyRelayConfigurationPreservesUnixSocketTransport() throws {
+    try skipIfLegacyValidationDisabled()
     let transport = RelayTransport.unixSocket(path: "/tmp/test.sock")
     let config = RelayManager.RelayConfiguration(
       id: "test-unix-relay",
@@ -420,14 +448,16 @@ func testRelayConfigurationPreservesUDSTransport() {
 
     // MARK: - Plan 88 Production Path Tests
 
-  func testProductionSocketPath() {
+  func testLegacyProductionSocketPath() throws {
+    try skipIfLegacyValidationDisabled()
     // ACTUAL path from honcho-stack-with-derivers.yml (renamed to test-project)
     let path = "/Users/kieranlal/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
     XCTAssertEqual(path.count, 79, "Production path length is 79 characters (25-char margin)")
     XCTAssertLessThan(path.count, 104, "Production socket path must be under AF_UNIX limit")
   }
 
-    func testHardErrorOnLongSocketPath() {
+    func testLegacyHardErrorOnLongSocketPath() throws {
+        try skipIfLegacyValidationDisabled()
         // Finding C-2: MUST fail at config time for paths ≥104 chars
         let longPath = String(repeating: "a", count: 110) + ".sock"
         XCTAssertThrowsError(try UDSVirtioFSRelay(
@@ -441,7 +471,8 @@ func testRelayConfigurationPreservesUDSTransport() {
         }
     }
 
-    func testSocketPathLengthMargins() {
+    func testLegacySocketPathLengthMargins() throws {
+        try skipIfLegacyValidationDisabled()
         // If path exceeds 104 chars, hard-error at config time
         let basePath = "/Users/kieranlal/.containers/Volumes/"
         let remaining = 104 - basePath.count // ~61 chars

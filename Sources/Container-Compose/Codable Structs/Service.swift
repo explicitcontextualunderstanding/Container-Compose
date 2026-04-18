@@ -259,6 +259,10 @@ public let x_apple_relays: [AppleRelayConfig]?
   /// CamelCase accessor for x_apple_secrets (for test compatibility)
   public var xAppleSecrets: XAppleSecretsConfig? { x_apple_secrets }
 
+  /// Raw command string to pass directly to `container run` (Experiment 1)
+  /// Bypasses all internal command/entrypoint merging logic
+  public let x_apple_raw_command: String?
+
   /// Other services that depend on this service
   public var dependedBy: [String] = []
 
@@ -287,6 +291,7 @@ public let x_apple_relays: [AppleRelayConfig]?
         case image, build, deploy, restart, healthcheck, volumes, environment, env, env_file, ports, command, depends_on, user, container_name, networks, hostname, entrypoint, privileged, read_only, working_dir, configs, secrets, stdin_open, tty, platform, scheme, runtime, `init`, init_image, dns, dns_search, publish_socket, relay
         case x_apple_relays = "x-apple-relays"
         case x_apple_secrets = "x-apple-secrets"
+        case x_apple_raw_command = "x-apple-raw-command"
     }
     
     /// Public memberwise initializer for testing
@@ -325,6 +330,7 @@ public let x_apple_relays: [AppleRelayConfig]?
         relay: ServiceRelay? = nil,
   x_apple_relays: [AppleRelayConfig]? = nil,
     x_apple_secrets: XAppleSecretsConfig? = nil,
+    x_apple_raw_command: String? = nil,
     dependedBy: [String] = []
   ) {
     self.image = image
@@ -361,6 +367,7 @@ self.runtime = runtime
     self.relay = relay
     self.x_apple_relays = x_apple_relays
     self.x_apple_secrets = x_apple_secrets
+    self.x_apple_raw_command = x_apple_raw_command
     self.dependedBy = dependedBy
   }
 
@@ -392,18 +399,39 @@ self.runtime = runtime
         healthcheck = try container.decodeIfPresent(Healthcheck.self, forKey: .healthcheck)
         // Note: volumes validated below after env_file
         // Support both 'environment:' and shorthand 'env:' - env takes precedence as the shorthand
-    var mergedEnv = try container.decodeIfPresent([String: String].self, forKey: .environment)
-    if let envShort = try container.decodeIfPresent([String: String].self, forKey: .env) {
-      if var env = mergedEnv {
-        // Merge with env (shorthand) taking precedence
-        for (key, value) in envShort {
-          env[key] = value
+        // TODO(Phase 4): Remove list-format support after YAML sunset
+        // Pkl schemas use strict Mapping types
+        func decodeEnvironmentInternal(forKey key: CodingKeys) throws -> [String: String]? {
+            if let map = try? container.decodeIfPresent([String: String].self, forKey: key) {
+                return map
+            }
+            if let list = try? container.decodeIfPresent([String].self, forKey: key) {
+                var map: [String: String] = [:]
+                for entry in list {
+                    let parts = entry.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                    if parts.count == 2 {
+                        map[String(parts[0])] = String(parts[1])
+                    } else if parts.count == 1 {
+                        map[String(parts[0])] = ""
+                    }
+                }
+                return map
+            }
+            return nil
         }
-        mergedEnv = env
-      } else {
-        mergedEnv = envShort
-      }
-    }
+
+        var mergedEnv = try decodeEnvironmentInternal(forKey: .environment)
+        if let envShort = try decodeEnvironmentInternal(forKey: .env) {
+            if var env = mergedEnv {
+                // Merge with env (shorthand) taking precedence
+                for (key, value) in envShort {
+                    env[key] = value
+                }
+                mergedEnv = env
+            } else {
+                mergedEnv = envShort
+            }
+        }
         environment = mergedEnv
         env_file = try container.decodeIfPresent([String].self, forKey: .env_file)
 
@@ -549,6 +577,9 @@ self.runtime = runtime
 
     // Decode Apple secrets extension if present (Plan 86)
     x_apple_secrets = try container.decodeIfPresent(XAppleSecretsConfig.self, forKey: .x_apple_secrets)
+
+    // Decode Apple raw command extension if present (Experiment 1)
+    x_apple_raw_command = try container.decodeIfPresent(String.self, forKey: .x_apple_raw_command)
   }
     
     /// Returns the services in topological order based on `depends_on` relationships.
@@ -631,6 +662,9 @@ self.runtime = runtime
     try container.encodeIfPresent(dns_search, forKey: .dns_search)
     try container.encodeIfPresent(publish_socket, forKey: .publish_socket)
     try container.encodeIfPresent(relay, forKey: .relay)
+    try container.encodeIfPresent(x_apple_relays, forKey: .x_apple_relays)
+    try container.encodeIfPresent(x_apple_secrets, forKey: .x_apple_secrets)
+    try container.encodeIfPresent(x_apple_raw_command, forKey: .x_apple_raw_command)
   }
 
 // MARK: - Hashable Conformance (class requires explicit implementation)
@@ -666,7 +700,10 @@ self.runtime = runtime
     lhs.runtime == rhs.runtime &&
     lhs.init_image == rhs.init_image &&
     lhs.publish_socket == rhs.publish_socket &&
-    lhs.relay == rhs.relay
+    lhs.relay == rhs.relay &&
+    lhs.x_apple_relays == rhs.x_apple_relays &&
+    lhs.x_apple_secrets == rhs.x_apple_secrets &&
+    lhs.x_apple_raw_command == rhs.x_apple_raw_command
   }
 
   public func hash(into hasher: inout Hasher) {
@@ -701,5 +738,8 @@ self.runtime = runtime
     hasher.combine(init_image)
     hasher.combine(publish_socket)
     hasher.combine(relay)
+    hasher.combine(x_apple_relays)
+    hasher.combine(x_apple_secrets)
+    hasher.combine(x_apple_raw_command)
   }
 }

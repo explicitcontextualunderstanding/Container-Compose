@@ -1,0 +1,11 @@
+// Test fixture for Volume schema - External volume (boolean style)
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+volumes {
+  ["external"] {
+    name = "external-data"
+    `external` {
+      isExternal = true
+    }
+  }
+}

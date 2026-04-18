@@ -1,0 +1,6 @@
+name: parity-test
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "80:80"

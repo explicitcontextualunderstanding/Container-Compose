@@ -23,7 +23,7 @@
 
 
 /// Represents an external network reference.
-public struct ExternalNetwork: Codable {
+public struct ExternalNetwork: Codable, Equatable {
     /// True if the network is external
     public let isExternal: Bool
     // Optional name of the external network if different from key

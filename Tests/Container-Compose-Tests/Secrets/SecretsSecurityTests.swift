@@ -20,7 +20,7 @@ import os.log
 // Removed SecurityHardening import - AMFIRelayGating protocol is defined in ContainerComposeCore
 @testable import ContainerComposeCore
 
-@Suite("Secrets Security Tests")
+@Suite("Secrets Security Tests", .serialized)
 struct SecretsSecurityTests {
 
   // MARK: - Shell Environment Tests

@@ -180,43 +180,20 @@ public mutating func run() async throws {
         let state = ComposeDown.readStateFile(statePath)
         let stateContainers = state.containers
 
-    // Skip CWD scanning if -f was explicitly provided
-    if composeFile == nil {
-      // Check for supported filenames and extensions
-      let filenames = [
-        "compose.yml",
-        "compose.yaml",
-        "docker-compose.yml",
-        "docker-compose.yaml",
-      ]
-      for filename in filenames {
-        if fileManager.fileExists(atPath: "\(cwd)/\(filename)") {
-          foundFilename = filename
-          break
-        }
-      }
+    // Compose file discovery
+    let composePath: String
+    if let file = composeFile {
+        composePath = file.hasPrefix("/") ? file : "\(cwd)/\(file)"
+    } else if let discovered = ConfigLoader.discoverPath(in: cwd) {
+        composePath = discovered
+    } else {
+        throw YamlError.composeFileNotFound(cwd)
     }
 
-    // Read docker-compose.yml content
-    guard let yamlData = fileManager.contents(atPath: composePath) else {
-      let path = URL(fileURLWithPath: composePath)
-        .deletingLastPathComponent()
-        .path
-      throw YamlError.composeFileNotFound(path)
-    }
-
-    // Decode the YAML file into the DockerCompose struct
-    guard let dockerComposeString = String(data: yamlData, encoding: .utf8) else {
-      throw YamlError.invalidYamlEncoding
-    }
-
-    // Load .env file early so vars are available for pre-decode substitution
+    // Load configuration using the centralized Loader (handles substitution and Pkl evaluation)
     let envFilePath = "\(cwd)/.env"
     let environmentVariables = (try? loadEnvFile(path: envFilePath)) ?? [:]
-
-    // Pre-decode ${VAR} substitution (Docker Compose compatible with $$ escaping)
-    let resolvedYaml = try resolveYamlVariables(dockerComposeString, with: environmentVariables)
-    let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: resolvedYaml)
+    let dockerCompose = try ConfigLoader.load(path: composePath, environment: environmentVariables)
 
     // Determine project name for container naming
     if let name = dockerCompose.name {

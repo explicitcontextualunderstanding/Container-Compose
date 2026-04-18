@@ -1,0 +1,32 @@
+open module TestManifest
+
+/// Represents a progressive rung in the test ladder (1-18).
+typealias Rung = Int(this >= 1 && this <= 18)
+
+/// Represents a single categorical test entry.
+class Test {
+  /// Unique identifier for the test.
+  name: String
+
+  /// The Pkl fixture file to evaluate (relative to the manifest).
+  fixture: String
+
+  /// The rung this test belongs to.
+  rung: Rung
+
+  /// Optional description of what this test validates.
+  description: String?
+
+  /// Links to the legacy Swift tests that this Pkl test makes redundant.
+  legacy_test_links: List<String>?
+
+  /// Whether this test requires DUAL_PATH_VALIDATION (byte-for-byte parity).
+  requires_parity: Boolean = false
+
+  /// If true, the fixture is expected to fail evaluation (constraint violation).
+  /// Used for negative tests that verify Pkl rejects invalid input.
+  expected_failure: Boolean = false
+}
+
+/// The collection of all tests in the transition ladder.
+tests: List<Test>

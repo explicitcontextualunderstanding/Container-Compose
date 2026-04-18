@@ -1,0 +1,53 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/TestManifest.pkl"
+
+tests = List(
+  // Rung 1: Foundation
+  new Test { rung = 1; name = "Minimal"; fixture = "minimal.pkl"; description = "Base parsing proof" },
+  new Test { rung = 1; name = "EmptyServices"; fixture = "empty-services.pkl"; description = "Allow empty service maps" },
+  new Test { rung = 1; name = "RunId"; fixture = "honcho-pod-runid.pkl"; description = "Verify RUN_ID injection" },
+  new Test { rung = 1; name = "AgentId"; fixture = "honcho-pod-agentid.pkl"; description = "Verify AGENT_ID injection" },
+  new Test { rung = 1; name = "TestPort"; fixture = "honcho-pod-testport.pkl"; description = "Verify TEST_PORT_BASE injection" },
+
+  // Rung 2: Base Properties
+  new Test { rung = 2; name = "PodServices"; fixture = "honcho-pod-services.pkl" },
+  new Test { rung = 2; name = "PodVolumes"; fixture = "honcho-pod-volumes.pkl" },
+  new Test { rung = 2; name = "PodNetworks"; fixture = "honcho-pod-networks.pkl" },
+  new Test { rung = 2; name = "RestartPolicies"; fixture = "restart-policies.pkl" },
+  new Test { rung = 2; name = "CleanupPolicies"; fixture = "cleanup-policies.pkl" },
+  new Test { rung = 2; name = "DependsOn"; fixture = "depends-on-conditions.pkl" },
+
+  // Rung 3: Hardware & Safety Constraints
+  new Test { rung = 3; name = "InvalidCpu"; fixture = "invalid-cpu-limit.pkl"; expected_failure = true; legacy_test_links = List("testLegacyRejectsExcessiveCPULimit") },
+  new Test { rung = 3; name = "InvalidMem"; fixture = "invalid-memory-limit.pkl"; expected_failure = true; legacy_test_links = List("testLegacyRejectsExcessiveMemoryLimit") },
+  new Test { rung = 3; name = "CpuMax"; fixture = "cpu-boundary-max.pkl" },
+  new Test { rung = 3; name = "CpuOver"; fixture = "cpu-boundary-over.pkl"; expected_failure = true },
+  new Test { rung = 3; name = "MemExact"; fixture = "mem-boundary-exact.pkl" },
+  new Test { rung = 3; name = "MemOver"; fixture = "mem-boundary-over.pkl"; expected_failure = true },
+  new Test { rung = 3; name = "BoundaryRes"; fixture = "boundary-resources.pkl" },
+  new Test { rung = 3; name = "MultiConstraint"; fixture = "multi-constraint.pkl" },
+  new Test { rung = 3; name = "PartialFail"; fixture = "partial-fail.pkl"; expected_failure = true; description = "Regression: out-of-bounds memory check" },
+
+  // Rung 4: Format & Naming
+  new Test { rung = 4; name = "LongName"; fixture = "invalid-container-name-length.pkl"; expected_failure = true; legacy_test_links = List("testLegacyRejectsLongContainerName") },
+  new Test { rung = 4; name = "Name63"; fixture = "name-63.pkl" },
+  new Test { rung = 4; name = "Name64"; fixture = "name-64.pkl"; expected_failure = true },
+  new Test { rung = 4; name = "InvalidVolume"; fixture = "invalid-volume-format.pkl"; expected_failure = true; legacy_test_links = List("testLegacyRejectsInvalidVolumeFormat") },
+  new Test { rung = 4; name = "InvalidPort"; fixture = "invalid-port-format.pkl"; expected_failure = true; legacy_test_links = List("testLegacyRejectsInvalidPortFormat") },
+  new Test { rung = 4; name = "SecretTraversal"; fixture = "invalid-secret-path-traversal.pkl"; expected_failure = true },
+  new Test { rung = 4; name = "SecretHome"; fixture = "invalid-secret-path-home.pkl"; expected_failure = true },
+  new Test { rung = 4; name = "SecretNonAbs"; fixture = "invalid-secret-path-non-absolute.pkl"; expected_failure = true },
+
+  // Rung 5: Relay & Apple Extensions
+  new Test { rung = 5; name = "AppleRelay"; fixture = "x-apple-relay.pkl" },
+  new Test { rung = 5; name = "AppleRaw"; fixture = "x-apple-raw.pkl" },
+  new Test { rung = 5; name = "AlpineSocat"; fixture = "alpine-socat.pkl" },
+
+  // Rung 6: Security Hardening
+  new Test { rung = 6; name = "AppleSecrets"; fixture = "x-apple-secrets.pkl" },
+
+  // Rung 7: Production Parity
+  new Test { rung = 7; name = "HonchoHermes"; fixture = "honcho-hermes-full.pkl"; requires_parity = true },
+  new Test { rung = 7; name = "HonchoDb"; fixture = "honcho-db.pkl"; requires_parity = true },
+  new Test { rung = 7; name = "Hermes"; fixture = "hermes.pkl"; requires_parity = true },
+  new Test { rung = 7; name = "ServiceParity"; fixture = "full-service-parity.pkl"; requires_parity = true },
+)

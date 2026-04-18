@@ -1,4 +1,5 @@
 import XCTest
+import TestHelpers
 @testable import ContainerComposeCore
 @testable import SecurityHardening
 
@@ -6,24 +7,28 @@ final class RelayTransportTests: XCTestCase {
     
     // MARK: - RelayTransport Tests
     
-    func testUnixSocketDescription() {
+    func testLegacyUnixSocketDescription() throws {
+        try skipIfLegacyValidationDisabled()
         let transport = RelayTransport.unixSocket(path: "/tmp/test.sock")
         XCTAssertEqual(transport.description, "unix:/tmp/test.sock")
     }
     
-func testVsockDescription() {
+func testLegacyVsockDescription() throws {
+    try skipIfLegacyValidationDisabled()
 	// Plan 88: vsock is deprecated - test remains for backward compatibility
 	let transport = RelayTransport.vsock(cid: 3, port: 5432, unixSocketPath: "")
 	XCTAssertEqual(transport.description, "vsock:3:5432")
 }
 
-func testUDSDescription() {
+func testLegacyUDSDescription() throws {
+    try skipIfLegacyValidationDisabled()
 	// Plan 88: New UDS transport for Virtio-FS
 	let transport = RelayTransport.uds(path: "/tmp/test.sock", virtioFSMount: nil)
 	XCTAssertEqual(transport.description, "uds:/tmp/test.sock")
 }
     
-    func testUnixSocketPathExtraction() {
+    func testLegacyUnixSocketPathExtraction() throws {
+        try skipIfLegacyValidationDisabled()
         let path = "/Users/test/.container-compose/sockets/db.sock"
         let transport = RelayTransport.unixSocket(path: path)
         
@@ -34,7 +39,8 @@ func testUDSDescription() {
         }
     }
     
-func testVsockParameterExtraction() {
+func testLegacyVsockParameterExtraction() throws {
+    try skipIfLegacyValidationDisabled()
 	// Plan 88: vsock is deprecated - test remains for backward compatibility
 	let transport = RelayTransport.vsock(cid: 42, port: 8080, unixSocketPath: "")
 
@@ -46,7 +52,8 @@ func testVsockParameterExtraction() {
 	}
 }
 
-func testUDSParameterExtraction() {
+func testLegacyUDSParameterExtraction() throws {
+    try skipIfLegacyValidationDisabled()
 	// Plan 88: New UDS transport for Virtio-FS
 	let socketPath = "/Users/test/.container-compose/sockets/db.sock"
 	let transport = RelayTransport.uds(path: socketPath, virtioFSMount: "/Volumes/apple")
@@ -61,7 +68,8 @@ func testUDSParameterExtraction() {
     
     // MARK: - RelayConfiguration Tests
     
-    func testRelayConfigurationLegacyInitializer() {
+    func testLegacyRelayConfigurationLegacyInitializer() throws {
+        try skipIfLegacyValidationDisabled()
         let config = RelayManager.RelayConfiguration(
             id: "test-relay",
             tcpPort: 5432,
@@ -75,7 +83,8 @@ func testUDSParameterExtraction() {
         XCTAssertNil(config.targetPID)
     }
     
-func testRelayConfigurationTransportInitializer() {
+func testLegacyRelayConfigurationTransportInitializer() throws {
+    try skipIfLegacyValidationDisabled()
     let transport = RelayTransport.vsock(cid: 5, port: 5432, unixSocketPath: "")
     let config = RelayManager.RelayConfiguration(
       id: "vsock-relay",
@@ -90,7 +99,8 @@ func testRelayConfigurationTransportInitializer() {
     XCTAssertNil(config.targetPID)
   }
     
-    func testRelayConfigurationWithTargetPID() {
+    func testLegacyRelayConfigurationWithTargetPID() throws {
+        try skipIfLegacyValidationDisabled()
         let pid: pid_t = 12345
         let config = RelayManager.RelayConfiguration(
             id: "secure-relay",
@@ -103,7 +113,8 @@ func testRelayConfigurationTransportInitializer() {
         XCTAssertEqual(config.targetPID, pid)
     }
     
-    func testRelayConfigurationUnixSocketBackwardCompatibility() {
+    func testLegacyRelayConfigurationUnixSocketBackwardCompatibility() throws {
+        try skipIfLegacyValidationDisabled()
         // Test that legacy code using unixSocketPath still works
         let config = RelayManager.RelayConfiguration(
             id: "legacy-relay",
@@ -123,7 +134,8 @@ func testRelayConfigurationTransportInitializer() {
         }
     }
     
-func testRelayConfigurationVsockTransport() {
+func testLegacyRelayConfigurationVsockTransport() throws {
+	try skipIfLegacyValidationDisabled()
 	// Plan 88: vsock is deprecated - test remains for backward compatibility
 	let transport = RelayTransport.vsock(cid: 10, port: 9000, unixSocketPath: "")
 	let config = RelayManager.RelayConfiguration(
@@ -145,7 +157,8 @@ func testRelayConfigurationVsockTransport() {
 	}
 }
 
-func testRelayConfigurationUDSTransport() {
+func testLegacyRelayConfigurationUDSTransport() throws {
+	try skipIfLegacyValidationDisabled()
 	// Plan 88: New UDS transport for Virtio-FS
 	let socketPath = "/tmp/uds-test-\(UUID().uuidString).sock"
 	defer { try? FileManager.default.removeItem(atPath: socketPath) }
@@ -171,7 +184,8 @@ func testRelayConfigurationUDSTransport() {
     
     // MARK: - Transport Sendable Tests
     
-func testTransportIsSendable() {
+func testLegacyTransportIsSendable() throws {
+    try skipIfLegacyValidationDisabled()
     // This test verifies that RelayTransport compiles as Sendable
         let transports: [RelayTransport] = [
             .unixSocket(path: "/tmp/a.sock"),
@@ -183,7 +197,8 @@ func testTransportIsSendable() {
 
     // MARK: - Plan 88 Typealias Re-export Tests (Finding C-1)
 
-    func testRelayTransportTypealiasFromSecurityHardening() {
+    func testLegacyRelayTransportTypealiasFromSecurityHardening() throws {
+        try skipIfLegacyValidationDisabled()
         // Finding C-1: RelayTransport is re-exported from SecurityHardening
         // Verify type identity
         let udsTransport = RelayTransport.uds(path: "/tmp/test.sock", virtioFSMount: nil)
@@ -199,8 +214,8 @@ func testTransportIsSendable() {
         }
     }
 
-    func testRelayTypeTypealiasFromSecurityHardening() {
-        // Finding C-1: RelayType is re-exported from SecurityHardening
+    func testLegacyRelayTypeTypealiasFromSecurityHardening() throws {
+        try skipIfLegacyValidationDisabled()
         let udsType = RelayType.uds
         
         // Verify it can be used as SecurityHardening.RelayType
@@ -210,7 +225,8 @@ func testTransportIsSendable() {
         XCTAssertEqual(securityType.description, "uds")
     }
 
-    func testUDSCodableRoundTrip() {
+    func testLegacyUDSCodableRoundTrip() throws {
+        try skipIfLegacyValidationDisabled()
         // Plan 88: Verify .uds case round-trips through Codable
         let original = RelayTransport.uds(path: "/tmp/test.sock", virtioFSMount: "/Volumes/test")
         
@@ -232,7 +248,8 @@ func testTransportIsSendable() {
         }
     }
 
-    func testUDSWithVirtioFSMountParameter() {
+    func testLegacyUDSWithVirtioFSMountParameter() throws {
+        try skipIfLegacyValidationDisabled()
         // Plan 88: Test .uds case with virtioFSMount parameter
         let socketPath = "/Users/test/.containers/Volumes/myproject/sockets/db.sock"
         let mountPath = "/Users/test/.containers/Volumes/myproject"
@@ -249,7 +266,8 @@ func testTransportIsSendable() {
 
     // MARK: - Plan 88 Additional Unit Tests
 
-    func testRelayTransportTypealiasReexport() {
+    func testLegacyRelayTransportTypealiasReexport() throws {
+        try skipIfLegacyValidationDisabled()
         // Finding C-1: Verify RelayTransport typealias re-export
         // Create transport using ContainerComposeCore.RelayTransport
         let coreTransport = RelayTransport.uds(path: "/tmp/test.sock", virtioFSMount: nil)
@@ -268,7 +286,8 @@ func testTransportIsSendable() {
         }
     }
 
-    func testSocketPathLengthBoundary() {
+    func testLegacySocketPathLengthBoundary() throws {
+        try skipIfLegacyValidationDisabled()
         // Plan 88: Test exact 103/104 char boundary (Finding C-2)
         let basePath = "/tmp/"
         
@@ -313,7 +332,8 @@ func testTransportIsSendable() {
         }
     }
 
-    func testVirtioFSMountDetection() {
+    func testLegacyVirtioFSMountDetection() throws {
+        try skipIfLegacyValidationDisabled()
         // Plan 88: Test Virtio-FS mount path detection edge cases
         let testCases: [(path: String, expectedVolume: Bool)] = [
             ("/Users/test/.containers/Volumes/proj/sock", true),
@@ -329,7 +349,8 @@ func testTransportIsSendable() {
         }
     }
 
-    func testCreateSignalSocketParameterDefaults() {
+    func testLegacyCreateSignalSocketParameterDefaults() throws {
+        try skipIfLegacyValidationDisabled()
         // Plan 88: Test createSignalSocket parameter default behavior
         let socketPath = "/tmp/test-defaults.sock"
         

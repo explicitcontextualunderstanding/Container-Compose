@@ -1,0 +1,7 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+services {
+  ["web"] {
+    image = "nginx:latest"
+  }
+}

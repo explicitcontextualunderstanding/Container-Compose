@@ -1,0 +1,11 @@
+// Test fixture for Network schema - External network
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+networks {
+  ["external"] {
+    name = "external-net"
+    `external` {
+      isExternal = true
+    }
+  }
+}

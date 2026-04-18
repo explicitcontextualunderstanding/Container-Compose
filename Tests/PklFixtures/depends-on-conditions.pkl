@@ -1,0 +1,29 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// All valid depends_on conditions exercised
+services {
+  ["dep-started"] {
+    image = "alpine:latest"
+    depends_on {
+      ["db"] {
+        condition = "service_started"
+      }
+    }
+  }
+  ["dep-healthy"] {
+    image = "alpine:latest"
+    depends_on {
+      ["db"] {
+        condition = "service_healthy"
+      }
+    }
+  }
+  ["dep-completed"] {
+    image = "alpine:latest"
+    depends_on {
+      ["db"] {
+        condition = "service_completed_successfully"
+      }
+    }
+  }
+}

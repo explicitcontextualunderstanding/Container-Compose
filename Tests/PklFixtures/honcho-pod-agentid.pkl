@@ -1,0 +1,3 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+AGENT_ID = 42

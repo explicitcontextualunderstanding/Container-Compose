@@ -1,0 +1,21 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// All valid restart policies exercised
+services {
+  ["no-policy"] {
+    image = "alpine:latest"
+    restart = "no"
+  }
+  ["always-policy"] {
+    image = "alpine:latest"
+    restart = "always"
+  }
+  ["on-failure-policy"] {
+    image = "alpine:latest"
+    restart = "on-failure"
+  }
+  ["unless-stopped-policy"] {
+    image = "alpine:latest"
+    restart = "unless-stopped"
+  }
+}

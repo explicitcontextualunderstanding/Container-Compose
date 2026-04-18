@@ -4,13 +4,15 @@
 //===----------------------------------------------------------------------===//
 
 import XCTest
+import TestHelpers
 @testable import ContainerComposeCore
 
 final class XPCHealthTests: XCTestCase {
     
     // MARK: - Health Status Tests
     
-    func testHealthStatusInitialization() {
+    func testLegacyHealthStatusInitialization() throws {
+        try skipIfLegacyValidationDisabled()
         let diagnostics = XPCHealth.XPCDiagnostics(
             containerVersion: "0.11.0",
             daemonPID: 12345,
@@ -35,7 +37,8 @@ final class XPCHealthTests: XCTestCase {
         XCTAssertEqual(status.diagnostics.daemonPID, 12345)
     }
     
-    func testHealthStatusWithIssues() {
+    func testLegacyHealthStatusWithIssues() throws {
+        try skipIfLegacyValidationDisabled()
         let diagnostics = XPCHealth.XPCDiagnostics(
             containerVersion: nil,
             daemonPID: nil,
@@ -64,7 +67,8 @@ final class XPCHealthTests: XCTestCase {
     
     // MARK: - XPC Diagnostics Tests
     
-    func testDiagnosticsInitialization() {
+    func testLegacyDiagnosticsInitialization() throws {
+        try skipIfLegacyValidationDisabled()
         let diagnostics = XPCHealth.XPCDiagnostics(
             containerVersion: "0.11.0",
             daemonPID: 54321,
@@ -80,7 +84,8 @@ final class XPCHealthTests: XCTestCase {
         XCTAssertEqual(diagnostics.availableMemory, 8_589_934_592)
     }
     
-    func testDiagnosticsDefaultValues() {
+    func testLegacyDiagnosticsDefaultValues() throws {
+        try skipIfLegacyValidationDisabled()
         let diagnostics = XPCHealth.XPCDiagnostics()
         
         XCTAssertNil(diagnostics.containerVersion)

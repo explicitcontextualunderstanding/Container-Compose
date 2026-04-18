@@ -1,0 +1,9 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+services {
+  ["app"] {
+    volumes {
+      "/data/missing-colon"
+    }
+  }
+}

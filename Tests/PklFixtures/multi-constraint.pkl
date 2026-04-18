@@ -1,0 +1,20 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// Multi-constraint service: cpu + memory + ports + volumes + depends_on all valid
+services {
+  ["multi-constraint"] {
+    image = "app:latest"
+    cpu = 4
+    memory = 4.gb
+    ports = List("8080:80", "443:443")
+    volumes = List("data:/var/lib/app", "config:/etc/app")
+    depends_on {
+      ["db"] {
+        condition = "service_healthy"
+      }
+      ["cache"] {
+        condition = "service_started"
+      }
+    }
+  }
+}

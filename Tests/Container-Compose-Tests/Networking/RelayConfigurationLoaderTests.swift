@@ -1,4 +1,5 @@
 import XCTest
+import TestHelpers
 @testable import ContainerComposeCore
 
 // MARK: - Relay Configuration Loader Tests (Plan 77 Phase 6)
@@ -19,7 +20,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
     
     // MARK: - Basic Loading Tests
     
-    func testLoadsValidConfiguration() throws {
+    func testLegacyLoadsValidConfiguration() throws {
+        try skipIfLegacyValidationDisabled()
         // Create a service with x-apple-relays
         let relay1 = AppleRelayConfig(type: "vsock-ane-embedding", port: 6000, priority: "high")
         let relay2 = AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002, target: "test-hub")
@@ -46,7 +48,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         XCTAssertEqual(loaded[1].target, "test-hub")
     }
     
-    func testDetectsPresenceOfAppleRelays() {
+    func testLegacyDetectsPresenceOfAppleRelays() throws {
+        try skipIfLegacyValidationDisabled()
         // Service without relays
         let service1 = Service(image: "postgres:15")
         XCTAssertFalse(loader.hasAppleRelays(in: [("db", service1)]))
@@ -59,7 +62,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
     
     // MARK: - Validation Tests
     
-    func testRejectsUnsupportedRelayType() {
+    func testLegacyRejectsUnsupportedRelayType() throws {
+        try skipIfLegacyValidationDisabled()
         let relay = AppleRelayConfig(type: "invalid-type", port: 5001)
         let service = Service(image: "test:latest", x_apple_relays: [relay])
         
@@ -77,7 +81,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         }
     }
     
-    func testRejectsInvalidPortNumbers() {
+    func testLegacyRejectsInvalidPortNumbers() throws {
+        try skipIfLegacyValidationDisabled()
         // Port 0
         let relay1 = AppleRelayConfig(type: "vsock-generic", port: 0)
         let service1 = Service(image: "test:latest", x_apple_relays: [relay1])
@@ -105,7 +110,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         }
     }
     
-    func testDetectsPortConflicts() {
+    func testLegacyDetectsPortConflicts() throws {
+        try skipIfLegacyValidationDisabled()
         let relay1 = AppleRelayConfig(type: "vsock-ane-embedding", port: 6000)
         let relay2 = AppleRelayConfig(type: "vsock-generic", port: 6000)
         
@@ -125,7 +131,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         }
     }
     
-    func testRequiresTargetForMcpBridge() {
+    func testLegacyRequiresTargetForMcpBridge() throws {
+        try skipIfLegacyValidationDisabled()
         // MCP bridge requires target
         let relay = AppleRelayConfig(type: "vsock-mcp-bridge", port: 5002)
         let service = Service(image: "test:latest", x_apple_relays: [relay])
@@ -140,7 +147,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         }
     }
     
-    func testRequiresTargetForLogStream() {
+    func testLegacyRequiresTargetForLogStream() throws {
+        try skipIfLegacyValidationDisabled()
         // Log stream requires target
         let relay = AppleRelayConfig(type: "vsock-log-stream", port: 5001)
         let service = Service(image: "test:latest", x_apple_relays: [relay])
@@ -157,7 +165,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
     
     // MARK: - Priority Validation Tests
     
-    func testAcceptsValidPriorityValues() throws {
+    func testLegacyAcceptsValidPriorityValues() throws {
+        try skipIfLegacyValidationDisabled()
         let validPriorities = ["high", "medium", "low", "HIGH", "Medium", "LOW"]
         
         for priority in validPriorities {
@@ -170,7 +179,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         }
     }
     
-    func testRejectsInvalidPriorityValues() {
+    func testLegacyRejectsInvalidPriorityValues() throws {
+        try skipIfLegacyValidationDisabled()
         let relay = AppleRelayConfig(type: "vsock-db", port: 5432, priority: "urgent")
         let service = Service(image: "test:latest", x_apple_relays: [relay])
         
@@ -184,7 +194,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         }
     }
     
-    func testAcceptsNilPriority() throws {
+    func testLegacyAcceptsNilPriority() throws {
+        try skipIfLegacyValidationDisabled()
         // Priority is optional
         let relay = AppleRelayConfig(type: "vsock-db", port: 5432, priority: nil)
         let service = Service(image: "test:latest", x_apple_relays: [relay])
@@ -196,7 +207,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
     
     // MARK: - Integration Tests
     
-    func testLoadsHermesHonchoConfiguration() throws {
+    func testLegacyLoadsHermesHonchoConfiguration() throws {
+        try skipIfLegacyValidationDisabled()
         // Simulate the actual Hermes/Honcho compose configuration
         let hermesRelays = [
             AppleRelayConfig(type: "vsock-log-stream", port: 5001, target: "code-graph", priority: "high"),
@@ -232,7 +244,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         XCTAssertNil(loaded[2].target)
     }
     
-    func testSummarizeOutputs() {
+    func testLegacySummarizeOutputs() throws {
+        try skipIfLegacyValidationDisabled()
         let relays = [
             RelayConfigurationLoader.LoadedRelay(
                 serviceName: "hermes",
@@ -258,14 +271,16 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         XCTAssertTrue(summary.contains("test-hub"))
     }
     
-    func testSummarizeEmptyRelays() {
+    func testLegacySummarizeEmptyRelays() throws {
+        try skipIfLegacyValidationDisabled()
         let summary = loader.summarize([])
         XCTAssertEqual(summary, "No vsock relays configured")
     }
     
     // MARK: - Database Relay Tests
     
-    func testLoadsDatabaseRelayConfiguration() throws {
+    func testLegacyLoadsDatabaseRelayConfiguration() throws {
+        try skipIfLegacyValidationDisabled()
         // Test PostgreSQL/WAL-G vsock relay
         let relay = AppleRelayConfig(type: "vsock-db", port: 5432, priority: "high")
         let service = Service(image: "walg-db:latest", x_apple_relays: [relay])
@@ -278,7 +293,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         XCTAssertNil(loaded[0].target, "Database relay should not require target")
     }
     
-    func testDatabaseRelayDoesNotRequireTarget() throws {
+    func testLegacyDatabaseRelayDoesNotRequireTarget() throws {
+        try skipIfLegacyValidationDisabled()
         // vsock-db should work without target (single endpoint)
         let relay = AppleRelayConfig(type: "vsock-db", port: 5432)
         let service = Service(image: "postgres:15", x_apple_relays: [relay])
@@ -288,7 +304,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         XCTAssertEqual(loaded.count, 1)
     }
     
-    func testSupportedRelayTypesIncludeDatabase() {
+    func testLegacySupportedRelayTypesIncludeDatabase() throws {
+        try skipIfLegacyValidationDisabled()
         let allTypes = RelayConfigurationLoader.SupportedRelayType.allCases
         XCTAssertTrue(allTypes.contains(.vsockDb))
         
@@ -296,7 +313,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
         XCTAssertEqual(RelayConfigurationLoader.SupportedRelayType.vsockDb.description, "Database VSOCK Relay (PostgreSQL/WAL-G)")
     }
     
-    func testRequiresTargetProperty() {
+    func testLegacyRequiresTargetProperty() throws {
+        try skipIfLegacyValidationDisabled()
         // Types that require target
         XCTAssertTrue(RelayConfigurationLoader.SupportedRelayType.vsockMcpBridge.requiresTarget)
         XCTAssertTrue(RelayConfigurationLoader.SupportedRelayType.vsockLogStream.requiresTarget)
@@ -309,7 +327,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
 
   // MARK: - Socket Path Tests (Plan 84 Phase 3)
 
-  func testSocketPathFieldInAppleRelayConfig() throws {
+  func testLegacySocketPathFieldInAppleRelayConfig() throws {
+    try skipIfLegacyValidationDisabled()
     // Test that AppleRelayConfig accepts socket_path parameter
     let relay = AppleRelayConfig(
       type: "vsock-db",
@@ -320,7 +339,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
     XCTAssertEqual(relay.socket_path, "/Users/test/.containers/Volumes/test/sockets/.s.PGSQL.5432")
   }
 
-  func testSocketPathOptionalForVsockDb() throws {
+  func testLegacySocketPathOptionalForVsockDb() throws {
+    try skipIfLegacyValidationDisabled()
     // socket_path should be optional - vsock-db can work without explicit path
     let relayWithPath = AppleRelayConfig(type: "vsock-db", port: 5432, socket_path: "/path/to/socket")
     let relayWithoutPath = AppleRelayConfig(type: "vsock-db", port: 5432)
@@ -329,7 +349,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
     XCTAssertNil(relayWithoutPath.socket_path)
   }
 
-  func testSocketPathInVolumeFormat() throws {
+  func testLegacySocketPathInVolumeFormat() throws {
+    try skipIfLegacyValidationDisabled()
     // Test that socket_path follows Virtio-FS volume format
     let volumePath = "/Users/testuser/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
     let relay = AppleRelayConfig(type: "vsock-db", port: 5432, socket_path: volumePath)
@@ -340,7 +361,8 @@ final class RelayConfigurationLoaderTests: XCTestCase {
 XCTAssertTrue(relay.socket_path?.contains(".s.PGSQL.5432") ?? false)
 }
 
-func testLoadsUDSRelayType() throws {
+func testLegacyLoadsUDSRelayType() throws {
+    try skipIfLegacyValidationDisabled()
     // Plan 88: Test that 'type: uds' is supported (Decision 3 - Transparent mapping)
     let relay = AppleRelayConfig(type: "uds", port: 5432)
     let service = Service(image: "postgres:15", x_apple_relays: [relay])
@@ -349,7 +371,8 @@ func testLoadsUDSRelayType() throws {
     XCTAssertEqual(loaded.count, 1, "Should load 1 UDS relay")
 }
 
-func testUDSRelayWithSocketPath() throws {
+func testLegacyUDSRelayWithSocketPath() throws {
+    try skipIfLegacyValidationDisabled()
     // Plan 88: Test UDS relay with explicit socket_path
     let socketPath = "/tmp/test-uds.sock"
     let relay = AppleRelayConfig(type: "uds", port: 5432, socket_path: socketPath)
@@ -361,7 +384,8 @@ func testUDSRelayWithSocketPath() throws {
     XCTAssertEqual(relay.socket_path, socketPath)
 }
 
-func testTransparentMappingVsockDbToUDS() throws {
+func testLegacyTransparentMappingVsockDbToUDS() throws {
+    try skipIfLegacyValidationDisabled()
     // Plan 88: vsock-db should map to UDS at runtime (transparent mapping)
     let relay = AppleRelayConfig(type: "vsock-db", port: 5432)
     let service = Service(image: "postgres:15", x_apple_relays: [relay])

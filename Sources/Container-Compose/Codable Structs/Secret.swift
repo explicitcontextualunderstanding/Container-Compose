@@ -23,7 +23,7 @@
 
 
 /// Represents a top-level secret definition (primarily for Swarm).
-public struct Secret: Codable {
+public struct Secret: Codable, Equatable {
     /// Path to the file containing the secret content
     public let file: String?
     /// Environment variable to populate with the secret content

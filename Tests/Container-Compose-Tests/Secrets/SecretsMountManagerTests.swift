@@ -19,7 +19,7 @@ import Foundation
 import OSLog
 @testable import ContainerComposeCore
 
-@Suite("SecretsMountManager Tests")
+@Suite("SecretsMountManager Tests", .serialized)
 struct SecretsMountManagerTests {
 
   // MARK: - Mock Enclave Setup
@@ -332,7 +332,7 @@ let options = await manager.buildMountOptions(config: config)
 
 // MARK: - Mock File Manager Extension
 
-@Suite("SecretsMountManager Error Scenarios")
+@Suite("SecretsMountManager Error Scenarios", .serialized)
 struct SecretsMountManagerErrorTests {
 
   @Test("Handle permission denied on enclave read")
@@ -397,7 +397,7 @@ struct SecretsMountManagerErrorTests {
 
 // MARK: - SecretsMount Struct Tests
 
-@Suite("SecretsMount Struct Tests")
+@Suite("SecretsMount Struct Tests", .serialized)
 struct SecretsMountStructTests {
 
   @Test("Create SecretsMount with all properties")

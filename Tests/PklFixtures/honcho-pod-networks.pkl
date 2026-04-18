@@ -1,0 +1,8 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+networks {
+  ["frontend"] {
+    driver = "bridge"
+    name = "my-frontend"
+  }
+}

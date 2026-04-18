@@ -1,0 +1,35 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// All valid cleanup policies exercised
+services {
+  ["cleanup-immediate"] {
+    image = "alpine:latest"
+    x_apple_secrets {
+      mount = "/run/secrets"
+      read_only = true
+      noexec = true
+      nosuid = true
+      cleanup = "immediate"
+    }
+  }
+  ["cleanup-on-stop"] {
+    image = "alpine:latest"
+    x_apple_secrets {
+      mount = "/run/secrets"
+      read_only = true
+      noexec = true
+      nosuid = true
+      cleanup = "on_stop"
+    }
+  }
+  ["cleanup-manual"] {
+    image = "alpine:latest"
+    x_apple_secrets {
+      mount = "/run/secrets"
+      read_only = true
+      noexec = true
+      nosuid = true
+      cleanup = "manual"
+    }
+  }
+}

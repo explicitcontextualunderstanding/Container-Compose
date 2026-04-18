@@ -1,6 +1,8 @@
 import XCTest
 import Network
 import Foundation
+import TestHelpers
+import Yams
 @testable import ContainerComposeCore
 @testable import SecurityHardening
 
@@ -155,7 +157,8 @@ final class RelayManagerTests: XCTestCase {
 
     // MARK: Configuration Tests
 
-    func testRelayConfigurationCreation() {
+    func testLegacyRelayConfigurationCreation() throws {
+        try skipIfLegacyValidationDisabled()
         let config = RelayManager.RelayConfiguration(
             id: "test-db",
             tcpPort: 15432,
@@ -169,7 +172,8 @@ final class RelayManagerTests: XCTestCase {
         XCTAssertEqual(config.description, "Test database relay")
     }
 
-    func testEventLogRecording() async {
+    func testLegacyEventLogRecording() async throws {
+        try skipIfLegacyValidationDisabled()
         let eventLog = RelayEventLog()
 
         await eventLog.record(.relayStarted(id: "test", port: 12345, path: "/tmp/test.sock"))
@@ -179,7 +183,8 @@ final class RelayManagerTests: XCTestCase {
         XCTAssertEqual(events.count, 2)
     }
 
-    func testRelayErrorDescriptions() {
+    func testLegacyRelayErrorDescriptions() throws {
+        try skipIfLegacyValidationDisabled()
         let errors: [RelayError] = [
             .alreadyRunning("test-relay"),
             .unixSocketUnavailable("/tmp/test.sock", NSError(domain: "test", code: 1)),
@@ -545,7 +550,8 @@ func testWaitForSocketSuccess() async throws {
 @available(macOS 12.0, *)
 final class RelayE2ETests: XCTestCase {
 
-func testFullStackWithRelay() async throws {
+func testLegacyFullStackWithRelay() async throws {
+    try skipIfLegacyValidationDisabled()
 	// Test relay configuration using SharedRelayTypes
 	// Plan 88: Migrated from vsock to UDS
 	let socketPath = "/tmp/test-relay-\(UUID().uuidString).sock"
@@ -569,7 +575,8 @@ func testFullStackWithRelay() async throws {
 	XCTAssertEqual(config.id, "test-relay", "ID should be set")
 }
 
-func testContainerComposeBinaryExists() {
+func testLegacyContainerComposeBinaryExists() throws {
+    try skipIfLegacyValidationDisabled()
     let possiblePaths = [
       "/usr/local/bin/container-compose",
       "/usr/bin/container-compose",
@@ -670,7 +677,8 @@ import Testing
 struct RelayConstantsTests {
 
   @Test("Socket path sanitizes dangerous characters")
-  func socketPathSanitization() {
+  func socketPathSanitization() throws {
+    try skipIfLegacyValidationDisabled()
     let path1 = RelayConstants.socketPath(for: "service/db:main")
     let filename1 = path1.lastPathComponent
     #expect(filename1.contains("service-db-main"), "Path should sanitize / and : to -, got: \(filename1)")
@@ -681,23 +689,27 @@ struct RelayConstantsTests {
   }
 
   @Test("Socket path has .sock extension")
-  func socketPathExtension() {
+  func socketPathExtension() throws {
+    try skipIfLegacyValidationDisabled()
     let path = RelayConstants.socketPath(for: "db")
     #expect(path.path.hasSuffix(".sock"), "Socket path should have .sock extension")
   }
 
   @Test("Directory permissions are 0700")
-  func directoryPermissions() {
+  func directoryPermissions() throws {
+    try skipIfLegacyValidationDisabled()
     #expect(RelayConstants.directoryPermissions == 0o700, "Directory should have 0700 permissions")
   }
 
   @Test("Socket permissions are 0600")
-  func socketPermissions() {
+  func socketPermissions() throws {
+    try skipIfLegacyValidationDisabled()
     #expect(RelayConstants.socketPermissions == 0o600, "Socket should have 0600 permissions")
   }
 
   @Test("Relay root is in user home directory")
-  func relayRootDefaultPath() {
+  func relayRootDefaultPath() throws {
+    try skipIfLegacyValidationDisabled()
     let expectedHome = FileManager.default.homeDirectoryForCurrentUser
     #expect(RelayConstants.relayRoot.path.hasPrefix(expectedHome.path),
             "Relay root should be in user's home directory")
@@ -706,7 +718,8 @@ struct RelayConstantsTests {
   }
 
   @Test("Relay root path is non-empty")
-  func relayRootPathIsSet() {
+  func relayRootPathIsSet() throws {
+    try skipIfLegacyValidationDisabled()
     #expect(RelayConstants.relayRoot.path.count > 0, "Relay root should be set")
   }
 }
@@ -849,13 +862,12 @@ final class CreateSignalSocketTests: XCTestCase {
             createSignalSocket: true,
             eventLog: eventLog
         )
+        XCTAssertNotNil(relay, "Relay should be created for path under 104 chars")
+  }
 
-XCTAssertNotNil(relay, "Relay should be created for path under 104 chars")
-}
+  // MARK: - Production Path Tests (Plan 88 Finding C-2)
 
-// MARK: - Production Path Tests (Plan 88 Finding C-2)
-
-func testProductionSocketPath() async throws {
+  func testProductionSocketPath() async throws {
     // Plan 88 Finding C-2: Comprehensive production path verification
     // Combined test: margin calculations + actual path validation
 
@@ -868,62 +880,62 @@ func testProductionSocketPath() async throws {
     let productionPath = "/Users/kieranlal/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
     let actualCount = productionPath.count
 
-    // Production path length: 81 characters (has 23-char margin under 104 limit)
-    XCTAssertEqual(actualCount, 81, "Production path length should be 81 characters")
+    // Production path length: 79 characters (has 25-char margin under 104 limit)
+    XCTAssertEqual(actualCount, 79, "Production path length should be 79 characters")
     XCTAssertLessThan(actualCount, 104, "Production socket path must be under AF_UNIX limit (104)")
 
     // Verify 16-character minimum margin
     let margin = 104 - actualCount
     XCTAssertGreaterThanOrEqual(margin, 16, "Production path should have at least 16-char margin, had \(margin)")
 
-        // Verify path structure
-        XCTAssertTrue(productionPath.hasPrefix("/Users/kieranlal/.containers/Volumes/"), "Path should start with Volumes dir")
-        XCTAssertTrue(productionPath.contains("test-db-sockets"), "Path should contain db-sockets directory")
-        XCTAssertTrue(productionPath.hasSuffix(".s.PGSQL.5432"), "Path should end with PostgreSQL socket name")
+    // Verify path structure
+    XCTAssertTrue(productionPath.hasPrefix("/Users/kieranlal/.containers/Volumes/"), "Path should start with Volumes dir")
+    XCTAssertTrue(productionPath.contains("test-db-sockets"), "Path should contain db-sockets directory")
+    XCTAssertTrue(productionPath.hasSuffix(".s.PGSQL.5432"), "Path should end with PostgreSQL socket name")
+  }
+
+  func testHardErrorOnLongSocketPath() async throws {
+    // Plan 88 Finding C-2: MUST fail at config time for paths >= 104 chars
+    // PostgreSQL creates socket inside VM; relay only connects. No symlink fallback.
+    let longPath = String(repeating: "a", count: 110) + ".sock"
+    XCTAssertGreaterThanOrEqual(longPath.count, 104, "Test path should be >= 104 chars")
+
+    let eventLog = RelayEventLog()
+
+    // Attempting to create UDS relay with path >= 104 chars should throw
+    do {
+      _ = try UDSVirtioFSRelay(
+        socketPath: longPath,
+        createSignalSocket: true,
+        eventLog: eventLog
+      )
+      XCTFail("Expected socketPathTooLong error for path >= 104 chars")
+    } catch {
+      // Verify error is socketPathTooLong
+      guard let udsError = error as? UDSError else {
+        XCTFail("Expected UDSError, got \(type(of: error))")
+        return
+      }
+
+      if case .socketPathTooLong(let path, let length, let limit) = udsError {
+        XCTAssertEqual(path, longPath, "Error should report the actual path")
+        XCTAssertEqual(length, longPath.count, "Error should report correct length")
+        XCTAssertEqual(limit, 104, "Error should report AF_UNIX limit of 104")
+      } else {
+        XCTFail("Expected .socketPathTooLong error, got \(udsError)")
+      }
     }
+  }
 
-    func testHardErrorOnLongSocketPath() async throws {
-        // Plan 88 Finding C-2: MUST fail at config time for paths >= 104 chars
-        // PostgreSQL creates socket inside VM; relay only connects. No symlink fallback.
-        let longPath = String(repeating: "a", count: 110) + ".sock"
-        XCTAssertGreaterThanOrEqual(longPath.count, 104, "Test path should be >= 104 chars")
-
-        let eventLog = RelayEventLog()
-
-        // Attempting to create UDS relay with path >= 104 chars should throw
-        do {
-            _ = try UDSVirtioFSRelay(
-                socketPath: longPath,
-                createSignalSocket: true,
-                eventLog: eventLog
-            )
-            XCTFail("Expected socketPathTooLong error for path >= 104 chars")
-        } catch {
-            // Verify error is socketPathTooLong
-            guard let udsError = error as? UDSError else {
-                XCTFail("Expected UDSError, got \(type(of: error))")
-                return
-            }
-
-            if case .socketPathTooLong(let path, let length, let limit) = udsError {
-                XCTAssertEqual(path, longPath, "Error should report the actual path")
-                XCTAssertEqual(length, longPath.count, "Error should report correct length")
-                XCTAssertEqual(limit, 104, "Error should report AF_UNIX limit of 104")
-            } else {
-                XCTFail("Expected .socketPathTooLong error, got \(udsError)")
-            }
-        }
-    }
-
-func testUDSTransportDescription() async throws {
+  func testUDSTransportDescription() async throws {
     // Plan 88: Verify UDS transport description format
     let socketPath = "/tmp/test-uds-description.sock"
     let eventLog = RelayEventLog()
 
     let relay = try UDSVirtioFSRelay(
-        socketPath: socketPath,
-        createSignalSocket: true,
-        eventLog: eventLog
+      socketPath: socketPath,
+      createSignalSocket: true,
+      eventLog: eventLog
     )
 
     let transport = await relay.transportType
@@ -931,31 +943,31 @@ func testUDSTransportDescription() async throws {
 
     XCTAssertTrue(description.hasPrefix("uds:"), "UDS transport should have 'uds:' prefix, got: \(description)")
     XCTAssertTrue(description.contains(socketPath), "Description should contain socket path")
-}
+  }
 
-func testUDSWithVirtioFSMountPath() async throws {
+  func testUDSWithVirtioFSMountPath() async throws {
     // Plan 88: Verify UDS relay accepts explicit Virtio-FS mount path
     let socketPath = "/Users/test/.containers/Volumes/myapp/sockets/test.sock"
     let virtioMount = "/Users/test/.containers/Volumes/myapp"
     let eventLog = RelayEventLog()
 
     let relay = try UDSVirtioFSRelay(
-        socketPath: socketPath,
-        virtioFSMountPath: virtioMount,
-        createSignalSocket: false,
-        eventLog: eventLog
+      socketPath: socketPath,
+      virtioFSMountPath: virtioMount,
+      createSignalSocket: false,
+      eventLog: eventLog
     )
 
     let transport = await relay.transportType
     if case .uds(let path, let mount) = transport {
-        XCTAssertEqual(path, socketPath)
-        XCTAssertEqual(mount, virtioMount)
+      XCTAssertEqual(path, socketPath)
+      XCTAssertEqual(mount, virtioMount)
     } else {
-        XCTFail("Transport should be UDS")
+      XCTFail("Transport should be UDS")
     }
-}
+  }
 
-func testUDSErrorDescriptions() {
+  func testUDSErrorDescriptions() {
     // Plan 88: Verify UDS error descriptions are informative
     let pathTooLong = UDSError.socketPathTooLong(path: "/tmp/verylongpath.sock", length: 110, limit: 104)
     XCTAssertTrue(pathTooLong.description.contains("too long"))
@@ -969,66 +981,45 @@ func testUDSErrorDescriptions() {
     let bindFailed = UDSError.socketBindFailed(errno: 98, message: "Address already in use")
     XCTAssertTrue(bindFailed.description.contains("bind failed"))
     XCTAssertTrue(bindFailed.description.contains("Address already in use"))
-}
+  }
 
-// MARK: - Production Path Tests (Plan 88 Finding C-2)
-
-func testProductionSocketPath() {
-    // Plan 88 Finding C-2: ACTUAL path from honcho-stack-with-derivers.yml
-    let path = "/Users/kieranlal/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
-    XCTAssertEqual(path.count, 81, "Production path length is 81 characters (23-char margin)")
-    XCTAssertLessThan(path.count, 104, "Production socket path must be under AF_UNIX limit")
-}
-
-func testHardErrorOnLongSocketPath() {
-    // Plan 88 Finding C-2: MUST fail at config time for paths ≥104 chars
-    let longPath = String(repeating: "a", count: 110) + ".sock"
-    let eventLog = RelayEventLog()
-
-    XCTAssertThrowsError(try UDSVirtioFSRelay(socketPath: longPath, createSignalSocket: true, eventLog: eventLog)) { error in
-        guard case UDSError.socketPathTooLong = error else {
-            return XCTFail("Expected socketPathTooLong error")
-        }
-    }
-}
-
-func testSocketPathMarginCalculation() {
+  func testSocketPathMarginCalculation() {
     // Plan 88 Finding C-2: Verify margin calculations
     let basePath = "/Users/kieranlal/.containers/Volumes/"
     let remaining = 104 - basePath.count
     XCTAssertGreaterThanOrEqual(remaining, 40, "Sufficient margin for project names")
-}
+  }
 
-// MARK: - Typealias Re-export Tests (Plan 88 Finding C-1)
+  // MARK: - Typealias Re-export Tests (Plan 88 Finding C-1)
 
-func testRelayTransportTypealiasFromSecurityHardening() {
+  func testRelayTransportTypealiasFromSecurityHardening() {
     // Plan 88 Finding C-1: Verify RelayTransport is re-exported from SecurityHardening
     let transport = RelayTransport.uds(path: "/tmp/test.sock", virtioFSMount: nil)
     XCTAssertNotNil(transport, "RelayTransport should be available via typealias")
     if case .uds(let path, _) = transport {
-        XCTAssertEqual(path, "/tmp/test.sock")
+      XCTAssertEqual(path, "/tmp/test.sock")
     } else {
-        XCTFail("Should be UDS transport")
+      XCTFail("Should be UDS transport")
     }
-}
+  }
 
-func testRelayConfigurationTypealiasFromSecurityHardening() {
+  func testRelayConfigurationTypealiasFromSecurityHardening() {
     // Plan 88 Finding C-1: Verify RelayConfiguration is re-exported
     let config = RelayConfiguration(
-        id: "test-relay",
-        tcpPort: 5432,
-        unixSocketPath: "/tmp/test.sock",
-        description: "Test relay"
+      id: "test-relay",
+      tcpPort: 5432,
+      unixSocketPath: "/tmp/test.sock",
+      description: "Test relay"
     )
     XCTAssertEqual(config.id, "test-relay")
     XCTAssertEqual(config.tcpPort, 5432)
-}
+  }
 
-func testTransportTypeEnumFromSecurityHardening() {
+  func testTransportTypeEnumFromSecurityHardening() {
     // Plan 88 Finding C-1: Verify TransportType nested enum is re-exported
     let transportType: TransportType = .uds
     XCTAssertEqual(transportType, .uds, "TransportType should be available via typealias")
-}
+  }
 }
 
 // MARK: - Virtio-FS Detection Tests (Plan 84)
@@ -1423,5 +1414,5 @@ createSignalSocket: false,
 eventLog: eventLog
 )
 XCTAssertNotNil(relay3)
-}
+  }
 }

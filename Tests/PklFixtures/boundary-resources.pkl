@@ -1,0 +1,8 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+services {
+  ["boundary"] {
+    cpu = 7 // Exactly HOST_MAX_CPU - 1
+    memory = 8192 // Exactly HOST_MAX_MEMORY
+  }
+}

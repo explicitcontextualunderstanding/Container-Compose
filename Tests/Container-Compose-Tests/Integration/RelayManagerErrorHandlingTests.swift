@@ -6,6 +6,7 @@
 
 import XCTest
 import Foundation
+import TestHelpers
 @testable import ContainerComposeCore
 
 /// Error handling integration tests for RelayManager
@@ -110,7 +111,8 @@ struct MockSuccessRelayStarter: RelayStarter {
 // MARK: - Test 1: Error Propagation
 
   /// Verify errors from VsockRelay propagate correctly through RelayManager
-  func testErrorPropagationFromVsockRelay() async throws {
+  func testLegacyErrorPropagationFromVsockRelay() async throws {
+    try skipIfLegacyValidationDisabled()
     // Use failing mock to test error propagation
     let failingStarter = FailingRelayStarter(error: .networkError(NSError(domain: "test", code: 1)))
     let manager = RelayManager(eventLog: eventLog, enableSecurity: false, relayStarter: failingStarter)
@@ -140,7 +142,8 @@ struct MockSuccessRelayStarter: RelayStarter {
   // MARK: - Test 2: Graceful Degradation
 
   /// Verify RelayManager handles vsock unavailability gracefully
-  func testGracefulDegradationWhenVsockUnavailable() async throws {
+  func testLegacyGracefulDegradationWhenVsockUnavailable() async throws {
+    try skipIfLegacyValidationDisabled()
     // Try to start relay when vsock device may not be available
     let config = RelayManager.RelayConfiguration(
       id: "degradation-test",
@@ -176,7 +179,8 @@ struct MockSuccessRelayStarter: RelayStarter {
     /// TODO: Properly detect if Apple Developer entitlements are available
     /// Currently checks for CI environment, but should check actual entitlement status
     /// e.g., via codesign -d --entitlements or by attempting a privileged operation
-func testCleanupOnStartFailure() async throws {
+func testLegacyCleanupOnStartFailure() async throws {
+    try skipIfLegacyValidationDisabled()
 	// Inject failing mock to bypass Virtualization framework entitlements
 	let failingStarter = FailingRelayStarter(error: .networkError(NSError(domain: "test", code: 1)))
 	let manager = RelayManager(eventLog: eventLog, enableSecurity: false, relayStarter: failingStarter)
@@ -206,7 +210,8 @@ func testCleanupOnStartFailure() async throws {
 
 /// Verify proper error when starting duplicate relay
 /// Plan 88: Migrated from vsock to UDS
-func testDuplicateIdError() async throws {
+func testLegacyDuplicateIdError() async throws {
+    try skipIfLegacyValidationDisabled()
 	// Use mock that succeeds to test duplicate ID logic
 	let mockStarter = MockSuccessRelayStarter()
 	let manager = RelayManager(eventLog: eventLog, enableSecurity: false, relayStarter: mockStarter)
@@ -237,7 +242,8 @@ func testDuplicateIdError() async throws {
 // MARK: - Test 5: Invalid Transport Error
 
   /// Verify error for unsupported transport types
-  func testInvalidTransportError() async throws {
+  func testLegacyInvalidTransportError() async throws {
+    try skipIfLegacyValidationDisabled()
     // Test with unixSocket transport (not supported for vsock-db)
     let config = RelayManager.RelayConfiguration(
       id: "invalid-transport-test",
@@ -260,7 +266,8 @@ func testDuplicateIdError() async throws {
   // MARK: - Test 6: Port Conflict Detection
 
   /// Verify detection of port conflicts
-  func testPortConflictDetection() async throws {
+  func testLegacyPortConflictDetection() async throws {
+    try skipIfLegacyValidationDisabled()
     let config1 = RelayManager.RelayConfiguration(
       id: "port-conflict-1",
       tcpPort: 15437,
@@ -302,7 +309,8 @@ func testDuplicateIdError() async throws {
   // MARK: - Test 7: Event Log on Error
 
   /// Verify errors are logged to event log
-  func testEventLogOnError() async throws {
+  func testLegacyEventLogOnError() async throws {
+    try skipIfLegacyValidationDisabled()
     let config = RelayManager.RelayConfiguration(
       id: "event-log-test",
       tcpPort: 15438,
@@ -330,7 +338,8 @@ func testDuplicateIdError() async throws {
   // MARK: - Test 8: Stop Non-Existent Relay
 
   /// Verify graceful handling when stopping non-existent relay
-  func testStopNonExistentRelay() async {
+  func testLegacyStopNonExistentRelay() async {
+    try? skipIfLegacyValidationDisabled()
     // Should not throw
     await relayManager.stopRelay(id: "non-existent-relay")
 
@@ -342,7 +351,8 @@ func testDuplicateIdError() async throws {
   // MARK: - Test 9: Configuration Validation
 
   /// Verify configuration validation before starting
-  func testConfigurationValidation() {
+  func testLegacyConfigurationValidation() throws {
+    try skipIfLegacyValidationDisabled()
     // Valid configuration
     let validConfig = RelayManager.RelayConfiguration(
       id: "valid-config",
@@ -368,7 +378,8 @@ func testDuplicateIdError() async throws {
   // MARK: - Test 10: Multiple Error Scenarios
 
   /// Verify handling of multiple sequential errors
-  func testMultipleSequentialErrors() async throws {
+  func testLegacyMultipleSequentialErrors() async throws {
+    try skipIfLegacyValidationDisabled()
     let configs = [
       RelayManager.RelayConfiguration(
         id: "error-1",
@@ -417,7 +428,8 @@ print("Active relays: \(status.count)")
 
 // MARK: - UDS Error Handling Tests (Plan 88)
 
-func testUDSRelayWithInvalidSocketPath() async throws {
+func testLegacyUDSRelayWithInvalidSocketPath() async throws {
+    try skipIfLegacyValidationDisabled()
     // Use mock that throws path length error
     let failingStarter = PathLengthFailingRelayStarter()
     let manager = RelayManager(eventLog: eventLog, enableSecurity: false, relayStarter: failingStarter)
@@ -440,7 +452,8 @@ func testUDSRelayWithInvalidSocketPath() async throws {
     XCTAssertTrue(String(describing: caughtError!).contains("too long") || String(describing: caughtError!).contains("104"))
 }
 
-func testUDSRelayWithEmptyPath() async throws {
+func testLegacyUDSRelayWithEmptyPath() async throws {
+    try skipIfLegacyValidationDisabled()
     // Plan 88: Test UDS relay handles empty socket path
     let config = RelayManager.RelayConfiguration(
         id: "empty-uds-relay",

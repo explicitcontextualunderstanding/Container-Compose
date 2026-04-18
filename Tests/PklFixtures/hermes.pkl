@@ -1,0 +1,40 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+import "../../Sources/Container-Compose/Internal/Schemas/Service.pkl"
+
+/// Hermes agent service fixture — exercises: image, environment, x_apple_relays, depends_on, networks
+services {
+  ["hermes-agent"] {
+    image = "hermes:latest"
+    environment {
+      ["HONCHO_HUB_URL"] = "vsock://honcho-hub:5002"
+      ["CODE_GRAPH_URL"] = "vsock://code-graph:5001"
+      ["LOG_LEVEL"] = "debug"
+    }
+    x_apple_relays {
+      new Service.AppleRelayConfig {
+        type = "vsock-log-stream"
+        port = 5001
+        target = "code-graph"
+      }
+      new Service.AppleRelayConfig {
+        type = "vsock-ane-embedding"
+        port = 6000
+        priority = "high"
+      }
+    }
+    depends_on {
+      ["honcho-hub"] {
+        condition = "service_healthy"
+      }
+      ["code-graph"] {
+        condition = "service_started"
+      }
+    }
+    networks {
+      "internal"
+    }
+    restart = "always"
+    tty = true
+    stdin_open = true
+  }
+}

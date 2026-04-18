@@ -1,0 +1,11 @@
+services:
+  test-db:
+    image: postgres:14
+    x-apple-raw-command: "postgres -c listen_addresses=* -c shared_buffers=256MB"
+    environment:
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 5

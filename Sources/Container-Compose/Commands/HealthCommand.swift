@@ -57,9 +57,8 @@ public struct HealthCommand: AsyncParsableCommand {
         let workingDir = cwd ?? FileManager.default.currentDirectoryPath
         let composePath = try deriveComposePath(from: file, cwd: workingDir)
         
- // Load compose file
- let yamlContent = try String(contentsOfFile: composePath, encoding: .utf8)
- let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlContent)
+        // Load configuration using the centralized Loader (handles substitution and Pkl evaluation)
+        let dockerCompose = try ConfigLoader.load(path: composePath, environment: [:])
 
  let projectName: String
  if let name = dockerCompose.name {
@@ -93,9 +92,35 @@ public struct HealthCommand: AsyncParsableCommand {
         var healthResults: [HealthStatus] = []
         
         for (serviceName, service) in services {
-            let containerName = service.container_name ?? "\(projectName)-\(serviceName)"
-            let status = try await checkServiceHealth(containerName: containerName, serviceName: serviceName, service: service)
-            healthResults.append(status)
+            let baseName = service.container_name ?? "\(projectName)-\(serviceName)"
+            let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] ?? "orphan"
+            
+            // Try standard name and CCT_ prefixed version
+            var status: HealthStatus?
+            let candidates = [
+                "CCT_\(runId)_\(baseName)",
+                "CCT_orphan_\(baseName)",
+                baseName
+            ]
+            
+            for containerName in candidates {
+                if let s = try? await checkServiceHealth(containerName: containerName, serviceName: serviceName, service: service) {
+                    if s.status != .missing {
+                        status = s
+                        break
+                    }
+                }
+            }
+            
+            let finalStatus = status ?? HealthStatus(
+                service: serviceName,
+                container: baseName,
+                status: .missing,
+                healthCheck: service.healthcheck != nil,
+                message: "Container not found (tried: \(candidates.joined(separator: ", ")))"
+            )
+            
+            healthResults.append(finalStatus)
         }
         
         if jsonOutput {
@@ -165,7 +190,9 @@ public struct HealthCommand: AsyncParsableCommand {
         }
         
         // Execute healthcheck command
+        print("[DIAGNOSTIC] Executing healthcheck for \(containerName)...")
         let healthy = try await executeHealthcheck(containerName: containerName, healthcheck: healthcheck)
+        print("[DIAGNOSTIC] Healthcheck result for \(containerName): \(healthy)")
         
         return HealthStatus(
             service: serviceName,
@@ -209,18 +236,26 @@ public struct HealthCommand: AsyncParsableCommand {
         // Print header
         print("\nSERVICE HEALTH STATUS")
         print(String(repeating: "-", count: 80))
-        print(String(format: "%-20s %-30s %-12s %-8s", "SERVICE", "CONTAINER", "STATUS", "CHECK"))
+        let sHeaderPadded = "SERVICE".padding(toLength: 20, withPad: " ", startingAt: 0)
+        let cHeaderPadded = "CONTAINER".padding(toLength: 30, withPad: " ", startingAt: 0)
+        let stHeaderPadded = "STATUS".padding(toLength: 12, withPad: " ", startingAt: 0)
+        let chHeaderPadded = "CHECK".padding(toLength: 8, withPad: " ", startingAt: 0)
+        print("\(sHeaderPadded) \(cHeaderPadded) \(stHeaderPadded) \(chHeaderPadded)")
         print(String(repeating: "-", count: 80))
         
         // Print results
         for result in results {
             let statusIcon = result.status.icon
-            print(String(format: "%-20s %-30s %@ %-12s %-8s", 
-                       result.service, 
-                       result.container, 
-                       statusIcon,
-                       result.status.rawValue,
-                       result.healthCheck ? "yes" : "no"))
+            let statusStr = result.status.rawValue
+            let checkStr = result.healthCheck ? "yes" : "no"
+            
+            // Use standard interpolation for stability
+            let servicePadded = result.service.padding(toLength: 20, withPad: " ", startingAt: 0)
+            let containerPadded = result.container.padding(toLength: 30, withPad: " ", startingAt: 0)
+            let statusPadded = statusStr.padding(toLength: 12, withPad: " ", startingAt: 0)
+            let checkPadded = checkStr.padding(toLength: 8, withPad: " ", startingAt: 0)
+            
+            print("\(servicePadded) \(containerPadded) \(statusIcon) \(statusPadded) \(checkPadded)")
         }
         
         print(String(repeating: "-", count: 80))
@@ -236,19 +271,13 @@ public struct HealthCommand: AsyncParsableCommand {
     
     private func deriveComposePath(from file: String?, cwd: String) throws -> String {
         if let file = file {
-            return file
+            return file.hasPrefix("/") ? file : "\(cwd)/\(file)"
         }
         
-        // Try standard compose file names
-        let candidates = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"]
-        for candidate in candidates {
-            let path = "\(cwd)/\(candidate)"
-            if FileManager.default.fileExists(atPath: path) {
-                return path
-            }
+        guard let path = ConfigLoader.discoverPath(in: cwd) else {
+            throw HealthCheckError("No compose file found in \(cwd)")
         }
-        
-        throw HealthCheckError("No compose file found in \(cwd)")
+        return path
     }
 }
 

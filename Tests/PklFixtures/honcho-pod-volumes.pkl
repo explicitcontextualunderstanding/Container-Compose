@@ -1,0 +1,8 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+volumes {
+  ["data"] {
+    driver = "local"
+    name = "my-data"
+  }
+}

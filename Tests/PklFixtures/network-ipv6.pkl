@@ -1,0 +1,18 @@
+// Test fixture for Network schema - IPv6 enabled
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+networks {
+  ["ipv6"] {
+    name = "dual-stack"
+    driver = "bridge"
+    enable_ipv6 = true
+    ipam {
+      config {
+        new {
+          subnet = "2001:db8::/64"
+          gateway = "2001:db8::1"
+        }
+      }
+    }
+  }
+}

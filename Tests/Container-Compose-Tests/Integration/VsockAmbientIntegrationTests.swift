@@ -25,6 +25,7 @@
 
 import XCTest
 import Yams
+import TestHelpers
 @testable import ContainerComposeCore
 
 /// Integration tests for x-apple-relays → RelayManager → Port Binding
@@ -33,7 +34,8 @@ final class VsockAmbientIntegrationTests: XCTestCase {
     // MARK: - Phase 0: YAML → RelayManager Integration
 
     /// Tests that ComposeUp sees x-apple-relays and includes service in relay processing
-    func testXAppleRelaysDetectedInServiceFilter() throws {
+    func testLegacyXAppleRelaysDetectedInServiceFilter() throws {
+        try skipIfLegacyValidationDisabled()
         let yamlString = """
         name: test-vsock
         services:
@@ -69,7 +71,8 @@ final class VsockAmbientIntegrationTests: XCTestCase {
     }
 
     /// Tests that RelayConfigurationLoader correctly parses x-apple-relays
-    func testRelayConfigurationLoaderParsesXAppleRelays() throws {
+    func testLegacyRelayConfigurationLoaderParsesXAppleRelays() throws {
+        try skipIfLegacyValidationDisabled()
         let yamlString = """
         name: test-relays
         services:
@@ -117,7 +120,8 @@ final class VsockAmbientIntegrationTests: XCTestCase {
 /// Plan 88: Migrated from vsock to UDS
 /// NOTE: Skipped in CLI environment due to TCC (Transparency, Consent, and Control)
 /// restrictions that prevent port binding without full macOS entitlements.
-func testRelayManagerRoutesUDSConfig() async throws {
+func testLegacyRelayManagerRoutesUDSConfig() async throws {
+    try skipIfLegacyValidationDisabled()
     throw XCTSkip("Requires TCC entitlements not available in CLI test environment")
 
 	let eventLog = RelayEventLog()
@@ -148,7 +152,8 @@ func testRelayManagerRoutesUDSConfig() async throws {
 
 /// Tests that RelayManager correctly tracks relay configuration
 /// Plan 88: Migrated from vsock to UDS
-func testRelayManagerConfigurationTracking() async throws {
+func testLegacyRelayManagerConfigurationTracking() async throws {
+    try skipIfLegacyValidationDisabled()
 	let eventLog = RelayEventLog()
 	let relayManager = RelayManager(eventLog: eventLog)
 
@@ -182,7 +187,8 @@ func testRelayManagerConfigurationTracking() async throws {
 
     /// Tests complete flow: YAML → RelayManager configuration
     /// NOTE: Skipped in CLI environment due to TCC restrictions on port binding.
-    func testFullOrchestrationYAMLToRelayConfig() async throws {
+    func testLegacyFullOrchestrationYAMLToRelayConfig() async throws {
+        try skipIfLegacyValidationDisabled()
         throw XCTSkip("Requires TCC entitlements not available in CLI test environment")
         
         let yamlString = """
@@ -251,7 +257,8 @@ XCTAssertEqual(loadedRelays.count, 1, "Should load 1 relay")
     // MARK: - Regression Tests
 
     /// Tests that services without x-apple-relays don't trigger relay startup
-    func testServicesWithoutRelaysDontStartRelays() throws {
+    func testLegacyServicesWithoutRelaysDontStartRelays() throws {
+        try skipIfLegacyValidationDisabled()
         let yamlString = """
         services:
           plain-service:
@@ -271,7 +278,8 @@ XCTAssertEqual(loadedRelays.count, 1, "Should load 1 relay")
     }
 
   /// Tests that multiple x-apple-relays on same service are all loaded
-  func testServiceWithMultipleRelays() throws {
+  func testLegacyServiceWithMultipleRelays() throws {
+    try skipIfLegacyValidationDisabled()
     let yamlString = """
       services:
         hermes:
@@ -307,7 +315,8 @@ XCTAssertEqual(loadedRelays.count, 1, "Should load 1 relay")
 
   // MARK: - createSignalSocket Tests (Plan 84 Phase 3)
 
-  func testVsockRelayDetectsVolumeSocketPath() {
+  func testLegacyVsockRelayDetectsVolumeSocketPath() throws {
+    try skipIfLegacyValidationDisabled()
     // Test that RelayManager detects Virtio-FS volume paths
     let volumeSocketPath = "/Users/testuser/.containers/Volumes/test-project/test-db-sockets/.s.PGSQL.5432"
     let standardSocketPath = "/Users/testuser/.container-compose/sockets/test.sock"
@@ -320,7 +329,8 @@ XCTAssertEqual(loadedRelays.count, 1, "Should load 1 relay")
     XCTAssertFalse(isVolumePath2, "Standard path should not be detected as volume")
   }
 
-  func testSocketPathInVsockDbConfiguration() throws {
+  func testLegacySocketPathInVsockDbConfiguration() throws {
+    try skipIfLegacyValidationDisabled()
     // Test that vsock-db relay config includes socket_path for Virtio-FS
     let yamlString = """
     name: test-vsock
@@ -346,7 +356,8 @@ XCTAssertEqual(loadedRelays.count, 1, "Should load 1 relay")
     XCTAssertEqual(firstRelay.socket_path, "/Users/test/.containers/Volumes/test/test-db-sockets/.s.PGSQL.5432")
   }
 
-  func testVsockDbWithoutSocketPath() throws {
+  func testLegacyVsockDbWithoutSocketPath() throws {
+    try skipIfLegacyValidationDisabled()
     // Test that vsock-db works without explicit socket_path (backward compatibility)
     let yamlString = """
     name: test-vsock

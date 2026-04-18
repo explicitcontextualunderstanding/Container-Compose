@@ -1,0 +1,3 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+RUN_ID = "test-run-123"

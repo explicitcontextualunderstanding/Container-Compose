@@ -1,0 +1,13 @@
+// Test fixture for Network schema - Internal network
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+networks {
+  ["internal"] {
+    name = "internal-only"
+    driver = "bridge"
+    `internal` = true
+    labels {
+      ["purpose"] = "isolated"
+    }
+  }
+}

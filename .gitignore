@@ -23,3 +23,4 @@ Container-Compose.entitlements.plist
 *.log.3
 
 .env
+.dual-path-streak

@@ -1,0 +1,31 @@
+// Test fixture for Network schema - Full network configuration
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+networks {
+  ["full"] {
+    name = "test-network"
+    driver = "bridge"
+    driver_opts {
+      ["com.docker.network.bridge.name"] = "br-test"
+    }
+    attachable = true
+    enable_ipv6 = false
+    `internal` = false
+    labels {
+      ["environment"] = "test"
+      ["project"] = "container-compose"
+    }
+    ipam {
+      config {
+        new {
+          subnet = "172.28.0.0/16"
+          gateway = "172.28.1.1"
+        }
+        new {
+          subnet = "172.29.0.0/16"
+          gateway = "172.29.1.1"
+        }
+      }
+    }
+  }
+}

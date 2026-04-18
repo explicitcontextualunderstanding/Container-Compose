@@ -1,0 +1,7 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+services {
+  ["web"] {
+    cpu = 8 // Illegal if HOST_MAX_CPU = 8 (max allowed is 7)
+  }
+}

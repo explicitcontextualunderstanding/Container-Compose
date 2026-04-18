@@ -188,10 +188,10 @@ check_xpc_health() {
     echo "=========================================="
     echo "XPC HEALTH CHECK: Apple Container Daemon"
     echo "=========================================="
-    if [ -f "$SCRIPT_DIR/.build/debug/Container-Compose" ]; then
-        "$SCRIPT_DIR/.build/debug/Container-Compose" xpc-health 2>&1 || true
+    if command -v container &> /dev/null; then
+        container system status 2>&1 || echo "⚠️  Container daemon not responding"
     else
-        echo "⚠️  Built binary not found — skipping XPC health check"
+        echo "⚠️  'container' CLI not available"
     fi
     echo ""
 }
@@ -356,8 +356,8 @@ cat > "$summary_file" << EOF
   "total_executed": $TOTAL_TESTS,
   "total_passed": $TOTAL_PASSED,
   "total_failed": $TOTAL_FAILED,
-  "skipped_targets": [$(IFS=,; printf '"%s"' "${SKIPPED_TARGETS[*]}")],
-  "failed_targets": [$(IFS=,; printf '"%s"' "${FAILED_TARGETS[*]}")],
+  "skipped_targets": [$(IFS=,; if [[ ${#SKIPPED_TARGETS[@]} -gt 0 ]]; then printf '"%s"' "${SKIPPED_TARGETS[*]}"; fi)],
+  "failed_targets": [$(IFS=,; if [[ ${#FAILED_TARGETS[@]} -gt 0 ]]; then printf '"%s"' "${FAILED_TARGETS[*]}"; fi)],
   "status": "$([ $TOTAL_FAILED -eq 0 ] && echo PASS || echo FAIL)"
 }
 EOF
@@ -378,10 +378,10 @@ if [[ -f "$RESOURCE_LOG" ]] && [[ -s "$RESOURCE_LOG" ]]; then
     critical=$(grep ",2$" "$RESOURCE_LOG" | wc -l | tr -d ' ')
     total=$(tail -n +2 "$RESOURCE_LOG" | wc -l | tr -d ' ')
 
-    echo "Memory (free MB): min=$min_free, max=$max_free, avg=$avg_free"
+    echo "Memory (free MB): min=${min_free:-N/A}, max=${max_free:-N/A}, avg=${avg_free:-N/A}"
     echo "Critical pressure samples: $critical / $total"
 
-    if [[ -n "$min_free" ]] && [[ "$min_free" -lt 500 ]]; then
+    if [[ -n "${min_free:-}" ]] && [[ "$min_free" =~ ^[0-9]+$ ]] && [[ "$min_free" -lt 500 ]]; then
         echo "⚠️  WARNING: Low memory detected — failures may be OOM, not logic bugs"
     fi
     echo "Log: $RESOURCE_LOG"

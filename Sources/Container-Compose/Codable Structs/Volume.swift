@@ -23,7 +23,7 @@
 
 
 /// Represents a top-level volume definition.
-public struct Volume: Codable {
+public struct Volume: Codable, Equatable {
     /// Volume driver (e.g., 'local')
     public let driver: String?
 

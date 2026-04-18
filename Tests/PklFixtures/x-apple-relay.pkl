@@ -1,0 +1,41 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+import "../../Sources/Container-Compose/Internal/Schemas/Service.pkl"
+
+/// VSOCK relay configuration fixture — exercises: x_apple_relays, relay, deploy
+services {
+  ["honcho-db-relay"] {
+    image = "postgres:15-alpine"
+    relay {
+      transport = "vsock"
+      cid = 3
+      port = 5432
+    }
+    x_apple_relays {
+      new Service.AppleRelayConfig {
+        type = "vsock-db"
+        port = 5432
+        priority = "high"
+        socket_path = "/var/run/db.sock"
+      }
+      new Service.AppleRelayConfig {
+        type = "tcp-fallback"
+        port = 15432
+        target = "localhost"
+      }
+    }
+    environment {
+      ["VSOCK_CID"] = "3"
+      ["VSOCK_PORT"] = "5432"
+    }
+    deploy {
+      mode = "replicated"
+      replicas = 1
+      resources {
+        limits {
+          cpus = "2.0"
+          memory = "2gb"
+        }
+      }
+    }
+  }
+}

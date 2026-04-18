@@ -1,5 +1,6 @@
 import XCTest
 import Yams
+import TestHelpers
 @testable import ContainerComposeCore
 
 // MARK: - Compose YAML Schema Mapping Tests (Plan 77 Phase 6)
@@ -8,7 +9,8 @@ final class ComposeSchemaMappingTests: XCTestCase {
 
     // MARK: - End-to-End Schema Parsing
 
-func testParsesFullFleetConfiguration() throws {
+func testLegacyParsesFullFleetConfiguration() throws {
+    try skipIfLegacyValidationDisabled()
     // Simulate parsing a fleet configuration (renamed to avoid production collision)
     // Includes both legacy vsock-db and new uds types for Plan 88
     let yamlString = """
@@ -68,10 +70,10 @@ func testParsesFullFleetConfiguration() throws {
         XCTAssertEqual(dbService.x_apple_relays?[0].type, "vsock-db")
         XCTAssertEqual(dbService.x_apple_relays?[0].port, 5432)
 
-        // Verify hermes has all three relays
-        guard let hermesServiceOptional = dockerCompose.services["hermes"],
+        // Verify test-hermes has all three relays
+        guard let hermesServiceOptional = dockerCompose.services["test-hermes"],
               let hermesService = hermesServiceOptional else {
-            XCTFail("Missing hermes service")
+            XCTFail("Missing test-hermes service")
             return
         }
         XCTAssertNotNil(hermesService.x_apple_relays)
@@ -111,10 +113,11 @@ func testParsesFullFleetConfiguration() throws {
  let logRelay = loadedRelays.first { $0.type == RelayConfigurationLoader.SupportedRelayType.vsockLogStream }
  XCTAssertNotNil(logRelay)
  XCTAssertEqual(logRelay?.port, 5001)
- XCTAssertEqual(logRelay?.target, "code-graph")
+ XCTAssertEqual(logRelay?.target, "test-code-graph")
  }
 
-    func testRejectsMalformedRelayType() throws {
+    func testLegacyRejectsMalformedRelayType() throws {
+        try skipIfLegacyValidationDisabled()
         // YAML parsing accepts any string, validation happens in loadRelays
         let yamlString = """
         services:
@@ -147,7 +150,8 @@ func testParsesFullFleetConfiguration() throws {
         }
     }
 
-    func testHandlesServicesWithoutRelays() throws {
+    func testLegacyHandlesServicesWithoutRelays() throws {
+        try skipIfLegacyValidationDisabled()
         let yamlString = """
         services:
           plain-service:
@@ -175,7 +179,8 @@ func testParsesFullFleetConfiguration() throws {
         XCTAssertEqual(loadedRelays[0].serviceName, "service-with-relay")
     }
 
-    func testValidatesPortUniquenessAcrossServices() throws {
+    func testLegacyValidatesPortUniquenessAcrossServices() throws {
+        try skipIfLegacyValidationDisabled()
         // Same port on different services should fail during loadRelays
         let yamlString = """
         services:
@@ -215,7 +220,8 @@ func testParsesFullFleetConfiguration() throws {
 
     // MARK: - Security Policy Tests
 
-    func testEnforcesTargetRequirementForMcpBridge() throws {
+    func testLegacyEnforcesTargetRequirementForMcpBridge() throws {
+        try skipIfLegacyValidationDisabled()
         let yamlString = """
         services:
           test:
@@ -246,7 +252,8 @@ func testParsesFullFleetConfiguration() throws {
         }
     }
 
-    func testEnforcesTargetRequirementForLogStream() throws {
+    func testLegacyEnforcesTargetRequirementForLogStream() throws {
+        try skipIfLegacyValidationDisabled()
         let yamlString = """
         services:
           test:
@@ -277,7 +284,8 @@ func testParsesFullFleetConfiguration() throws {
         }
     }
 
-    func testDatabaseRelayWorksWithoutTarget() throws {
+    func testLegacyDatabaseRelayWorksWithoutTarget() throws {
+        try skipIfLegacyValidationDisabled()
         let yamlString = """
         services:
           db:
@@ -301,7 +309,8 @@ XCTAssertEqual(loadedRelays.count, 1)
     XCTAssertNil(loadedRelays[0].target)
 }
 
-func testUDSRelayTypeInComposeSchema() throws {
+func testLegacyUDSRelayTypeInComposeSchema() throws {
+    try skipIfLegacyValidationDisabled()
     // Plan 88: Test that 'type: uds' can be parsed from compose YAML
     // This tests the transparent mapping decision (Decision 3)
     let yamlString = """

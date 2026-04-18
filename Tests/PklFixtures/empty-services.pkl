@@ -1,0 +1,1 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"

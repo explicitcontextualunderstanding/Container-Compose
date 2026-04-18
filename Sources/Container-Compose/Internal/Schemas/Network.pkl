@@ -1,0 +1,67 @@
+open module HonchoPod.Network
+
+// ============================================================
+// Network Schema for Container-Compose Pkl Integration
+// Ported from: Network.swift, ExternalNetwork.swift, IPAM.swift, IPAMConfig.swift
+// ============================================================
+
+/// Represents an external network reference.
+/// Ported from: ExternalNetwork.swift
+class ExternalNetwork {
+  /// True if the network is external (pre-existing)
+  isExternal: Boolean
+
+  /// Optional name of the external network if different from the key
+  name: String?
+}
+
+/// Represents an individual IPAM configuration block.
+/// Ported from: IPAMConfig.swift
+class IPAMConfig {
+  /// Subnet for the network (e.g., "172.28.0.0/16")
+  subnet: String?
+
+  /// Gateway for the network (e.g., "172.28.1.1")
+  gateway: String?
+}
+
+/// Represents IPAM (IP Address Management) configuration for a network.
+/// Ported from: IPAM.swift
+class IPAM {
+  /// IPAM configuration blocks
+  config: Listing<IPAMConfig>?
+}
+
+/// Represents a top-level network definition.
+/// Ported from: Network.swift
+class Network {
+  /// Network driver (e.g., 'bridge', 'overlay', 'macvlan')
+  driver: String?
+
+  /// Driver-specific options (key-value pairs)
+  driver_opts: Mapping<String, String>?
+
+  /// Allow standalone containers to attach to this network
+  attachable: Boolean?
+
+  /// Enable IPv6 networking
+  enable_ipv6: Boolean?
+
+  /// Restrict external access to the network
+  /// Uses backtick syntax to avoid Pkl keyword conflict with 'internal'
+  `internal`: Boolean?
+
+  /// Labels for the network (metadata key-value pairs)
+  labels: Mapping<String, String>?
+
+  /// IPAM configuration for custom IP addressing
+  ipam: IPAM?
+
+  /// Explicit name for the network
+  /// Must be non-empty if provided
+  name: String? (this == null || this.length > 0)
+
+  /// Indicates if the network is external (pre-existing)
+  /// Supports both `external: true` (boolean) and `external: { name: "my_net" }` (object)
+  `external`: ExternalNetwork?
+}

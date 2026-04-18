@@ -1,0 +1,7 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+services {
+  ["too-long"] {
+    container_name = "this-is-a-very-long-container-name-that-exceeds-the-maximum-limit-of-sixty-three-characters-allowed-by-the-schema"
+  }
+}

@@ -1,0 +1,17 @@
+// Test fixture for Volume schema - Basic volume via HonchoPod
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+volumes {
+  ["test"] {
+    name = "test-volume"
+    driver = "local"
+    driver_opts {
+      ["size"] = "10Gi"
+      ["type"] = "nfs"
+    }
+    labels {
+      ["environment"] = "test"
+      ["project"] = "container-compose"
+    }
+  }
+}

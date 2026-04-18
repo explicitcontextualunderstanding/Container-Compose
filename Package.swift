@@ -39,7 +39,10 @@ let package = Package(
         "Rainbow",
         "SecurityHardening",
       ],
-      path: "Sources/Container-Compose"
+      path: "Sources/Container-Compose",
+      resources: [
+        .copy("Internal/Schemas")
+      ]
     ),
         
         // Executable target

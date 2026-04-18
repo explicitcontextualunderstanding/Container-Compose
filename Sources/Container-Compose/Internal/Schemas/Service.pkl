@@ -1,0 +1,268 @@
+open module HonchoPod.Service
+
+// ============================================================
+// Enums & Typealiases
+// ============================================================
+
+/// Valid conditions for service dependencies
+typealias DependsOnCondition = "service_started" | "service_healthy" | "service_completed_successfully"
+
+/// Valid transport protocols for relays
+typealias TransportType = "vsock" | "tcp" | "unix"
+
+// ============================================================
+// Supporting Classes (ported from individual Swift files)
+// ============================================================
+
+/// Ported from: DependsOnEntry in Service.swift
+class DependsOnEntry {
+  condition: DependsOnCondition?
+}
+
+/// Ported from: Build.swift — supports both `build: .` and `build: { context, dockerfile, args }`
+class Build {
+  context: String
+  dockerfile: String?
+  args: Mapping<String, String>?
+  target: String?
+  secrets: Listing<BuildSecret>?
+}
+
+/// Ported from: BuildSecret.swift
+class BuildSecret {
+  id: String
+  env: String?
+  src: String?
+}
+
+/// Ported from: Deploy.swift
+class Deploy {
+  mode: String?
+  replicas: Int?
+  resources: DeployResources?
+  restart_policy: DeployRestartPolicy?
+}
+
+/// Ported from: DeployResources.swift
+class DeployResources {
+  limits: ResourceLimits?
+  reservations: ResourceReservations?
+}
+
+/// Ported from: ResourceLimits.swift
+class ResourceLimits {
+  cpus: String?
+  memory: String?
+}
+
+/// Ported from: ResourceReservations.swift
+class ResourceReservations {
+  cpus: String?
+  memory: String?
+  devices: Listing<DeviceReservation>?
+}
+
+/// Ported from: DeviceReservation.swift
+class DeviceReservation {
+  capabilities: Listing<String>?
+  driver: String?
+  count: String?
+  device_ids: Listing<String>?
+}
+
+/// Ported from: DeployRestartPolicy.swift
+class DeployRestartPolicy {
+  condition: String?
+  delay: String?
+  max_attempts: Int?
+  window: String?
+}
+
+/// Ported from: Healthcheck.swift
+class Healthcheck {
+  test: Listing<String>?
+  start_period: String?
+  interval: String?
+  retries: Int?
+  timeout: String?
+}
+
+/// Ported from: ServiceConfig.swift
+class ServiceConfig {
+  source: String
+  target: String?
+  uid: String?
+  gid: String?
+  mode: Int?
+}
+
+/// Ported from: ServiceSecret.swift
+class ServiceSecret {
+  source: String
+  target: String?
+  uid: String?
+  gid: String?
+  mode: Int?
+}
+
+/// Ported from: ServiceRelay in Service.swift
+class ServiceRelay {
+  transport: TransportType
+  cid: Int?
+  target: String?
+  port: Int?
+  socket: String?
+}
+
+/// Ported from: AppleRelayConfig in Service.swift
+class AppleRelayConfig {
+  type: String
+  port: Int
+  target: String?
+  priority: String?
+  socket_path: String?
+}
+
+/// Ported from: XAppleSecretsConfig.swift
+/// Enforces mount path validation and cleanup policy constraints
+typealias CleanupPolicy = "immediate" | "on_stop" | "manual"
+
+class XAppleSecretsConfig {
+  /// Mount path — must be absolute, no traversal
+  mount: String (startsWith("/") && !contains("..") && !contains("~"))
+  /// Filter specific secret names
+  filter: Listing<String>?
+  /// Mount read-only (default: true)
+  read_only: Boolean
+  /// No execution bit (default: true)
+  noexec: Boolean
+  /// No setuid bit (default: true)
+  nosuid: Boolean
+  /// Cleanup policy
+  cleanup: CleanupPolicy
+}
+
+// ============================================================
+// The Service Definition
+// ============================================================
+
+/// The definition of a Single Virtualized Service Node
+/// Ported from: Service.swift (37 properties + computed properties)
+class Service {
+  /// Docker image name
+  image: String?
+
+  /// Build configuration (context + dockerfile + args + secrets)
+  build: Build?
+
+  /// Deployment configuration (Swarm/Resources)
+  deploy: Deploy?
+
+  /// Apple Hypervisor explicit CPU allocation bounds
+  /// Dynamically evaluated against host telemetry injected by PklEvaluator.swift (Option B)
+  /// Source: LLMWiki concept "vm-resource-capping-based-on-physical-memory"
+  /// Fail-fast: HOST_MAX_CPU must be set by PklEvaluator.swift — no fallback to prevent phantom configs
+  cpu: Int? (this == null || (this >= 1 && this <= (read("env:HOST_MAX_CPU").toInt() - 1)))
+
+  /// Apple Hypervisor explicit memory allocation bounds (in MB)
+  /// Source: LLMWiki concept "ProcessInfo.physicalMemory"
+  /// Fail-fast: HOST_MAX_MEMORY must be set by PklEvaluator.swift — no fallback to prevent phantom configs
+  memory: Int? (this == null || (this >= 512 && this <= read("env:HOST_MAX_MEMORY").toInt()))
+
+  /// Explicit name for container: capped to 63 chars, enforcing K8s RFC-1123 DNS label
+  container_name: String? (this == null || this.length <= 63)
+
+  /// Restart policy (strict enum)
+  restart: String? (this == null || this == "no" || this == "always" || this == "on-failure" || this == "unless-stopped")
+
+  /// Strongly typed Healthcheck
+  healthcheck: Healthcheck?
+
+  /// Volume mounts — require `:` formatting (source:target)
+  volumes: Listing<String>? (this == null || this.every((it) -> it.contains(":")))
+
+  /// Environment variables (strict mapping — `env` shorthand is prohibited)
+  environment: Mapping<String, String>?
+
+  /// .env file references
+  env_file: Listing<String>?
+
+  /// Port mappings — require `:` formatting (host:container)
+  ports: Listing<String>? (this == null || this.every((it) -> it.contains(":")))
+
+  /// Command to execute (Array only — no folded strings, enforced by Listing type)
+  command: Listing<String>?
+
+  /// Strongly typed service dependency map
+  depends_on: Mapping<String, DependsOnEntry>?
+
+  /// User or UID
+  user: String?
+
+  /// Networks this service connects to
+  networks: Listing<String>?
+
+  /// Container hostname
+  hostname: String?
+
+  /// Entrypoint (Array only)
+  entrypoint: Listing<String>?
+
+  /// Privileged mode
+  privileged: Boolean?
+
+  /// Read-only root filesystem
+  read_only: Boolean?
+
+  /// Working directory
+  working_dir: String?
+
+  /// Platform architecture (e.g. "linux/arm64")
+  platform: String?
+
+  /// Registry scheme override (Apple Container extension)
+  scheme: String? (this == null || this == "http" || this == "https" || this == "auto")
+
+  /// Native init flag
+  `init`: Boolean?
+
+  /// Service-specific config usage (Swarm)
+  configs: Listing<ServiceConfig>?
+
+  /// Service-specific secret usage (Swarm)
+  secrets: Listing<ServiceSecret>?
+
+  /// Keep STDIN open
+  stdin_open: Boolean?
+
+  /// Allocate a pseudo-TTY
+  tty: Boolean?
+
+  /// DNS server(s)
+  dns: Listing<String>?
+
+  /// DNS search domain(s)
+  dns_search: Listing<String>?
+
+  /// Native runtime
+  runtime: String?
+
+  /// Native init-image
+  init_image: String?
+
+  /// Socket to publish from container to host
+  publish_socket: String?
+
+  /// Standard service relay
+  relay: ServiceRelay?
+
+  /// Apple Container vsock relay extensions (Plan 77 Phase 6)
+  `x-apple-relays`: Listing<AppleRelayConfig>?
+
+  /// Apple Container secrets extension (Plan 86)
+  /// Enforces mount path validation, cleanup policy, and permission constraints
+  `x-apple-secrets`: XAppleSecretsConfig?
+
+  /// Raw command string bypassing all parsing logic (Experiment 1)
+  x_apple_raw_command: String?
+}

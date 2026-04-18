@@ -1,0 +1,83 @@
+amends "../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+
+
+
+services {
+  ["honcho-db"] {
+    image = "postgres:15-alpine"
+    environment {
+      ["POSTGRES_USER"] = "postgres"
+      ["POSTGRES_DB"] = "honcho"
+      ["POSTGRES_PASSWORD"] = read("env:HONCHO_DB_PASSWORD")
+      ["VSOCK_CID"] = "2"
+      ["VSOCK_PORT"] = "5432"
+    }
+    `x-apple-relays` {
+      new {
+        type = "vsock-db"
+        port = 5432
+        priority = "high"
+      }
+    }
+  }
+
+  ["honcho-hub"] {
+    image = "nginx:alpine"
+    environment {
+      ["DATABASE_URL"] = "vsock://honcho-db:5432/honcho"
+    }
+    depends_on {
+      ["honcho-db"] {
+        condition = "service_healthy"
+      }
+    }
+    `x-apple-relays` {
+      new {
+        type = "vsock-mcp-bridge"
+        port = 5002
+        target = "hermes-agent"
+        priority = "high"
+      }
+    }
+  }
+
+  ["hermes-agent"] {
+    image = "alpine:latest"
+    environment {
+      ["HONCHO_HUB_URL"] = "vsock://honcho-hub:5002"
+      ["CODE_GRAPH_URL"] = "vsock://code-graph:5001"
+    }
+    depends_on {
+      ["honcho-hub"] {}
+    }
+    `x-apple-relays` {
+      new {
+        type = "vsock-log-stream"
+        port = 5001
+        target = "code-graph"
+      }
+      new {
+        type = "vsock-ane-embedding"
+        port = 6000
+        priority = "high"
+      }
+    }
+  }
+
+  ["code-graph"] {
+    image = "redis:alpine"
+    environment {
+      ["POSTGRES_URL"] = "vsock://honcho-db:5432/codegraph"
+    }
+    depends_on {
+      ["honcho-db"] {}
+    }
+    `x-apple-relays` {
+      new {
+        type = "vsock-generic"
+        port = 5001
+      }
+    }
+  }
+}

@@ -23,7 +23,7 @@
 
 
 /// Represents a top-level network definition.
-public struct Network: Codable {
+public struct Network: Codable, Equatable {
     /// Network driver (e.g., 'bridge', 'overlay')
     public let driver: String?
     /// Driver-specific options
@@ -71,13 +71,13 @@ public struct Network: Codable {
 }
 
 /// Represents IPAM configuration for a network.
-public struct IPAM: Codable {
+public struct IPAM: Codable, Equatable {
     /// IPAM configuration blocks
     public let config: [IPAMConfig]?
 }
 
 /// Represents an individual IPAM configuration block.
-public struct IPAMConfig: Codable {
+public struct IPAMConfig: Codable, Equatable {
     /// Subnet for the network
     public let subnet: String?
     /// Gateway for the network

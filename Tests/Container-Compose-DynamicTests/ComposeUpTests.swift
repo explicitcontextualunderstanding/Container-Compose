@@ -62,11 +62,13 @@ struct ComposeUpTests {
                 })
 
             // Assert correct container information (wp + nginx + mysql setup)
-            // Note: Container IDs may have CCT_orphan_ prefix, so use contains
-            guard let wordpressContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-wp") }),
-                  let webContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-web") }),
-                  let dbContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-db") })
+            // VICTORIA PROTOCOL: Use CCT_ prefix and project name
+            let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] ?? "orphan"
+            guard let wordpressContainer = containers.first(where: { $0.configuration.id == "CCT_\(runId)_\(folderName)-wp" }),
+                  let webContainer = containers.first(where: { $0.configuration.id == "CCT_\(runId)_\(folderName)-web" }),
+                  let dbContainer = containers.first(where: { $0.configuration.id == "CCT_\(runId)_\(folderName)-db" })
             else {
+                print("DEBUG: Available containers: \(containers.map { $0.configuration.id })")
                 throw Errors.containerNotFound
             }
 
@@ -180,11 +182,14 @@ struct ComposeUpTests {
                 timeout: 60 // Networks take longer to populate
             )
 
-            guard let nginxContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-nginx") }),
-                 let appContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-app") }),
-                 let dbContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-db") }),
-                 let redisContainer = containers.first(where: { $0.configuration.id.contains("\(folderName)-redis") })
+            // VICTORIA PROTOCOL: Use CCT_ prefix
+            let runId = ProcessInfo.processInfo.environment["CCT_RUN_ID"] ?? "orphan"
+            guard let nginxContainer = containers.first(where: { $0.configuration.id == "CCT_\(runId)_\(folderName)-nginx" }),
+                 let appContainer = containers.first(where: { $0.configuration.id == "CCT_\(runId)_\(folderName)-app" }),
+                 let dbContainer = containers.first(where: { $0.configuration.id == "CCT_\(runId)_\(folderName)-db" }),
+                 let redisContainer = containers.first(where: { $0.configuration.id == "CCT_\(runId)_\(folderName)-redis" })
             else {
+                print("DEBUG: Available containers: \(containers.map { $0.configuration.id })")
                 throw Errors.containerNotFound
             }
 

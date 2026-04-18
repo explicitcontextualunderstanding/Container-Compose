@@ -1,0 +1,11 @@
+// Test fixture for Volume schema - External volume with custom name
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+volumes {
+  ["named"] {
+    `external` {
+      isExternal = true
+      name = "production-data-volume"
+    }
+  }
+}

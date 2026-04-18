@@ -1,0 +1,8 @@
+// Test fixture for Volume schema - Minimal volume
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+volumes {
+  ["minimal"] {
+    driver = "zfs"
+  }
+}

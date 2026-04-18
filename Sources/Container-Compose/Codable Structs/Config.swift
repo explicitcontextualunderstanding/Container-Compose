@@ -23,7 +23,7 @@
 
 
 /// Represents a top-level config definition (primarily for Swarm).
-public struct Config: Codable {
+public struct Config: Codable, Equatable {
     /// Path to the file containing the config content
     public let file: String?
     /// Indicates if the config is external (pre-existing)

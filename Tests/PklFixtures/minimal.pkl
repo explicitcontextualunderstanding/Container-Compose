@@ -1,0 +1,8 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// Minimal service: image only, no optional fields
+services {
+  ["minimal"] {
+    image = "alpine:latest"
+  }
+}

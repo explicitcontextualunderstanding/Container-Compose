@@ -1,0 +1,37 @@
+open module HonchoPod.Volume
+
+// ============================================================
+// Volume Schema for Container-Compose Pkl Integration
+// Ported from: Volume.swift, ExternalVolume.swift
+// ============================================================
+
+/// Represents an external volume reference.
+/// Ported from: ExternalVolume.swift
+class ExternalVolume {
+  /// True if the volume is external (pre-existing)
+  isExternal: Boolean
+
+  /// Optional name of the external volume if different from the key
+  name: String?
+}
+
+/// Represents a top-level volume definition.
+/// Ported from: Volume.swift
+class Volume {
+  /// Volume driver (e.g., 'local', 'nfs', 'zfs')
+  driver: String?
+
+  /// Driver-specific options (key-value pairs)
+  driver_opts: Mapping<String, String>?
+
+  /// Explicit name for the volume
+  /// Must be non-empty if provided
+  name: String? (this == null || this.length > 0)
+
+  /// Labels for the volume (metadata key-value pairs)
+  labels: Mapping<String, String>?
+
+  /// Indicates if the volume is external (pre-existing)
+  /// Supports both `external: true` (boolean) and `external: { name: "my_vol" }` (object)
+  `external`: ExternalVolume?
+}

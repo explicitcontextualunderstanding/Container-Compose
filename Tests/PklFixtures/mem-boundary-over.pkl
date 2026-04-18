@@ -1,0 +1,9 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// Memory boundary: memory=8193.mb with HOST_MAX_MEMORY=8192 throws
+services {
+  ["mem-boundary-over"] {
+    image = "alpine:latest"
+    memory = 8193.mb
+  }
+}

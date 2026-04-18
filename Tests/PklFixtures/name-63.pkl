@@ -1,0 +1,9 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// Container name: exactly 63 characters passes
+services {
+  ["name-63"] {
+    image = "alpine:latest"
+    container_name = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvw"
+  }
+}

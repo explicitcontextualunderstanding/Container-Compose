@@ -1,0 +1,161 @@
+name: Dual-Path Validation
+
+on:
+  push:
+    branches: [main, feature/pkl-clean-room]
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - ".github/workflows/dual-path.yml"
+      - ".dual-path-streak"
+      - "run-tests.sh"
+      - "tests-manifest.json"
+  pull_request:
+    branches: [main, feature/pkl-clean-room]
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - ".github/workflows/dual-path.yml"
+      - ".dual-path-streak"
+      - "run-tests.sh"
+      - "tests-manifest.json"
+
+env:
+  # Prevent interactive prompts in CI
+  CONTAINER_COMPOSE_SKIP_AMFI: "1"
+
+jobs:
+  dual-path-tests:
+    name: Test Matrix (LEGACY_VALIDATION=${{ matrix.legacy_validation }})
+    runs-on: macos-26
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        legacy_validation: [0, 1]
+        include:
+          - legacy_validation: 0
+            mode_name: "Default (Fast - Skips Legacy)"
+          - legacy_validation: 1
+            mode_name: "Legacy Validation (Full Parity Check)"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install ruamel.yaml
+
+      - name: Report dual-path streak
+        id: streak
+        run: |
+          echo "=========================================="
+          echo "Dual-Path Sunset Clause Status"
+          echo "=========================================="
+          if [ -f .dual-path-streak ]; then
+            STREAK=$(cat .dual-path-streak | tr -d '[:space:]' || echo "0")
+            # Validate it's a number
+            if ! [[ "$STREAK" =~ ^[0-9]+$ ]]; then
+              STREAK=0
+            fi
+            echo "streak=$STREAK" >> $GITHUB_OUTPUT
+            echo "Current consecutive pass streak: $STREAK / 30"
+            if [ "$STREAK" -ge 30 ] 2>/dev/null; then
+              echo "🎉 SUNSET CLAUSE REACHED!"
+              echo "   The YAML path has achieved 30 consecutive passes."
+              echo "   Legacy tests may now be disabled."
+            else
+              REMAINING=$((30 - STREAK))
+              echo "📊 Need $REMAINING more consecutive passes to sunset YAML path"
+            fi
+          else
+            echo "streak=0" >> $GITHUB_OUTPUT
+            echo "No .dual-path-streak file found - starting from 0"
+          fi
+          echo ""
+
+      - name: Setup Swift
+        uses: maartene/setup-swift@main
+        with:
+          swift-version: "6.2"
+
+      - name: Cache Swift dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-dual-path-${{ matrix.legacy_validation }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-dual-path-${{ matrix.legacy_validation }}-
+            ${{ runner.os }}-spm-dual-path-
+            ${{ runner.os }}-spm-
+
+      - name: Build
+        run: swift build --build-tests
+
+      - name: Run tests - ${{ matrix.mode_name }}
+        env:
+          LEGACY_VALIDATION: ${{ matrix.legacy_validation }}
+        run: |
+          echo "=========================================="
+          echo "Running tests with LEGACY_VALIDATION=${LEGACY_VALIDATION}"
+          echo "Mode: ${{ matrix.mode_name }}"
+          echo "=========================================="
+          
+          if [ -f ./run-tests.sh ]; then
+            echo "Using run-tests.sh script..."
+            ./run-tests.sh
+          else
+            echo "run-tests.sh not found, running swift test directly..."
+            swift test
+          fi
+
+      - name: Update streak on success (LEGACY_VALIDATION=1 only)
+        if: matrix.legacy_validation == 1 && success() && github.ref == 'refs/heads/feature/pkl-clean-room'
+        run: |
+          # Increment streak on successful full parity check
+          if [ -f .dual-path-streak ]; then
+            CURRENT=$(cat .dual-path-streak | tr -d '[:space:]' || echo "0")
+            if ! [[ "$CURRENT" =~ ^[0-9]+$ ]]; then
+              CURRENT=0
+            fi
+            NEW_STREAK=$((CURRENT + 1))
+          else
+            NEW_STREAK=1
+          fi
+          echo "$NEW_STREAK" > .dual-path-streak
+          echo "Streak updated to: $NEW_STREAK"
+
+      - name: Reset streak on failure (LEGACY_VALIDATION=1 only)
+        if: matrix.legacy_validation == 1 && failure() && github.ref == 'refs/heads/feature/pkl-clean-room'
+        run: |
+          echo "0" > .dual-path-streak
+          echo "Streak reset to 0 due to test failure"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-legacy-${{ matrix.legacy_validation }}-${{ github.run_id }}
+          path: |
+            logs/
+            .build/debug/*Tests*
+            .dual-path-streak
+          if-no-files-found: ignore
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "Test Summary for LEGACY_VALIDATION=${{ matrix.legacy_validation }}"
+          echo "Mode: ${{ matrix.mode_name }}"
+          echo "Status: ${{ job.status }}"
+          echo "=========================================="

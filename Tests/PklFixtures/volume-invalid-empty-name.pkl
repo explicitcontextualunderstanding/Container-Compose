@@ -1,0 +1,9 @@
+// Negative test: Empty name should fail constraint
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+volumes {
+  ["invalid"] {
+    name = ""
+    driver = "local"
+  }
+}

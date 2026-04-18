@@ -1,0 +1,9 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// CPU boundary: cpu=8 with HOST_MAX_CPU=8 throws (8 > 8-1)
+services {
+  ["cpu-boundary-over"] {
+    image = "alpine:latest"
+    cpu = 8
+  }
+}

@@ -1,0 +1,10 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// Multi-constraint partial failure: valid cpu but invalid memory
+services {
+  ["partial-fail"] {
+    image = "alpine:latest"
+    cpu = 2
+    memory = 16384
+  }
+}

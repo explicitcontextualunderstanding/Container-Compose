@@ -1,0 +1,74 @@
+open module HonchoPod
+
+import "Service.pkl"
+import "Volume.pkl" as VolumeModule
+import "Network.pkl" as NetworkModule
+
+/// Victoria Protocol run identifier — appended to all container names
+RUN_ID: String?
+
+/// Parallel testing agent execution context
+AGENT_ID: Int?
+
+/// Base port allocation offset for parallel scaling
+TEST_PORT_BASE: Int?
+
+/// Compose file format version (deprecated, but parsed for compatibility)
+version: String?
+
+/// Project name
+name: String?
+
+/// --- Type Aliases for Volume and Network ---
+/// Re-exported from Volume.pkl and Network.pkl for backward compatibility
+typealias Volume = VolumeModule.Volume
+typealias ExternalVolume = VolumeModule.ExternalVolume
+typealias Network = NetworkModule.Network
+typealias ExternalNetwork = NetworkModule.ExternalNetwork
+typealias IPAM = NetworkModule.IPAM
+typealias IPAMConfig = NetworkModule.IPAMConfig
+
+/// --- Top-level Config Definition (Swarm) ---
+class ExternalConfig {
+  isExternal: Boolean
+  name: String?
+}
+
+class Config {
+  file: String?
+  `external`: ExternalConfig?
+  name: String?
+  labels: Mapping<String, String>?
+}
+
+/// --- Top-level Secret Definition (Swarm) ---
+class ExternalSecret {
+  isExternal: Boolean
+  name: String?
+}
+
+class Secret {
+  file: String?
+  environment: String?
+  `external`: ExternalSecret?
+  name: String?
+  labels: Mapping<String, String>?
+}
+
+/// Global Apple secrets configuration
+class XAppleSecretsGlobalConfig {
+  version: String
+  enclave: String
+  default_mount: String
+  format: String (this == "files")
+  permissions: String
+  cleanup: Service.CleanupPolicy
+}
+
+/// Top-level compose structure
+services: Mapping<String, Service.Service>?
+volumes: Mapping<String, Volume>?
+networks: Mapping<String, Network>?
+configs: Mapping<String, Config>?
+secrets: Mapping<String, Secret>?
+  `x-apple-secrets`: XAppleSecretsGlobalConfig?

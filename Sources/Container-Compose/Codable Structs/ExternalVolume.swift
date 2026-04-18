@@ -23,7 +23,7 @@
 
 
 /// Represents an external volume reference.
-public struct ExternalVolume: Codable {
+public struct ExternalVolume: Codable, Equatable {
     /// True if the volume is external
     public let isExternal: Bool
     /// Optional name of the external volume if different from key

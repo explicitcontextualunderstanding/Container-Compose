@@ -103,21 +103,17 @@ public struct ComposePs: AsyncParsableCommand {
     public mutating func run() async throws {
         let workingDir = cwd ?? FileManager.default.currentDirectoryPath
 
-        // Compose file discovery
+        // Discovery and loading via centralized Loader
         let composePath: String
         if let filePath = file {
             composePath = filePath.hasPrefix("/") ? filePath : "\(workingDir)/\(filePath)"
+        } else if let discovered = ConfigLoader.discoverPath(in: workingDir) {
+            composePath = discovered
         } else {
-            let candidates = ["compose.yml", "compose.yaml", "docker-compose.yml", "docker-compose.yaml"]
-            guard let found = candidates.first(where: { FileManager.default.fileExists(atPath: "\(workingDir)/\($0)") }) else {
-                throw ComposePsError.composeFileNotFound(workingDir)
-            }
-            composePath = "\(workingDir)/\(found)"
+            throw ComposePsError.composeFileNotFound(workingDir)
         }
 
-        // Load compose file
-        let yamlContent = try String(contentsOfFile: composePath, encoding: .utf8)
-        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlContent)
+        let dockerCompose = try ConfigLoader.load(path: composePath, environment: [:])
 
         let projectName: String
         if let name = dockerCompose.name {
@@ -183,16 +179,10 @@ public struct ComposePs: AsyncParsableCommand {
 
     /// Static helper for tests: list services and return PsStatus array
     public static func listServices(cwd: String, serviceFilter: String? = nil) async throws -> [PsStatus] {
-        // Try standard compose file names
-        let candidates = ["compose.yml", "compose.yaml", "docker-compose.yml", "docker-compose.yaml"]
-        let composePath: String
-        if let found = candidates.first(where: { FileManager.default.fileExists(atPath: "\(cwd)/\($0)") }) {
-            composePath = "\(cwd)/\(found)"
-        } else {
+        guard let composePath = ConfigLoader.discoverPath(in: cwd) else {
             throw ComposePsError.composeFileNotFound(cwd)
         }
-        let yamlContent = try String(contentsOfFile: composePath, encoding: .utf8)
-        let dockerCompose = try YAMLDecoder().decode(DockerCompose.self, from: yamlContent)
+        let dockerCompose = try ConfigLoader.load(path: composePath, environment: [:])
 
         let projectName: String
         if let name = dockerCompose.name {

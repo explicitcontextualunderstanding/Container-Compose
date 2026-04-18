@@ -1,0 +1,9 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+/// Memory boundary: memory=8192.mb with HOST_MAX_MEMORY=8192 passes (exact match)
+services {
+  ["mem-boundary-exact"] {
+    image = "alpine:latest"
+    memory = 8192.mb
+  }
+}

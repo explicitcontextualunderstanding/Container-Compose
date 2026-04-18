@@ -1,0 +1,73 @@
+amends "../../Sources/Container-Compose/Internal/Schemas/HonchoPod.pkl"
+
+services {
+  ["parity-service"] {
+    image = "alpine"
+    build { 
+      context = "."
+      dockerfile = "Dockerfile" 
+    }
+    deploy { 
+      mode = "replicated"
+      replicas = 1 
+    }
+    restart = "always"
+    healthcheck { 
+      test { "CMD"; "ls" } 
+    }
+    volumes { "/host:/container" }
+    environment { 
+      ["KEY"] = "VALUE" 
+    }
+    env_file { ".env" }
+    ports { "80:80" }
+    command { 
+      "sleep"
+      "100" 
+    }
+    depends_on { 
+      ["other"] { condition = "service_healthy" } 
+    }
+    user = "root"
+    container_name = "parity-check"
+    networks { "frontend" }
+    hostname = "parity"
+    entrypoint { "/bin/sh" }
+    privileged = true
+    read_only = true
+    working_dir = "/app"
+    platform = "linux/arm64"
+    scheme = "https"
+    `init` = true
+    configs { 
+      new { source = "cfg" } 
+    }
+    secrets { 
+      new { source = "sec" } 
+    }
+    stdin_open = true
+    tty = true
+    dns { "8.8.8.8" }
+    dns_search { "local" }
+    runtime = "runc"
+    init_image = "init"
+    publish_socket = "/tmp/sock"
+    relay { 
+      transport = "vsock"
+      port = 1234 
+    }
+    x_apple_relays { 
+      new { type = "vsock"; port = 5678 } 
+    }
+    x_apple_secrets { 
+      mount = "/etc/secrets"
+      cleanup = "immediate"
+      read_only = true
+      noexec = true
+      nosuid = true 
+    }
+    x_apple_raw_command = "raw"
+    cpu = 1
+    memory = 512
+  }
+}

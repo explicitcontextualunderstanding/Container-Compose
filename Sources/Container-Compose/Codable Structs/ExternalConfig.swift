@@ -23,7 +23,7 @@
 
 
 /// Represents an external config reference.
-public struct ExternalConfig: Codable {
+public struct ExternalConfig: Codable, Equatable {
     /// True if the config is external
     public let isExternal: Bool
     /// Optional name of the external config if different from key
